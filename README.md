@@ -1,4 +1,4 @@
-# not-tech-bringam-frontend
+# not-tech-bringam-frontend-app
 
 
 
