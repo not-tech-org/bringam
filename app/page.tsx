@@ -1,9 +1,13 @@
 import Image from "next/image";
+import AppLayout from "./components/AppLayout";
+import Header from "./components/Header";
 
 export default function Home() {
   return (
-    <main>
-      Bringam - Frontend
-    </main>
+    <div>
+      <AppLayout>
+        <Header />
+      </AppLayout>
+    </div>
   );
 }
