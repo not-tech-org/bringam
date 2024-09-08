@@ -4,14 +4,13 @@ import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MdKeyboardArrowRight } from "react-icons/md";
+import { MdDashboard } from "react-icons/md";
 import { IoMenuSharp } from "react-icons/io5";
+import { AiOutlineShopping } from "react-icons/ai";
+import { MdOutlinePayment } from "react-icons/md";
+import { CgFileDocument } from "react-icons/cg";
+import { FaRegWindowRestore } from "react-icons/fa";
 import img1 from "../image/sampleman.png";
-import img2 from "../image/DashboardIcon.svg";
-import img3 from "../image/AnalyticsIcon.svg";
-import img4 from "../image/ProductsIcon.svg";
-import img5 from "../image/PaymentsIcon.svg";
-import img6 from "../image/OrdersIcon.svg";
-import img7 from "../image/StoreIcon.svg";
 import img8 from "../image/NotificationIcon.svg";
 import img9 from "../image/SettingsIcon.svg";
 import img10 from "../image/SupportIcon.svg";
@@ -47,33 +46,28 @@ const Sidebar = () => {
   const SidebarDataBusiness = [
     {
       title: "Dashboard",
-      path: "#",
-      icon: img2,
-    },
-    {
-      title: "Analytics",
-      path: "#",
-      icon: img3,
+      path: "/dashboard",
+      icon: <MdDashboard />,
     },
     {
       title: "Products",
       path: "/products",
-      icon: img4,
+      icon: <AiOutlineShopping />,
     },
     {
       title: "Payments",
       path: "#",
-      icon: img5,
+      icon: <MdOutlinePayment />,
     },
     {
       title: "Orders",
       path: "#",
-      icon: img6,
+      icon: <CgFileDocument />,
     },
     {
       title: "Store",
       path: "#",
-      icon: img7,
+      icon: <FaRegWindowRestore />,
     },
   ];
 
@@ -127,15 +121,23 @@ const Sidebar = () => {
                 key={index}>
                 <div
                   className={`flex rounded-md cursor-pointer text-Acc1 items-center w-full justify-between h-[40px] px-[10px] py-[5px]
-                  ${isActive ? "bg-gray-100" : "bg-transparent"}
+                  ${
+                    isActive
+                      ? "bg-bgActive border-2 border-bluePrimary text-bluePrimary"
+                      : "bg-transparent"
+                  }
               `}>
                   <Link href={path} className="flex items-center gap-2">
-                    <Image
-                      src={icon}
-                      alt={title}
-                      className="text-textGray w-[23.73px] h-[22.5px] "
-                    />
-                    <span className="origin-left duration-200 text-sm md:text-[15px] leading-[19.5px] font-medium  text-textGray">
+                    <div
+                      className={`${
+                        isActive ? "text-bluePrimary" : "text-textGray"
+                      }  w-[23.73px] `}>
+                      {icon}
+                    </div>
+                    <span
+                      className={`origin-left duration-200 text-sm md:text-[15px] leading-[19.5px] font-medium ${
+                        isActive ? "text-bluePrimary" : "text-textGray"
+                      }  `}>
                       {title}
                     </span>
                   </Link>
@@ -148,27 +150,32 @@ const Sidebar = () => {
         <p className="font-medium text-base leading-[19.5px] text-textGray px-[10px]">
           Personal
         </p>
-        <ul>
-          {SidebarDataPersonal.map(({ title, path, icon }, index) => (
-            <li
-              className="transition-colors duration-300 mt-[.5rem]"
-              key={index}>
-              <div
-                className={`flex rounded-md cursor-pointer text-Acc1 items-center w-full justify-between h-[40px] px-[10px] py-[5px] mt-[]`}>
-                <Link href={path} className="flex items-center gap-2">
-                  <Image
-                    src={icon}
-                    alt={title}
-                    className="text-textGray w-[23.73px] h-[22.5px] "
-                  />
-                  <span className="origin-left duration-200 text-sm md:text-[15px] leading-[19.5px] font-medium  text-textGray">
-                    {title}
-                  </span>
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
+        {/* <ul>
+          {SidebarDataPersonal.map(({ title, path, icon }, index) => {
+            const isActive = pathname.startsWith(path);
+
+            return (
+              <li
+                className="transition-colors duration-300 mt-[.5rem]"
+                key={index}>
+                <div
+                  className={`flex rounded-md cursor-pointer text-Acc1 items-center w-full justify-between h-[40px] px-[10px] py-[5px] mt-[]`}>
+                  <Link href={path} className="flex items-center gap-2">
+                    <div
+                      className={`${
+                        isActive ? "text-bluePrimary" : "text-textGray"
+                      }  w-[23.73px] h-[22.5px] `}>
+                      {icon}
+                    </div>
+                    <span className="origin-left duration-200 text-sm md:text-[15px] leading-[19.5px] font-medium  text-textGray">
+                      {title}
+                    </span>
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
+        </ul> */}
       </nav>
       <div className="flex items-center px-[0px] absolute bottom-8 gap-[.5rem]">
         <Image

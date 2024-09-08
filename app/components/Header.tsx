@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
-import { CiSearch } from "react-icons/ci";
+import { LuSearch } from "react-icons/lu";
 import Input from "../utilities/Input";
 import img1 from "../image/alerm.svg";
 import img2 from "../image/SettingsIcon.svg";
@@ -20,7 +20,7 @@ const Header = () => {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               type="text"
-              Icon={CiSearch}
+              Icon={LuSearch}
               className="w-full lg:w-[445px] rounded-[20px]"
               placeholder="Search"
             />
