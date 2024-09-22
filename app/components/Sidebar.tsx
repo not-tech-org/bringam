@@ -2,16 +2,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { FiDatabase } from "react-icons/fi";
+import { usePathname } from "next/navigation";
 import { MdKeyboardArrowRight } from "react-icons/md";
+import { MdDashboard } from "react-icons/md";
 import { IoMenuSharp } from "react-icons/io5";
+import { AiOutlineShopping } from "react-icons/ai";
+import { MdOutlinePayment } from "react-icons/md";
+import { CgFileDocument } from "react-icons/cg";
+import { FaRegWindowRestore } from "react-icons/fa";
 import img1 from "../image/sampleman.png";
-import img2 from "../image/DashboardIcon.svg";
-import img3 from "../image/AnalyticsIcon.svg";
-import img4 from "../image/ProductsIcon.svg";
-import img5 from "../image/PaymentsIcon.svg";
-import img6 from "../image/OrdersIcon.svg";
-import img7 from "../image/StoreIcon.svg";
 import img8 from "../image/NotificationIcon.svg";
 import img9 from "../image/SettingsIcon.svg";
 import img10 from "../image/SupportIcon.svg";
@@ -42,36 +41,33 @@ const Sidebar = () => {
     };
   }, [isMobile]);
 
+  const pathname = usePathname();
+
   const SidebarDataBusiness = [
     {
       title: "Dashboard",
-      path: "#",
-      icon: img2,
-    },
-    {
-      title: "Analytics",
-      path: "#",
-      icon: img3,
+      path: "/dashboard",
+      icon: <MdDashboard />,
     },
     {
       title: "Products",
-      path: "#",
-      icon: img4,
+      path: "/products",
+      icon: <AiOutlineShopping />,
     },
     {
       title: "Payments",
       path: "#",
-      icon: img5,
+      icon: <MdOutlinePayment />,
     },
     {
       title: "Orders",
       path: "#",
-      icon: img6,
+      icon: <CgFileDocument />,
     },
     {
       title: "Store",
       path: "#",
-      icon: img7,
+      icon: <FaRegWindowRestore />,
     },
   ];
 
@@ -92,10 +88,11 @@ const Sidebar = () => {
       icon: img10,
     },
   ];
+
   return (
     <div
-      className={`bg-sidebarBg  sticky top-0 h-screen bottom-0 w-[200px] md:w-[276px] flex-shrink-0 p-0 md:p-5 duration-300 ${
-        !open ? "ml-[-280px] md:ml-[-280px]" : ""
+      className={`bg-sidebarBg sticky top-0 h-screen bottom-0 w-[200px] md:w-[276px] flex-shrink-0 p-0 md:p-5 duration-300 ${
+        !open ? "ml-[-200px]" : ""
       } relative`}>
       <div className="relative p-4 flex items-center justify-center md:justify-center">
         <Link href="/">
@@ -104,7 +101,7 @@ const Sidebar = () => {
 
         {!hideHamburger && (
           <IoMenuSharp
-            className={`absolute cursor-pointer w-[2rem] h-[2rem] bg-white lg:hidden text-black right-[-8rem] md:right-[-3.5rem] md:top-1  ${
+            className={`absolute cursor-pointer w-[2rem] h-[2rem] bg-white lg:hidden text-black right-[-3rem] md:right-[-3.5rem] md:top-1  ${
               !open && "rotate-180"
             }`}
             onClick={() => setOpen(!open)}
@@ -116,65 +113,84 @@ const Sidebar = () => {
           Business
         </p>
         <ul>
-          {SidebarDataBusiness.map(({ title, path, icon }, index) => (
-            <li
-              className="transition-colors duration-300 mt-[.5rem]"
-              key={index}>
-              <div className="flex rounded-md cursor-pointer text-Acc1 items-center w-full justify-between h-[40px] px-[10px] py-[5px]">
-                <Link href={path} className="flex items-center gap-2">
-                  <Image
-                    src={icon}
-                    alt={title}
-                    className="text-textGray w-[23.73px] h-[22.5px] "
-                  />
-                  <span className="origin-left duration-200 text-sm md:text-[15px] leading-[19.5px] font-medium  text-textGray">
-                    {title}
-                  </span>
-                </Link>
-              </div>
-            </li>
-          ))}
+          {SidebarDataBusiness.map(({ title, path, icon }, index) => {
+            const isActive = pathname.startsWith(path);
+            return (
+              <li
+                className="transition-colors duration-300 mt-[.5rem]"
+                key={index}>
+                <div
+                  className={`flex rounded-md cursor-pointer text-Acc1 items-center w-full justify-between h-[40px] px-[10px] py-[5px]
+                  ${
+                    isActive
+                      ? "bg-bgActive border-2 border-bluePrimary text-bluePrimary"
+                      : "bg-transparent"
+                  }
+              `}>
+                  <Link href={path} className="flex items-center gap-2">
+                    <div
+                      className={`${
+                        isActive ? "text-bluePrimary" : "text-textGray"
+                      }  w-[23.73px] `}>
+                      {icon}
+                    </div>
+                    <span
+                      className={`origin-left duration-200 text-sm md:text-[15px] leading-[19.5px] font-medium ${
+                        isActive ? "text-bluePrimary" : "text-textGray"
+                      }  `}>
+                      {title}
+                    </span>
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
         </ul>
         <hr className="my-[2rem] h-[3px]" />
         <p className="font-medium text-base leading-[19.5px] text-textGray px-[10px]">
           Personal
         </p>
-        <ul>
-          {SidebarDataPersonal.map(({ title, path, icon }, index) => (
-            <li
-              className="transition-colors duration-300 mt-[.5rem]"
-              key={index}>
-              <div
-                className={`flex rounded-md cursor-pointer text-Acc1 items-center w-full justify-between h-[40px] px-[10px] py-[5px] mt-[]`}>
-                <Link href={path} className="flex items-center gap-2">
-                  <Image
-                    src={icon}
-                    alt={title}
-                    className="text-textGray w-[23.73px] h-[22.5px] "
-                  />
-                  <span className="origin-left duration-200 text-sm md:text-[15px] leading-[19.5px] font-medium  text-textGray">
-                    {title}
-                  </span>
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
+        {/* <ul>
+          {SidebarDataPersonal.map(({ title, path, icon }, index) => {
+            const isActive = pathname.startsWith(path);
+
+            return (
+              <li
+                className="transition-colors duration-300 mt-[.5rem]"
+                key={index}>
+                <div
+                  className={`flex rounded-md cursor-pointer text-Acc1 items-center w-full justify-between h-[40px] px-[10px] py-[5px] mt-[]`}>
+                  <Link href={path} className="flex items-center gap-2">
+                    <div
+                      className={`${
+                        isActive ? "text-bluePrimary" : "text-textGray"
+                      }  w-[23.73px] h-[22.5px] `}>
+                      {icon}
+                    </div>
+                    <span className="origin-left duration-200 text-sm md:text-[15px] leading-[19.5px] font-medium  text-textGray">
+                      {title}
+                    </span>
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
+        </ul> */}
       </nav>
-      <div className="flex items-center px-[10px] absolute bottom-8 gap-[.5rem]">
+      <div className="flex items-center px-[0px] absolute bottom-8 gap-[.5rem]">
         <Image
           src={img1}
           alt="Description of image"
           className="w-[47.76px] h-[47.76px] hidden md:block"
         />
-        <div className="">
+        <div className="hidden lg:block ">
           <div className="flex items-center w-[160px] justify-between">
-            <h3 className="text-base font-semibold leading-[20.52px]">
+            <h3 className="text-base font-medium leading-[20.52px] text-black1">
               James Audu
             </h3>
             <MdKeyboardArrowRight className="text-black " />
           </div>
-          <p className="text-black1 font-normal text-sm leading-[24px]">
+          <p className="text-black1 font-normal text-sm leading-[24px] overflow-scroll">
             Jamesglover24@gmail.com
           </p>
         </div>

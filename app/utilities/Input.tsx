@@ -41,7 +41,7 @@ const Input: React.FC<IInput> = ({
       )}
       {Icon ? (
         <div
-          className={`flex justify-between items-center w-full gap-2 px-[16px] py-[8px] ${className}`}>
+          className={`flex justify-between items-center w-full gap-2 px-[16px] py-[8px] border-2 border-borderColor ${className}`}>
           <Icon
             className="cursor-pointer text-label_color ml-[.5rem] text-lg w-[21px] h-[21px]"
             onClick={onClick}
@@ -65,7 +65,7 @@ const Input: React.FC<IInput> = ({
           disabled={disable}
           onChange={onChange}
           placeholder={placeholder}
-          className={`placeholder:font-montserrat placeholder:font-normal placeholder:text-base placeholder:leading-[20.28px] outline-none w-full  flex-1 ${className}`}
+          className={`placeholder:font-normal placeholder:text-base placeholder:leading-[20.28px] outline-none w-full border-2 border-borderColor flex-1 ${className}`}
           required={required}
         />
       )}
