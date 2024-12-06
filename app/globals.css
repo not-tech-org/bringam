@@ -1,19 +1,39 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+
+
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
 
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-ml: 1.25rem;
+  --space-lg: 2rem;
+  --space-xl: 3.25rem;
+  --space-2xl: 5rem;
+
+  --color-green: #1eb62d;
 }
- 
+
 @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;
     --background-start-rgb: 0, 0, 0;
     --background-end-rgb: 0, 0, 0;
   }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .app_container {
@@ -32,6 +52,28 @@ body {
     )
     rgb(var(--background-start-rgb));
   font-family: "Poppins", sans-serif !important;
+}
+
+button {
+  border-radius: 4px !important;
+  border: none;
+  background: #eee;
+  margin-block: 2em;
+  padding: 1.3em 1.6em;
+  width: 100%;
+  font-size: var(--font-size-2xs);
+  font-weight: 600 !important;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #3C4948;
+  color: #fff;
+  font-weight: 400;
 }
 
 /* .poppins{
