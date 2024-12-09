@@ -10,6 +10,8 @@ interface ButtonProps {
   primary?: boolean;
   secondary?: boolean;
   label?: string;
+  className?: string;
+  type: "button" | "submit" | "reset";
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -21,15 +23,17 @@ const Button: React.FC<ButtonProps> = ({
   disabled,
   isLoading,
   label,
+  className,
+  type,
 }) => {
   return (
     <button
       className={`${style} ${primary && "btn-primary"}  ${
         secondary && "btn-secondary"
-      } flex items-center justify-center gap-2`}
+      } flex items-center justify-center gap-2 ${className}`}
       onClick={onClick}
       disabled={disabled}
-    >
+      type={type}>
       {isLoading ? <Preloader height={30} color="#fff" /> : label || children}
     </button>
   );

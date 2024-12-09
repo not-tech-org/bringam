@@ -1,32 +1,16 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import Image from "next/image";
-import { LuSearch } from "react-icons/lu";
-import Input from "../utilities/Input";
 import img1 from "../image/alerm.svg";
-import img2 from "../image/SettingsIcon.svg";
 import img3 from "../image/door.svg";
 import img4 from "../image/sampleman.png";
 import Button from "../utilities/Button";
 
 const Header = () => {
-  const [searchText, setSearchText] = useState("");
   return (
     <div>
       <div className="hidden md:flex items-center justify-between h-[80px]">
-        <div className="flex items-center gap-[2rem] font-medium text-[15px] leading-[38px] text-grayscalBody2">
-          <div className="bg-searchBg">
-            <Input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              type="text"
-              Icon={LuSearch}
-              className="w-full lg:w-[445px] rounded-[20px]"
-              placeholder="Search"
-            />
-          </div>
-          <Image src={img2} alt="alarm" />
-        </div>
+        <div className="flex items-center gap-[2rem] font-medium text-[15px] leading-[38px] text-grayscalBody2"></div>
         <Button
           type="button"
           className="bg-black text-white flex items-center gap-[.2rem] lg:gap-[1rem] font-normal leading-[23.52px] text-sm lg:text-sm w-auto py-[10px] px-[10px] md:px-[15px]">
