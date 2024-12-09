@@ -1,9 +1,24 @@
-import React from 'react'
+"use client"
+
+import React, { useContext } from 'react'
 import Input from '../common/Input';
 import Button from '../common/Button';
 import Link from 'next/link';
+import { OnboardingContext } from '@/app/contexts/OnboardingContext';
 
 const Signup = () => {
+  const context = useContext(OnboardingContext);
+  
+  if (!context) {
+    return <div>Error: OnboardingContext not found</div>;
+  }
+
+  const { onChange, state } = context;
+
+  const { firstName, lastName, email, password } = state;
+
+  console.log("State: ", state);
+
   return (
     <div
       className="rounded-3xl border-2 border-[#EDEDED] p-14 bg-[#FCFCFC]"
@@ -21,8 +36,8 @@ const Signup = () => {
           type="text"
           name="firstName"
           id="firstName"
-          value={""}
-          onChange={() => console.log("Test")}
+          value={firstName}
+          onChange={onChange}
           placeholder="Enter first name"
           className="border-gray-300 rounded w-100 mb-3"
         />
@@ -31,28 +46,28 @@ const Signup = () => {
           type="text"
           name="lastName"
           id="lastName"
-          value={""}
-          onChange={() => console.log("Test")}
+          value={lastName}
+          onChange={onChange}
           placeholder="Enter last name"
           className="border-gray-300 rounded w-100 mb-3"
         />
         <Input
           label="Email Address"
-          type="text"
-          name="lastName"
-          id="lastName"
-          value={""}
-          onChange={() => console.log("Test")}
+          type="email"
+          name="email"
+          id="email"
+          value={email}
+          onChange={onChange}
           placeholder="abc@gmail.com"
           className="border-gray-300 rounded w-100 mb-3"
         />
         <Input
           label="Password"
-          type="text"
-          name="lastName"
-          id="lastName"
-          value={""}
-          onChange={() => console.log("Test")}
+          type="password"
+          name="password"
+          id="password"
+          value={password}
+          onChange={onChange}
           placeholder="**************"
           className="border-gray-300 rounded w-100 mb-3"
         />
