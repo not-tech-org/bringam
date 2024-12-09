@@ -10,40 +10,52 @@ import Signup from "../components/auth/Signup";
 import Signin from "../components/auth/Signin";
 import ForgotPassword from "../components/auth/ForgotPassword";
 import ResetPassword from "../components/auth/ResetPassword";
+import { useContext, useState } from "react";
+import { OnboardingContext, OnboardingProvider } from "../contexts/OnboardingContext";
 
-export default function Onboarding() {
-  const authStep = [
-    {
-      asset: "/icons/account.svg",
-      title: "Create an account",
-      description:
-        "Find vendors near you and get access to a wide range of products with ease. Sign up now to discover local businesses, compare prices, and shop confidently—all in one place.",
-    },
-    {
-      asset: "",
-      title: "Welcome back",
-      description:
-        "Signin to your account to continue shopping. locate venors and find the best deals around you",
-    },
-    {
-      asset: "",
-      title: "Forgot password?",
-      description:
-        "Easy! Just enter your Email address and get the password reset code sent to you in seconds!",
-    },
-    {
-      asset: "",
-      title: "Reset password?",
-      description:
-        "Good, now enter the password reset code that was sent to your Email address.",
-    },
-    {
-      asset: "",
-      title: "New password?",
-      description:
-        "You’re almost there! Now input the new password you’d like to use and that’s it!",
-    },
-  ];
+const authStep = [
+  {
+    asset: "/icons/account.svg",
+    title: "Create an account",
+    description:
+      "Find vendors near you and get access to a wide range of products with ease. Sign up now to discover local businesses, compare prices, and shop confidently—all in one place.",
+  },
+  {
+    asset: "",
+    title: "Welcome back",
+    description:
+      "Signin to your account to continue shopping. locate venors and find the best deals around you",
+  },
+  {
+    asset: "",
+    title: "Forgot password?",
+    description:
+      "Easy! Just enter your Email address and get the password reset code sent to you in seconds!",
+  },
+  {
+    asset: "",
+    title: "Reset password?",
+    description:
+      "Good, now enter the password reset code that was sent to your Email address.",
+  },
+  {
+    asset: "",
+    title: "New password?",
+    description:
+      "You’re almost there! Now input the new password you’d like to use and that’s it!",
+  },
+];
+
+function Onboarding() {
+  const context = useContext(OnboardingContext);
+  
+  if (!context) {
+    return <div>Error: OnboardingContext not found</div>;
+  }
+
+  const { state } = context;
+
+  // const { firstName, lastName, email, password } = state;
 
 
   return (
@@ -73,3 +85,11 @@ export default function Onboarding() {
     </div>
   );
 }
+
+const OnboardingPage = () => (
+  <OnboardingProvider>
+    <Onboarding />
+  </OnboardingProvider>
+);
+
+export default OnboardingPage;

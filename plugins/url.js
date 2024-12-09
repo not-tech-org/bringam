@@ -1,0 +1,1 @@
+export const signupUrl = "https://new-jointly-chamois.ngrok-free.app/auth-service/api/v1/registration/customer-sign-up"
