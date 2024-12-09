@@ -1,4 +1,4 @@
-import React, { ChangeEventHandler, KeyboardEventHandler } from "react";
+import React, { ChangeEvent, ChangeEventHandler, KeyboardEventHandler } from "react";
 
 type InputProps = {
   label?: string;
@@ -8,7 +8,7 @@ type InputProps = {
   id?: string;
   placeholder?: string;
   className?: string;
-  onChange: ChangeEventHandler<HTMLInputElement>;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   required?: boolean;
   onKeyUp?: KeyboardEventHandler<HTMLInputElement>;
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>;

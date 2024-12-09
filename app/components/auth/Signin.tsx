@@ -1,9 +1,18 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import Input from '../common/Input';
 import Button from '../common/Button';
 import Link from 'next/link';
+import { OnboardingContext } from '@/app/contexts/OnboardingContext';
 
 const Signin = () => {
+  const context = useContext(OnboardingContext);
+
+  if (!context) {
+    return <div>Error: OnboardingContext not found</div>;
+  }
+
+  const { onRouteChange, onChange, state } = context;
+  
   return (
     <div
       className="rounded-3xl border-2 border-[#EDEDED] p-14 bg-[#FCFCFC]"
@@ -41,7 +50,7 @@ const Signin = () => {
           <p className="text-textGray2">
             Forgot password?{" "}
             <span className="text-bgArmy">
-              <Link href="#">Click here</Link>
+              <span className='cursor-pointer' onClick={() => onRouteChange("forgotPassword")}>Click here</span>
             </span>
           </p>
         </div>
