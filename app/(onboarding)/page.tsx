@@ -10,8 +10,12 @@ import Signup from "../components/auth/Signup";
 import Signin from "../components/auth/Signin";
 import ForgotPassword from "../components/auth/ForgotPassword";
 import ResetPassword from "../components/auth/ResetPassword";
-import { useContext, useState } from "react";
-import { OnboardingContext, OnboardingProvider } from "../contexts/OnboardingContext";
+import { useContext, useEffect, useState } from "react";
+import {
+  OnboardingContext,
+  OnboardingProvider,
+} from "../contexts/OnboardingContext";
+import SignupOTP from "../components/auth/SignupOTP";
 
 const authStep = [
   {
@@ -21,7 +25,7 @@ const authStep = [
       "Find vendors near you and get access to a wide range of products with ease. Sign up now to discover local businesses, compare prices, and shop confidently—all in one place.",
   },
   {
-    asset: "",
+    asset: "/icons/welcomeBack.svg",
     title: "Welcome back",
     description:
       "Signin to your account to continue shopping. locate venors and find the best deals around you",
@@ -46,38 +50,76 @@ const authStep = [
   },
 ];
 
+interface authStepType {
+  asset: string;
+  title: string;
+  description: string;
+}[]
+
 function Onboarding() {
   const context = useContext(OnboardingContext);
-  
+  const [description, setDescription] = useState<authStepType>();
+
   if (!context) {
     return <div>Error: OnboardingContext not found</div>;
   }
 
   const { state } = context;
 
-  // const { firstName, lastName, email, password } = state;
+  const { route } = state;
 
+  const renderPages = () => {
+    switch (route) {
+      case "signin":
+        return <Signin />;
+      case "signup":
+        return <Signup />;
+      case "forgotPassword":
+        return <ForgotPassword />;
+      default:
+        return <Signup />;
+    }
+  };
+
+  const renderDescription = () => {
+    switch (route) {
+      case "signin":
+        setDescription(authStep[1]);
+      case "signup":
+        setDescription(authStep[0]);
+      case "forgotPassword":
+        return <ForgotPassword />;
+      default:
+        setDescription(authStep[0]);
+    }
+  };
+
+  useEffect(() => {
+    renderDescription();
+  }, [route])
+
+  console.log("Description: ", description, authStep[1]);
 
   return (
     <div className="flex items-center h-screen w-full">
       <div className="bg-bgArmy w-1/2 h-full p-20 pb-32 flex flex-col justify-end">
         <div className="">
           <Image
-            src="/icons/account.svg"
+            src={description ? description?.asset : "/icons/account.svg"}
             alt="Icon vector"
             width={99}
             height={99}
           />
-          <p className="font-bold my-4 text-2xl">Create an account</p>
+          <p className="font-bold my-4 text-2xl">{description?.title}</p>
           <p className="font-medium">
-            Find vendors near you and get access to a wide range of products
-            with ease. Sign up now to discover local businesses, compare prices,
-            and shop confidently—all in one place.
+            {description?.description}
           </p>
         </div>
       </div>
       <div className="bg-white text-black w-1/2 h-full flex justify-center items-center">
-        <Signup />
+        {renderPages()}
+        {/* <SignupOTP /> */}
+        {/* <Signup /> */}
         {/* <Signin /> */}
         {/* <ForgotPassword /> */}
         {/* <ResetPassword /> */}

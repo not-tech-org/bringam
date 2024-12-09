@@ -11,6 +11,7 @@ import { signupUrl } from "@/plugins/url";
 interface OnboardingContextType {
   onSignUp: () => Promise<void>;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onRouteChange: (value: string) => void;
   state: StateType;
 }
 
@@ -19,6 +20,9 @@ interface StateType {
   lastName: string;
   email: string;
   password: string;
+  signupOTP: string;
+  forgotPasswordOTP: string;
+  route: string;
 }
 
 export const OnboardingContext = createContext<
@@ -30,6 +34,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     lastName: "",
     email: "",
     password: "",
+    route: "",
+    signupOTP: "",
+    forgotPasswordOTP: "",
   });
 
   const { firstName, lastName, email, password } = state;
@@ -38,6 +45,13 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     setState((prevState) => ({
       ...prevState,
       [e.target.name]: e.target.value,
+    }));
+  };
+
+  const onRouteChange = (value: string) => {
+    setState((prevState) => ({
+      ...prevState,
+      route: value,
     }));
   };
 
@@ -50,7 +64,6 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     }
     const response = await axios.post(`${signupUrl}`, reqbody);
 
-    
   };
 
   return (
@@ -58,6 +71,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       value={{
         onSignUp,
         onChange,
+        onRouteChange,
         state,
       }}
     >

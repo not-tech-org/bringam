@@ -13,7 +13,7 @@ const Signup = () => {
     return <div>Error: OnboardingContext not found</div>;
   }
 
-  const { onChange, state } = context;
+  const { onRouteChange, onChange, state } = context;
 
   const { firstName, lastName, email, password } = state;
 
@@ -76,7 +76,7 @@ const Signup = () => {
           <p className="text-textGray2">
             Already have an account?{" "}
             <span className="text-bgArmy">
-              <Link href="#">Sign in</Link>
+              <span className='cursor-pointer' onClick={() => onRouteChange("signin")}>Sign in</span>
             </span>
           </p>
         </div>
