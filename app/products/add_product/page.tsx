@@ -192,7 +192,8 @@ const AddProduct = () => {
         </p>
         <div
           className={`relative flex-1 border-2 border-borderColor
-          rounded-md h-[250px] flex items-center justify-center flex-col md:w-[536px]`}>
+          rounded-md h-[250px] flex items-center justify-center flex-col md:w-[536px]`}
+        >
           <div className="flex items-center justify-center text-sm">
             {imagePreview ? (
               <div className="rounded-md">
@@ -213,7 +214,8 @@ const AddProduct = () => {
             ) : (
               <label
                 htmlFor="file-input"
-                className="text-center font-normal text-sm leading-[20px] flex items-center justify-center flex-col py-[1rem] gap-y-[.5rem] cursor-pointer">
+                className="text-center font-normal text-sm leading-[20px] flex items-center justify-center flex-col py-[1rem] gap-y-[.5rem] cursor-pointer"
+              >
                 <IoMdCloudUpload className="text-[24px] text-bluePrimary" />
                 <p className="text-sm font-medium text-bluePrimary">
                   Click to upload
@@ -236,7 +238,8 @@ const AddProduct = () => {
       </div>
       <Button
         type="button"
-        className="bg-black text-white flex items-center gap-[.2rem] lg:gap-[1rem] font-normal leading-[23.52px] text-sm lg:text-sm w-auto py-[10px] px-[10px] md:px-[15px] my-[1rem]">
+        className="bg-black text-white flex items-center gap-[.2rem] lg:gap-[1rem] font-normal leading-[23.52px] text-sm lg:text-sm w-auto py-[10px] px-[10px] md:px-[15px] my-[1rem]"
+      >
         Save Product
         <MdOutlineFileUpload className="h-[24px] w-[24px] lg:block" />
       </Button>

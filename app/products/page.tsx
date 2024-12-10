@@ -8,10 +8,7 @@ import Link from "next/link";
 
 import AppLayout from "../components/AppLayout";
 import Header from "../components/Header";
-import {
-  ProductCardUp,
-  ProductCardDown,
-} from "./components/ProductCard";
+import { ProductCardUp, ProductCardDown } from "./components/ProductCard";
 import { productTableHead } from "./components/productData";
 import img1 from "../image/product-cover-1.png";
 import img2 from "../image/product-cover-2.png";
@@ -104,13 +101,15 @@ const Products = () => {
         <div className="flex items-center gap-[2rem]">
           <Link
             href="products/create_an_offer"
-            className="bg-bluePrimary rounded-[4px] py-[10px] px-[10px] md:px-[15px] flex items-center gap-[.5rem] text-white text-sm">
+            className="bg-bluePrimary rounded-[4px] py-[10px] px-[10px] md:px-[15px] flex items-center gap-[.5rem] text-white text-sm"
+          >
             <IoGiftOutline className=" w-[21.5px] h-[20.5px] hidden md:block" />
             Create an offer
           </Link>
           <Link
             href="products/add_product"
-            className="bg-black2 rounded-[4px] py-[10px] px-[15px] flex items-center gap-[.5rem] text-white text-sm">
+            className="bg-black2 rounded-[4px] py-[10px] px-[15px] flex items-center gap-[.5rem] text-white text-sm"
+          >
             <TbShoppingBag className="w-[21.5px] h-[20.5px] hidden md:block" />
             Add new product
           </Link>
@@ -127,7 +126,8 @@ const Products = () => {
                       ? "sticky left-0 text-start z-50 w-[12rem]"
                       : "w-[10rem] text-center"
                   }`}
-                  key={index}>
+                  key={index}
+                >
                   {item.header}
                 </th>
               ))}

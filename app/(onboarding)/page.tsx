@@ -54,7 +54,8 @@ interface authStepType {
   asset: string;
   title: string;
   description: string;
-}[]
+}
+[];
 
 function Onboarding() {
   const context = useContext(OnboardingContext);
@@ -96,7 +97,7 @@ function Onboarding() {
 
   useEffect(() => {
     renderDescription();
-  }, [route])
+  }, [route]);
 
   console.log("Description: ", description, authStep[1]);
 
@@ -111,9 +112,7 @@ function Onboarding() {
             height={99}
           />
           <p className="font-bold my-4 text-2xl">{description?.title}</p>
-          <p className="font-medium">
-            {description?.description}
-          </p>
+          <p className="font-medium">{description?.description}</p>
         </div>
       </div>
       <div className="bg-white text-black w-1/2 h-full flex justify-center items-center">
