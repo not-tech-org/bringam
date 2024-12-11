@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
-import React, { useContext } from 'react'
-import Input from '../common/Input';
-import Button from '../common/Button';
-import Link from 'next/link';
-import { OnboardingContext } from '@/app/contexts/OnboardingContext';
+import React, { useContext } from "react";
+import Input from "../common/Input";
+import Button from "../common/Button";
+import Link from "next/link";
+import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 
 const Signup = () => {
   const context = useContext(OnboardingContext);
-  
+
   if (!context) {
     return <div>Error: OnboardingContext not found</div>;
   }
 
-  const { onRouteChange, onChange, state } = context;
+  const { onRouteChange, onChange, state, onSignUp } = context;
 
-  const { firstName, lastName, email, password } = state;
+  const { firstName, lastName, email, password, confirmPassword } = state;
 
   console.log("State: ", state);
 
@@ -29,7 +29,7 @@ const Signup = () => {
           Get started by creating an account
         </p>
       </div>
-      <form onSubmit={undefined} className="w-full mt-6">
+      <form onSubmit={onSignUp} className="w-full mt-6">
         <Input
           label="First Name"
           type="text"
@@ -70,14 +70,28 @@ const Signup = () => {
           placeholder="**************"
           className="border-gray-300 rounded w-100 mb-3"
         />
-          <Button type="submit" primary>
-            Create account
-          </Button>
+        <Input
+          label="Confirm Password"
+          type="confirmPassword"
+          name="confirmPassword"
+          id="confirmPassword"
+          value={confirmPassword}
+          onChange={onChange}
+          placeholder="**************"
+          className="border-gray-300 rounded w-100 mb-3"
+        />
+        <Button type="submit" primary>
+          Create account
+        </Button>
         <div className="text-center">
           <p className="text-textGray2">
             Already have an account?{" "}
             <span className="text-bgArmy">
-              <span className='cursor-pointer' onClick={() => onRouteChange("signin")}>Sign in</span>
+              <span
+                className="cursor-pointer"
+                onClick={() => onRouteChange("signin")}>
+                Sign in
+              </span>
             </span>
           </p>
         </div>
