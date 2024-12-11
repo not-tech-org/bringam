@@ -17,6 +17,7 @@ const config: Config = {
         sidebarBg: "#FBFBFB",
         textGray: "#5F5F5F",
         textGray2: "#979797",
+        textGray3: "#737373",
         black1: "#252C32",
         black2: "#1F1F1F",
         black3: "#1A1A1A",
@@ -34,6 +35,8 @@ const config: Config = {
         errorPrimary: "#AC2727",
         bgBluePrimary: "#F0F4FF",
         bgArmy: "#3C4948",
+        lightArmy: "#8CACAA",
+        lighterArmy: "#B3B3B3",
         offWhite: "#FCFCFC",
       },
       fontFamily: {

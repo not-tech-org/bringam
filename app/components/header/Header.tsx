@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import React from "react";
 import Input from "../common/Input";
@@ -20,15 +20,15 @@ const Header = () => {
       <div className=" text-bgArmy flex items-center w-full ml-16">
         <div className="w-full flex items-center gap-2">
           <img src="/icons/orderIcon.svg" />
-          <p className="text-base font-medium">My orders</p>
+          <p className="text-sm font-medium">My orders</p>
         </div>
         <div className="w-full flex items-center gap-2">
           <img src="/icons/cartIcon.svg" />
-          <p className="text-base font-medium">My cart</p>
+          <p className="text-sm font-medium">My cart</p>
         </div>
         <div className="w-full flex items-center gap-2">
           <img src="/icons/notificationIcon.svg" />
-          <p className="text-base font-medium">Notifications</p>
+          <p className="text-sm font-medium">Notifications</p>
         </div>
       </div>
 
@@ -36,11 +36,11 @@ const Header = () => {
       <div className=" text-bgArmy flex items-center w-1/2 ml-24">
         <div className="w-full flex items-center gap-2">
           <img src="/icons/supportIcon.svg" />
-          <p className="text-base font-medium">Support</p>
+          <p className="text-sm font-medium">Support</p>
         </div>
         <div className="w-full flex items-center gap-2">
           <img src="/icons/accountIcon.svg" />
-          <p className="text-base font-medium">My account</p>
+          <p className="text-sm font-medium">My account</p>
         </div>
       </div>
     </div>
