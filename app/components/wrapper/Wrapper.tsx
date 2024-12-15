@@ -13,7 +13,7 @@ const Wrapper: React.FC<WrapperProps> = ({ children }) => {
       <div className="">
         <Sidebar />
       </div>
-      <main className="w-full h-full">
+      <main className="w-full h-full pb-16">
         <div>
           <Header />
         </div>

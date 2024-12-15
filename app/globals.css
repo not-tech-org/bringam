@@ -79,6 +79,10 @@ button:disabled {
   font-weight: 400;
 }
 
+.overflowForced {
+  overflow-y: scroll !important;
+}
+
 /* .poppins{
   font-family: var(--font-poppins);
 }
