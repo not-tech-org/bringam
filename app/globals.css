@@ -52,6 +52,9 @@ body {
     )
     rgb(var(--background-start-rgb));
   font-family: "Poppins", sans-serif !important;
+  width: 100vw;
+  height: 100vh;
+  overflow-y: hidden;
 }
 
 button {
@@ -74,6 +77,10 @@ button:disabled {
   background: #3C4948;
   color: #fff;
   font-weight: 400;
+}
+
+.overflowForced {
+  overflow-y: scroll !important;
 }
 
 /* .poppins{

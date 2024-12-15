@@ -29,7 +29,8 @@ const Header = () => {
         </div>
         <Button
           type="button"
-          className="bg-black text-white flex items-center gap-[.2rem] lg:gap-[1rem] font-normal leading-[23.52px] text-sm lg:text-sm w-auto py-[10px] px-[10px] md:px-[15px]">
+          className="bg-black text-white flex items-center gap-[.2rem] lg:gap-[1rem] font-normal leading-[23.52px] text-sm lg:text-sm w-auto py-[10px] px-[10px] md:px-[15px]"
+        >
           <Image src={img3} alt="switch" className="hidden lg:block" />
           Switch to customer
         </Button>
