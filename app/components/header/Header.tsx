@@ -6,7 +6,7 @@ import InputFilter from "../common/InputFilter";
 
 const Header = () => {
   return (
-    <div className="w-full flex justify-between items-center p-8 px-16 bg-offWhite border-b-2 border-[#EEEEEE]">
+    <div className="w-full flex justify-between items-center p-8 px-16 bg-offWhite border-b-2 border-[#EEEEEE] fixed z-20">
       <div className="w-3/4">
         <InputFilter
           name="search"
