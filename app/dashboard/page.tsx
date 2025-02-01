@@ -22,8 +22,8 @@ function repeatElements<T>(array: T[], times: number): T[] {
 const DashboardPage = () => {
   return (
     <Wrapper>
-      <div className="bg-white h-full text-black overflowForced">
-        <div className="mx-auto p-16 px-32">
+      <div className="bg-white h-full text-black ">
+        <div className="mx-auto px-4">
           <p className="text-2xl font-bold">Top stores near me</p>
           <div className="flex items-center justify-between text-textGray3 text-sm">
             <p className=" ">Best stores around your location</p>
@@ -33,7 +33,7 @@ const DashboardPage = () => {
           </div>
 
           {/* Grid */}
-          <div>
+          <div className="overflowForced">
             {/* Store */}
             <div className="flex flex-col justify-center items-center w-full">
               <div className="grid grid-cols-4 grid-rows-2 gap-16 mt-12 mx-4">

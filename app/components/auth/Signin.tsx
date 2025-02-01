@@ -46,13 +46,32 @@ const Signin = () => {
           className="border-gray-300 rounded w-100 mb-3"
         />
         <Button primary>Sign in</Button>
-        <div className="text-center">
+        <div className="flex justify-between items-center">
           <p className="text-textGray2">
-            Forgot password?{" "}
-            <span className="text-bgArmy">
-              <span className='cursor-pointer' onClick={() => onRouteChange("forgotPassword")}>Click here</span>
+            Don't have an account?{" "}
+            <span
+              className="text-bgArmy cursor-pointer"
+              onClick={() => onRouteChange("signup")}
+            >
+              Sign up
             </span>
           </p>
+          <div className="">
+            <p
+              className="cursor-pointer text-textGray2 hover:text-bgArmy"
+              onClick={() => onRouteChange("forgotPassword")}
+            >
+              Forgot password?{" "}
+              {/* <span className="text-bgArmy">
+                <span
+                  className="cursor-pointer"
+                  onClick={() => onRouteChange("forgotPassword")}
+                >
+                  Click here
+                </span>
+              </span> */}
+            </p>
+          </div>
         </div>
       </form>
     </div>
