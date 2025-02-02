@@ -12,12 +12,12 @@ const Signup = () => {
   if (!context) {
     return <div>Error: OnboardingContext not found</div>;
   }
-
+  //qwertQ1@
   const { onRouteChange, onChange, state, onSignUp } = context;
 
   const { firstName, lastName, email, password, confirmPassword } = state;
 
-  console.log("State: ", state);
+  // console.log("State: ", state);
 
   return (
     <div
@@ -72,7 +72,7 @@ const Signup = () => {
         />
         <Input
           label="Confirm Password"
-          type="confirmPassword"
+          type="password"
           name="confirmPassword"
           id="confirmPassword"
           value={confirmPassword}

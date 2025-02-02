@@ -30,7 +30,7 @@ const Button: React.FC<ButtonProps> = ({
     <button
       className={`${style} ${primary && "btn-primary"}  ${
         secondary && "btn-secondary"
-      } flex items-center justify-center gap-2 ${className}`}
+      } flex items-center justify-center w-full gap-2 ${className}`}
       onClick={onClick}
       disabled={disabled}
       type={type}>

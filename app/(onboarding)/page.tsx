@@ -4,6 +4,7 @@ import Image from "next/image";
 import Signup from "../components/auth/Signup";
 import Signin from "../components/auth/Signin";
 import ForgotPassword from "../components/auth/ForgotPassword";
+import SignupOTP from "../components/auth/SignupOTP";
 import { useContext, useEffect, useState } from "react";
 import {
   OnboardingContext,
@@ -60,9 +61,13 @@ function Onboarding() {
 
   const { state } = context;
 
+  // console.log(context);
+
   const { route } = state;
 
   const renderPages = () => {
+    console.log(route);
+
     switch (route) {
       case "signin":
         return <Signin />;
@@ -70,6 +75,8 @@ function Onboarding() {
         return <Signup />;
       case "forgotPassword":
         return <ForgotPassword />;
+      case "SignupOTP":
+        return <SignupOTP />;
       default:
         return <Signup />;
     }
@@ -81,6 +88,8 @@ function Onboarding() {
         setDescription(authStep[1]);
       case "signup":
         setDescription(authStep[0]);
+      case "SignupOTP":
+        setDescription(authStep[0]);
       case "forgotPassword":
         return <ForgotPassword />;
       default:
@@ -89,6 +98,7 @@ function Onboarding() {
   };
 
   useEffect(() => {
+    // onRouteChange("SignupOTP");
     renderDescription();
   }, [route]);
 

@@ -60,7 +60,7 @@ button {
   background: #eee;
   margin-block: 2em;
   padding: 1.3em 1.6em;
-  width: 100%;
+  /* width: 100%; */
   font-size: var(--font-size-2xs);
   font-weight: 600 !important;
 }

@@ -10,15 +10,14 @@ const SignupOTP = () => {
     return <div>Error: OnboardingContext not found</div>;
   }
 
-  const { onRouteChange, onChange, state } = context;
+  const { onOtp, onChange, state, onResendOtp } = context;
 
-  const { signupOTP } = state
+  const { signupOTP } = state;
 
   return (
     <div
       className="rounded-3xl border-2 border-[#EDEDED] p-14 bg-[#FCFCFC]"
-      style={{ width: 604 }}
-    >
+      style={{ width: 604 }}>
       <div className="text-center">
         <p className="font-bold text-2xl">Account Verification</p>
         <p className="font-semibold text-[#979797] text-sm mt-1">
@@ -26,7 +25,7 @@ const SignupOTP = () => {
           verified
         </p>
       </div>
-      <div className="mt-6">
+      <form onSubmit={onOtp} className="mt-6">
         <Input
           label="Enter OTP"
           type="text"
@@ -37,21 +36,20 @@ const SignupOTP = () => {
           placeholder="Enter OTP"
           className="border-gray-300 rounded w-100 mb-3"
         />
-        <Button primary>Confirm</Button>
+        <Button type="submit" primary>
+          Confirm
+        </Button>
         <div className="text-center">
           <p className="text-textGray2">
-            Didn't receive code?{" "}
+            Didn&apos;t receive code?{" "}
             <span className="text-bgArmy">
-              <span
-                className="cursor-pointer"
-                // onClick={() => onRouteChange("signin")}
-              >
+              <span className="cursor-pointer" onClick={onResendOtp}>
                 Resend
               </span>
             </span>
           </p>
         </div>
-      </div>
+      </form>
     </div>
   );
 };
