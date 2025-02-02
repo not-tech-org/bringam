@@ -16,10 +16,10 @@ import {
 } from "../services/AuthService";
 import { toast } from "react-toastify";
 import { validatePassword } from "../components/utils/helperFunctions";
+import Link from "next/link";
 
 interface OnboardingContextType {
   onSignUp: (e: React.FormEvent) => any;
-  onSignIn: (e: React.FormEvent) => any;
   onOtp: (e: React.FormEvent) => any;
   onResendOtp: (e: React.FormEvent) => any;
   onForgetPassword: (e: React.FormEvent) => any;
@@ -145,57 +145,6 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const onSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // console.log(password);
-
-    const formApiData = {
-      username: email,
-      password,
-    };
-
-    if (!email) {
-      return toast.error("Email cannot be empty", {
-        position: "top-right",
-        theme: "colored",
-      });
-    }
-
-    if (!password) {
-      return toast.error("Password cannot be empty", {
-        position: "top-right",
-        theme: "colored",
-      });
-    }
-
-    try {
-      const res = await signinApi(formApiData);
-
-      localStorage.setItem("accessTokenBringAm", res.data.data.access_token);
-
-      // onRouteChange("SignupOTP");
-      toast.success(res.data.message, {
-        position: "top-right",
-        theme: "colored",
-      });
-    } catch (err: any) {
-      console.log(err);
-
-      if (err.response) {
-        toast.error(err.response.data.message || "An error occurred", {
-          position: "top-right",
-          theme: "colored",
-        });
-      } else {
-        toast.error("Network error or timeout", {
-          position: "top-right",
-          theme: "colored",
-        });
-        console.log(err);
-      }
-    }
-  };
-
   const onOtp = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -282,7 +231,6 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       value={{
         onForgetPassword,
         onOtp,
-        onSignIn,
         onSignUp,
         onResendOtp,
         onChange,

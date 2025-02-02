@@ -1,55 +1,5 @@
 "use client";
 
-<<<<<<< HEAD
-import React, { useState } from "react";
-import AppLayout from "../components/AppLayout";
-import Header from "../components/Header";
-import { LuSearch } from "react-icons/lu";
-import Input from "../utilities/Input";
-import Select from "../utilities/Select";
-
-const Dashboard = () => {
-  const [searchText, setSearchText] = useState("");
-  const [filterText, setFilterText] = useState("");
-
-  const handleChange = (field: string, value: string) => {
-    setFilterText((prevState: any) => ({
-      ...prevState,
-      [field]: value,
-    }));
-  };
-
-  const dropdownData = [
-    {
-      value: "All time",
-      name: "All time",
-    },
-  ];
-
-  return (
-    <AppLayout>
-      <Header />
-      <div className="mt-[2rem]">
-        <h3 className="text-[28px] font-medium leading-[18px]">Hello, James</h3>
-        <p className="text-primary mt-[1rem] text-lightModeSubText">
-          Here’s a look at your dashboard
-        </p>
-        <div className="flex items-center justify-between">
-          <Input
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            type="text"
-            Icon={LuSearch}
-            className="w-full lg:w-[350px] rounded-[13px] mt-[1rem] h-[50px]"
-            placeholder="Search"
-          />
-          <Select
-            value={filterText}
-            options={dropdownData}
-            onChange={(e) => handleChange("deadline", e.target.value)}
-            className=""
-          />
-=======
 import React from "react";
 import AppLayout from "../components/AppLayout";
 import Header from "../components/Header";
@@ -63,7 +13,13 @@ const storeList = [
 ];
 
 const offerList = [
-  { asset: "/images/offer.png", storeName: "Turtle Neck", tagName: "Abike clothings", oldPrice: "N3,000", newPrice: "N2,500" },
+  {
+    asset: "/images/offer.png",
+    storeName: "Turtle Neck",
+    tagName: "Abike clothings",
+    oldPrice: "N3,000",
+    newPrice: "N2,500",
+  },
 ];
 
 function repeatElements<T>(array: T[], times: number): T[] {
@@ -88,7 +44,7 @@ const DashboardPage = () => {
             <div className="flex flex-col justify-center items-center w-full">
               <div className="grid grid-cols-4 grid-rows-2 gap-16 mt-12 mx-4">
                 {repeatElements(storeList, 8)?.map((store, key) => (
-                  <div className="bg-white h-60 w-44">
+                  <div className="bg-white h-60 w-44" key={key}>
                     <div className="h-3/5">
                       <Image
                         src={store?.asset}
@@ -106,7 +62,7 @@ const DashboardPage = () => {
                   </div>
                 ))}
               </div>
-              <Button primary style="w-fit gap-4 p-4 px-8 mt-16">
+              <Button type="button" primary style="w-fit gap-4 p-4 px-8 mt-16">
                 <p>View more stores</p>
                 <FaArrowRight />
               </Button>
@@ -122,7 +78,7 @@ const DashboardPage = () => {
               <div className="flex flex-col justify-center items-center w-full">
                 <div className="grid grid-cols-4 grid-rows-2 gap-16 mt-12 mx-4">
                   {repeatElements(offerList, 8)?.map((store, key) => (
-                    <div className="bg-white h-60 w-44">
+                    <div className="bg-white h-60 w-44" key={key}>
                       <div className="h-3/5">
                         <Image
                           src={store?.asset}
@@ -148,22 +104,20 @@ const DashboardPage = () => {
                     </div>
                   ))}
                 </div>
-                <Button primary style="w-fit gap-4 p-4 px-8 mt-16">
+                <Button
+                  type="button"
+                  primary
+                  style="w-fit gap-4 p-4 px-8 mt-16">
                   <p>View more offers</p>
                   <FaArrowRight />
                 </Button>
               </div>
             </div>
           </div>
->>>>>>> b75776b434b5258bd0108cca3250e3dc3be54cea
         </div>
       </div>
     </Wrapper>
   );
 };
 
-<<<<<<< HEAD
-export default Dashboard;
-=======
 export default DashboardPage;
->>>>>>> b75776b434b5258bd0108cca3250e3dc3be54cea

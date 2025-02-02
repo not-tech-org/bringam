@@ -1,9 +1,9 @@
-import React, { useContext } from 'react'
-import Input from '../common/Input';
-import Button from '../common/Button';
-import Link from 'next/link';
-import { FaChevronCircleLeft, FaChevronLeft } from 'react-icons/fa';
-import { OnboardingContext } from '@/app/contexts/OnboardingContext';
+import React, { useContext } from "react";
+import Input from "../common/Input";
+import Button from "../common/Button";
+import Link from "next/link";
+import { FaChevronCircleLeft, FaChevronLeft } from "react-icons/fa";
+import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 
 const ForgotPassword = () => {
   const context = useContext(OnboardingContext);
@@ -12,17 +12,13 @@ const ForgotPassword = () => {
     return <div>Error: OnboardingContext not found</div>;
   }
 
-  const { onChange, state, onForgetPassword } = context;
+  const { onRouteChange, onChange, state, onForgetPassword } = context;
 
   const { email } = state;
-
-  const context = useContext(OnboardingContext);
 
   if (!context) {
     return <div>Error: OnboardingContext not found</div>;
   }
-
-  const { onRouteChange, onChange, state } = context;
 
   return (
     <div
@@ -45,15 +41,17 @@ const ForgotPassword = () => {
           placeholder="abc@gmail.com"
           className="border-gray-300 rounded w-100 mb-3"
         />
-        <Button primary>Send passcode</Button>
-        <div className='flex justify-between items-center'>
-          <div className='flex items-center gap-2 cursor-pointer' onClick={() => onRouteChange("signin")}>
+        <Button type="button" primary>Send passcode</Button>
+        <div className="flex justify-between items-center">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => onRouteChange("signin")}>
             <FaChevronLeft />
-            <p className='text-textGray2 hover:text-bgArmy'>Back</p>
+            <p className="text-textGray2 hover:text-bgArmy">Back</p>
           </div>
           <div className="">
             <p className="text-textGray2">
-              Didn't receive a code?{" "}
+              {"Didn't"} receive a code?{" "}
               <span className="text-bgArmy">
                 <Link href="#">Resend</Link>
               </span>
