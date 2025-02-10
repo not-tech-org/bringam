@@ -82,7 +82,7 @@ const VendorAuth = () => {
                 placeholder='Select a category'
               />
             </div>
-            <Button primary style="">
+            <Button type='button' primary style="">
               Continue
             </Button>
           </div>
