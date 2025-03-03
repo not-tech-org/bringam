@@ -1,4 +1,5 @@
 import axios from "axios";
+import Cookies from "js-cookie";
 
 const BACKEND_URL = `${process.env.NEXT_PUBLIC_API_URL}/auth-service/api/v1`;
 
@@ -57,6 +58,34 @@ export const forgotPasswordApi = async (email: string) => {
     {
       headers: {
         "Content-Type": "application/json",
+      },
+    }
+  );
+  return response;
+};
+
+export const becomeVendorApi = async (data: object) => {
+  const response = await axios.post(
+    `${BACKEND_URL}/customers/become-a-vendor`,
+    data,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Cookies.get("bringAmToken")}`,
+      },
+    }
+  );
+  return response;
+};
+
+export const logoutApi = async () => {
+  const response = await axios.post(
+    `${BACKEND_URL}/auth-service/api/v1/logout`,
+    {},
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Cookies.get("bringAmToken")}`,
       },
     }
   );

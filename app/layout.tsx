@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
-import { Provider } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
-import ReduxProvider from "./ReduxProvider";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -25,7 +23,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.variable}`}>
-        <ReduxProvider>
           <ToastContainer
             position="top-center"
             autoClose={5000}
@@ -36,7 +33,6 @@ export default function RootLayout({
             className="text-black text-center font-medium !font-montserrat"
           />
           {children}
-        </ReduxProvider>
       </body>
     </html>
   );

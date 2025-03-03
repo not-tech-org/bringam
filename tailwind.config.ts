@@ -40,6 +40,7 @@ const config: Config = {
         lightArmy: "#8CACAA",
         lighterArmy: "#B3B3B3",
         offWhite: "#FCFCFC",
+        grayscalBg: "#F7F7FC",
       },
       fontFamily: {
         Poppins: ["var(--font-poppins)", "sans-serif"],

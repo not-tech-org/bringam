@@ -1,9 +1,36 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import React, { useContext, useState } from "react";
+import { BiPowerOff } from "react-icons/bi";
 import { MdArrowOutward } from "react-icons/md";
+import { OnboardingContext } from "@/app/contexts/OnboardingContext";
+import { showToast } from "../utils/helperFunctions";
+import { logoutApi } from "@/app/services/AuthService";
 
 const Sidebar = () => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const logout = async () => {
+    console.log("Logout clicked");
+    setIsLoading(true);
+
+    try {
+      const res = await logoutApi();
+      setIsLoading(false);
+    } catch (err: any) {
+      setIsLoading(false);
+
+      if (err.response) {
+        showToast(err.response.data.message || "An error occurred", "error");
+      } else {
+        showToast("Network error or timeout", "error");
+      }
+      console.log(err);
+    }
+  };
+
   return (
     <div className="w-[280px] h-full bg-bgArmy px-8 py-4">
       <div className="flex items-center gap-2 z-10 h-20">
@@ -93,10 +120,10 @@ const Sidebar = () => {
             </div>
           </div>
         </div>
-        <div className="mt-12">
+        <div className="mt-8">
           <p className="text-sm text-lightArmy font-medium mb-6">Personal</p>
           <div className="pl-4 text-sm">
-            <div className="flex items-center gap-2 my-6 hover:text-white hover:cursor-pointer">
+            <div className="flex items-center gap-2 my-5 hover:text-white hover:cursor-pointer">
               <Image
                 src="/icons/all.svg"
                 alt="All Icon"
@@ -105,7 +132,7 @@ const Sidebar = () => {
               />
               <p className="text-white font-bold">My Orders</p>
             </div>
-            <div className="flex items-center gap-2 my-6 hover:text-white hover:cursor-pointer">
+            <div className="flex items-center gap-2 my-5 hover:text-white hover:cursor-pointer">
               <Image
                 src="/icons/headset.svg"
                 alt="All Icon"
@@ -114,7 +141,7 @@ const Sidebar = () => {
               />
               <p className="text-lighterArmy font-medium">Vendors</p>
             </div>
-            <div className="flex items-center gap-2 my-6">
+            <div className="flex items-center gap-2 my-5">
               <Image
                 src="/icons/heart.svg"
                 alt="All Icon"
@@ -123,7 +150,7 @@ const Sidebar = () => {
               />
               <p className="text-lighterArmy font-medium">Notifications</p>
             </div>
-            <div className="flex items-center gap-2 my-6">
+            <div className="flex items-center gap-2 my-5">
               <Image
                 src="/icons/electronics.svg"
                 alt="All Icon"
@@ -132,7 +159,7 @@ const Sidebar = () => {
               />
               <p className="text-lighterArmy font-medium">Settings</p>
             </div>
-            <div className="flex items-center gap-2 my-6">
+            <div className="flex items-center gap-2 my-5">
               <Image
                 src="/icons/phone.svg"
                 alt="All Icon"
@@ -141,10 +168,43 @@ const Sidebar = () => {
               />
               <p className="text-lighterArmy font-medium">Support</p>
             </div>
+            {isLoading ? (
+              <div className="text-center flex items-center gap-2 my-5">
+                <svg
+                  className="animate-spin h-5 w-5 mr-3 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <span className="origin-left duration-200 text-sm md:text-base leading-[24px] font-medium">
+                  Loading...
+                </span>
+              </div>
+            ) : (
+              <div
+                className="text-center flex items-center gap-2 my-5 cursor-pointer"
+                onClick={logout}>
+                <BiPowerOff size={22} />
+                <p className="text-lighterArmy font-medium">Logout</p>
+              </div>
+            )}
           </div>
         </div>
-        <div className="mt-16">
-          <Link href="/vendorAuth">
+        <div className="mb-16">
+          <Link href="/vendor-auth">
             <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer">
               <p className="text-sm">Become a Vendor</p>
               <MdArrowOutward />

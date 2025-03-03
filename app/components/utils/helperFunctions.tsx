@@ -1,4 +1,4 @@
-import { toast } from "react-toastify";
+import { toast, ToastPosition } from "react-toastify";
 import Cookies from "js-cookie";
 
 export const validatePassword = (password: string) => {
@@ -6,9 +6,13 @@ export const validatePassword = (password: string) => {
   return regex.test(password);
 };
 
-export const showToast = (message: string, type: "success" | "error") => {
+export const showToast = (
+  message: string,
+  type: "success" | "error",
+  dirPosition?: ToastPosition
+) => {
   toast[type](message, {
-    position: "top-right",
+    position: dirPosition || "top-right",
     theme: "colored",
   });
 };
@@ -29,4 +33,10 @@ export const useCookies = () => {
   };
 
   return { setCookie, getCookie, removeCookie };
+};
+
+export const validateEmail = (email: string) => {
+  return email.match(
+    /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+  );
 };
