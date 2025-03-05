@@ -1,21 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import AppLayout from "../components/AppLayout";
-import Header from "../components/Header";
-import Input from "../components/common/Input";
-import Button from "../components/common/Button";
-import Link from "next/link";
 import Signup from "../components/auth/Signup";
 import Signin from "../components/auth/Signin";
 import ForgotPassword from "../components/auth/ForgotPassword";
-import ResetPassword from "../components/auth/ResetPassword";
+import SignupOTP from "../components/auth/SignupOTP";
 import { useContext, useEffect, useState } from "react";
 import {
   OnboardingContext,
   OnboardingProvider,
 } from "../contexts/OnboardingContext";
-import SignupOTP from "../components/auth/SignupOTP";
 
 const authStep = [
   {
@@ -67,9 +61,13 @@ function Onboarding() {
 
   const { state } = context;
 
+  // console.log(context);
+
   const { route } = state;
 
   const renderPages = () => {
+    console.log(route);
+
     switch (route) {
       case "signin":
         return <Signin />;
@@ -77,6 +75,8 @@ function Onboarding() {
         return <Signup />;
       case "forgotPassword":
         return <ForgotPassword />;
+      case "SignupOTP":
+        return <SignupOTP />;
       default:
         return <Signup />;
     }
@@ -88,6 +88,8 @@ function Onboarding() {
         setDescription(authStep[1]);
       case "signup":
         setDescription(authStep[0]);
+      case "SignupOTP":
+        setDescription(authStep[0]);
       case "forgotPassword":
         return <ForgotPassword />;
       default:
@@ -96,10 +98,9 @@ function Onboarding() {
   };
 
   useEffect(() => {
+    // onRouteChange("SignupOTP");
     renderDescription();
   }, [route]);
-
-  console.log("Description: ", description, authStep[1]);
 
   return (
     <div className="flex items-center h-screen w-full">
@@ -117,11 +118,6 @@ function Onboarding() {
       </div>
       <div className="bg-white text-black w-1/2 h-full flex justify-center items-center">
         {renderPages()}
-        {/* <SignupOTP /> */}
-        {/* <Signup /> */}
-        {/* <Signin /> */}
-        {/* <ForgotPassword /> */}
-        {/* <ResetPassword /> */}
       </div>
     </div>
   );

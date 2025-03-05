@@ -1,6 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
 
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -61,9 +60,6 @@ button {
   border-radius: 4px !important;
   border: none;
   background: #eee;
-  margin-block: 2em;
-  padding: 1.3em 1.6em;
-  width: 100%;
   font-size: var(--font-size-2xs);
   font-weight: 600 !important;
 }
@@ -74,7 +70,7 @@ button:disabled {
 }
 
 .btn-primary {
-  background: #3C4948;
+  background: #3c4948;
   color: #fff;
   font-weight: 400;
 }

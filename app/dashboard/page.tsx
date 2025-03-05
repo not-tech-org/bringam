@@ -13,7 +13,13 @@ const storeList = [
 ];
 
 const offerList = [
-  { asset: "/images/offer.png", storeName: "Turtle Neck", tagName: "Abike clothings", oldPrice: "N3,000", newPrice: "N2,500" },
+  {
+    asset: "/images/offer.png",
+    storeName: "Turtle Neck",
+    tagName: "Abike clothings",
+    oldPrice: "N3,000",
+    newPrice: "N2,500",
+  },
 ];
 
 function repeatElements<T>(array: T[], times: number): T[] {
@@ -38,7 +44,7 @@ const DashboardPage = () => {
             <div className="flex flex-col justify-center items-center w-full">
               <div className="grid grid-cols-4 grid-rows-2 gap-16 mt-12 mx-4">
                 {repeatElements(storeList, 8)?.map((store, key) => (
-                  <div className="bg-white h-60 w-44">
+                  <div className="bg-white h-60 w-44" key={key}>
                     <div className="h-3/5">
                       <Image
                         src={store?.asset}
@@ -56,7 +62,7 @@ const DashboardPage = () => {
                   </div>
                 ))}
               </div>
-              <Button primary style="w-fit gap-4 p-4 px-8 mt-16">
+              <Button type="button" primary style="w-fit gap-4 p-4 px-8 mt-16">
                 <p>View more stores</p>
                 <FaArrowRight />
               </Button>
@@ -72,7 +78,7 @@ const DashboardPage = () => {
               <div className="flex flex-col justify-center items-center w-full">
                 <div className="grid grid-cols-4 grid-rows-2 gap-16 mt-12 mx-4">
                   {repeatElements(offerList, 8)?.map((store, key) => (
-                    <div className="bg-white h-60 w-44">
+                    <div className="bg-white h-60 w-44" key={key}>
                       <div className="h-3/5">
                         <Image
                           src={store?.asset}
@@ -98,7 +104,10 @@ const DashboardPage = () => {
                     </div>
                   ))}
                 </div>
-                <Button primary style="w-fit gap-4 p-4 px-8 mt-16">
+                <Button
+                  type="button"
+                  primary
+                  style="w-fit gap-4 p-4 px-8 mt-16">
                   <p>View more offers</p>
                   <FaArrowRight />
                 </Button>

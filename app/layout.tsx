@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
 import "./globals.css";
 
 const poppins = Poppins({
@@ -24,16 +23,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.variable}`}>
-        <ToastContainer
-          position="top-center"
-          autoClose={5000}
-          closeOnClick
-          pauseOnHover={false}
-          draggable
-          hideProgressBar
-          className="text-black text-center font-medium !font-montserrat"
-        />
-        {children}
+          <ToastContainer
+            position="top-center"
+            autoClose={5000}
+            closeOnClick
+            pauseOnHover={false}
+            draggable
+            hideProgressBar
+            className="text-black text-center font-medium !font-montserrat"
+          />
+          {children}
       </body>
     </html>
   );
