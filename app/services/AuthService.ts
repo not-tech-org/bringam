@@ -1,5 +1,15 @@
 import axios from "axios";
 
+const baseUrl = () => {
+  return process.env.NEXT_PUBLIC_API_URL;
+};
+
+const secoundaryUrl = () => {
+  return {
+    vendor: "vendor-service",
+  }
+}
+
 const BACKEND_URL = `${process.env.NEXT_PUBLIC_API_URL}/auth-service/api/v1`;
 
 export const signupApi = async (data: object) => {
@@ -62,3 +72,8 @@ export const forgotPasswordApi = async (email: string) => {
   );
   return response;
 };
+
+export const createVendorStore = async (reqBody: object) => {
+  console.log(`${baseUrl()}/${secoundaryUrl().vendor}/api/v1/stores`)
+  console.log(reqBody)
+} 
