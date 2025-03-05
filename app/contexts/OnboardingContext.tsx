@@ -1,22 +1,17 @@
-import axios from "axios";
-import React, {
-  createContext,
-  useState,
-  ChangeEvent,
-  ReactNode,
-  ChangeEventHandler,
-} from "react";
-import { signupUrl } from "@/plugins/url";
+import React, { createContext, useState, ChangeEvent, ReactNode } from "react";
 import {
   forgotPasswordApi,
+  logoutApi,
   otpApi,
   resendOtpApi,
-  signinApi,
   signupApi,
 } from "../services/AuthService";
 import { toast } from "react-toastify";
-import { validatePassword } from "../components/utils/helperFunctions";
-import Link from "next/link";
+import {
+  showToast,
+  validateEmail,
+  validatePassword,
+} from "../components/utils/helperFunctions";
 
 interface OnboardingContextType {
   onSignUp: (e: React.FormEvent) => any;
@@ -36,12 +31,34 @@ interface StateType {
   confirmPassword: string;
   signupOTP: string;
   forgotPasswordOTP: string;
+  isLoading: boolean;
   route: string;
 }
 
-export const OnboardingContext = createContext<
-  OnboardingContextType | undefined
->(undefined);
+// Default context value
+const defaultContextValue: OnboardingContextType = {
+  onSignUp: () => {},
+  onOtp: () => {},
+  onResendOtp: () => {},
+  onForgetPassword: () => {},
+  onChange: () => {},
+  onRouteChange: () => {},
+  state: {
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    signupOTP: "",
+    forgotPasswordOTP: "",
+    isLoading: false,
+    route: "",
+  },
+};
+
+export const OnboardingContext =
+  createContext<OnboardingContextType>(defaultContextValue);
+
 export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
   const [state, setState] = useState<StateType>({
     firstName: "",
@@ -52,6 +69,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     route: "",
     signupOTP: "",
     forgotPasswordOTP: "",
+    isLoading: false,
   });
 
   const { firstName, lastName, email, password, confirmPassword, signupOTP } =
@@ -73,7 +91,6 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
 
   const onSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    // console.log(password);
 
     const formApiData = {
       firstName,
@@ -84,11 +101,16 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       registrationChannel: "WEB",
     };
 
-    if (password.length !== 8) {
-      return toast.error("Enter a valid password with at least 8 characters", {
-        position: "top-right",
-        theme: "colored",
-      });
+    if (!firstName) {
+      return showToast("First name cannot be empty", "error");
+    }
+
+    if (!lastName) {
+      return showToast("Last name cannot be empty", "error");
+    }
+
+    if (!validateEmail(email)) {
+      return showToast("Please enter a valid email", "error");
     }
 
     if (password !== confirmPassword) {
@@ -102,14 +124,23 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       return toast.error(
         "Password should include 1 capital, 1 small, and 1 special character",
         {
-          position: "top-right",
+          position: "top-center",
           theme: "colored",
         }
       );
     }
 
+    setState((prevState) => ({
+      ...prevState,
+      isLoading: true,
+    }));
+
     try {
       const res = await signupApi(formApiData);
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
 
       if (res.data.success) {
         const uuid = res.data.data;
@@ -129,6 +160,11 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         });
       }
     } catch (err: any) {
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
+
       if (err.response) {
         toast.error(err.response.data.message || "An error occurred", {
           position: "top-right",
@@ -155,11 +191,25 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       });
     }
 
+    setState((prevState) => ({
+      ...prevState,
+      isLoading: true,
+    }));
+
     try {
       const res = await otpApi(signupOTP);
-      console.log(res.data);
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
+
+      showToast(res.data.message, "success");
       onRouteChange("signin");
     } catch (err: any) {
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
       if (err.response) {
         toast.error(err.response.data.message || "An error occurred");
         console.log(err.response);

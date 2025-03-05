@@ -38,7 +38,7 @@ const Input: React.FC<InputProps> = ({
         </label>
       )}
       <input
-        className={`${className} rounded-md p-2 px-6`}
+        className={`${className} rounded-md p-2 px-6 outline-none`}
         name={name}
         value={value}
         type={type}

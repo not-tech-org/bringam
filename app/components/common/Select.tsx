@@ -28,24 +28,22 @@ const Select: React.FC<SelectProps> = ({
   showIcon = true,
 }) => {
   return (
-    <div className="w-[286px] flex flex-col relative">
+    <div className={`flex flex-col relative ${className}`}>
       {label && (
         <label
           className="text-black3 text-base font-semibold mb-2"
-          htmlFor={id}
-        >
+          htmlFor={id}>
           {label}
         </label>
       )}
       <div className="relative">
         <select
-          className={`${className} w-full h-[53px] px-4 pr-10 bg-[#F7F7F7] rounded-md border-2 appearance-none`}
+          className={`w-full h-[53px] px-4 pr-10 bg-[#F7F7F7] rounded-md border-2 appearance-none outline-none`}
           name={name}
           value={value}
           id={id}
           onChange={onChange}
-          required={required}
-        >
+          required={required}>
           <option value="" className="text-[#747474]">
             {placeholder}
           </option>

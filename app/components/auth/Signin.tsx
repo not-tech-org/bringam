@@ -5,14 +5,15 @@ import Input from "../common/Input";
 import Button from "../common/Button";
 import Cookies from "js-cookie";
 import { OnboardingContext } from "@/app/contexts/OnboardingContext";
-import { toast } from "react-toastify";
 import { signinApi } from "@/app/services/AuthService";
 import { useRouter } from "next/navigation";
-import { showToast } from "../utils/helperFunctions";
+import { showToast, validateEmail } from "../utils/helperFunctions";
 
 const Signin = () => {
   const context = useContext(OnboardingContext);
   const [isLoading, setIsLoading] = useState(false);
+
+  const router = useRouter();
 
   if (!context) {
     return <div>Error: OnboardingContext not found</div>;
@@ -22,8 +23,6 @@ const Signin = () => {
 
   const { email, password } = state;
 
-  const router = useRouter();
-
   const onSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -32,9 +31,8 @@ const Signin = () => {
       password,
     };
 
-    // Validate input fields
-    if (!email) {
-      return showToast("Email cannot be empty", "error");
+    if (!validateEmail(email)) {
+      return showToast("Please enter a valid email", "error");
     }
 
     if (!password) {
@@ -49,8 +47,8 @@ const Signin = () => {
         expires: undefined,
       });
 
-      showToast(res.data.message, "success");
-      router.push("/vendorProducts");
+      showToast(res.data.message, "success", "top-center");
+      router.push("/dashboard");
       setIsLoading(false);
     } catch (err: any) {
       setIsLoading(false);
