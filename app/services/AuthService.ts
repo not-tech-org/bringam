@@ -94,7 +94,8 @@ export const becomeVendorApi = async (data: object) => {
 
 export const logoutApi = async () => {
   const response = await axios.post(
-    `${BACKEND_URL}/auth-service/api/v1/logout`,
+    // `${BACKEND_URL}/auth-service/api/v1/logout`,
+    `${BACKEND_URL}/logout`,
     {},
     {
       headers: {

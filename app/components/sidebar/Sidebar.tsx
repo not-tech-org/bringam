@@ -10,7 +10,7 @@ import { showToast } from "../utils/helperFunctions";
 import { logoutApi } from "@/app/services/AuthService";
 
 const Sidebar = () => {
-  const vendor = true;
+  const vendor = false;
   const [isLoading, setIsLoading] = useState(false);
 
   const logout = async () => {
@@ -210,7 +210,7 @@ const Sidebar = () => {
             )}
           </div>
           <div className="mt-16">
-            <Link href="/vendorAuth">
+            <Link href="/vendor-auth">
               <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer">
                 <p className="text-sm">Become a Vendor</p>
                 <MdArrowOutward />
