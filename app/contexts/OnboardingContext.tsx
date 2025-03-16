@@ -52,7 +52,7 @@ const defaultContextValue: OnboardingContextType = {
     signupOTP: "",
     forgotPasswordOTP: "",
     isLoading: false,
-    route: "",
+    route: "signin",
   },
 };
 
