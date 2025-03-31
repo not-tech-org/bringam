@@ -7,6 +7,45 @@ import { FaPlus } from "react-icons/fa";
 import Modal from "../components/common/Modal";
 import CreateStore from "../components/store/forms/CreateStore";
 import { createVendorStore } from "../services/AuthService";
+import Image from "next/image";
+import Link from "next/link";
+import StoreCardMenu from "../components/common/StoreCardMenu";
+
+// Dummy data for stores
+const dummyStores = [
+  {
+    id: 1,
+    name: "Quality wears",
+    type: "Fashion & Jewelry store",
+    members: [
+      { id: 1, avatar: "/images/avatar1.svg" },
+      { id: 2, avatar: "/images/avatar1.svg" },
+      { id: 3, avatar: "/images/avatar1.svg" },
+    ],
+    additionalMembers: 2,
+  },
+  {
+    id: 2,
+    name: "Tech Gadgets",
+    type: "Electronics store",
+    members: [
+      { id: 1, avatar: "/images/avatar1.svg" },
+      { id: 2, avatar: "/images/avatar1.svg" },
+    ],
+    additionalMembers: 1,
+  },
+  {
+    id: 3,
+    name: "Beauty Corner",
+    type: "Health & Beauty store",
+    members: [
+      { id: 1, avatar: "/images/avatar1.svg" },
+      { id: 2, avatar: "/images/avatar1.svg" },
+      { id: 3, avatar: "/images/avatar1.svg" },
+    ],
+    additionalMembers: 3,
+  },
+];
 
 interface StateType {
   name: string;
@@ -35,6 +74,7 @@ interface StateType {
   coverPhotoUrl: string;
   active: boolean;
 }
+
 const VendorStore = () => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -101,7 +141,20 @@ const VendorStore = () => {
     } catch (error) {}
   };
 
-  console.log("Store name: ", state);
+  const handleEditStore = (storeId: number) => {
+    // TODO: Implement edit store functionality
+    console.log("Edit store", storeId);
+  };
+
+  const handleAddMember = (storeId: number) => {
+    // TODO: Implement add member functionality
+    console.log("Add member", storeId);
+  };
+
+  const handleDeactivateStore = (storeId: number) => {
+    // TODO: Implement deactivate store functionality
+    console.log("Deactivate store", storeId);
+  };
 
   return (
     <>
@@ -117,20 +170,83 @@ const VendorStore = () => {
       </Modal>
       <Wrapper>
         <div className="block">
-          <div className="flex items-center justify-between">
-            <p className="mb-2 font-semibold text-lg">My stores</p>
+          <div className="flex items-center justify-between mb-6">
+            <p className="font-semibold text-lg">My stores</p>
             <div>
-              <Button type="button" primary style="w-fit " onClick={openModal}>
+              <Button type="button" primary style="w-fit" onClick={openModal}>
                 Create Store
-                <FaPlus />
+                <FaPlus className="ml-2" />
               </Button>
             </div>
           </div>
-          <div className="border-2 border-[#EEEEEE] h-28 w-1/4 flex items-center justify-end rounded-lg p-4 shadow"></div>
-        </div>
-        <div className="block mt-10">
-          <p className="mb-2 font-semibold text-lg">Member stores</p>
-          <div className="border-2 border-[#EEEEEE] h-28 w-1/4 flex items-center justify-end rounded-lg p-4 shadow"></div>
+
+          {/* Store Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {dummyStores.map((store) => (
+              <div key={store.id} className="relative">
+                <Link href={`/vendor-store/${store.id}`}>
+                  <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-[#F8F9FB] rounded-lg p-3">
+                        <Image
+                          src="/icons/store.svg"
+                          alt="Store"
+                          width={24}
+                          height={24}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-[15px] text-[#1A1C1E]">
+                          {store.name}
+                        </h3>
+                        <p className="text-sm text-[#666668] mt-1">
+                          {store.type}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-8">
+                      <p className="text-sm text-[#666668] mb-2">
+                        Store members
+                      </p>
+                      <div className="flex items-center">
+                        {store.members.map((member, index) => (
+                          <div
+                            key={member.id}
+                            className="relative"
+                            style={{
+                              marginLeft: index > 0 ? "-8px" : "0",
+                              zIndex: store.members.length - index,
+                            }}
+                          >
+                            <Image
+                              src={member.avatar}
+                              alt="Member"
+                              width={24}
+                              height={24}
+                              className="rounded-full border-2 border-white"
+                            />
+                          </div>
+                        ))}
+                        {store.additionalMembers > 0 && (
+                          <div className="relative ml-[-8px] flex items-center justify-center w-6 h-6 rounded-full bg-[#F0F1F3] text-[11px] text-[#666668] border-2 border-white">
+                            +{store.additionalMembers}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+                <div className="absolute top-4 right-4 z-10">
+                  <StoreCardMenu
+                    onEdit={() => handleEditStore(store.id)}
+                    onAddMember={() => handleAddMember(store.id)}
+                    onDeactivate={() => handleDeactivateStore(store.id)}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </Wrapper>
     </>

@@ -66,7 +66,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     email: "",
     password: "",
     confirmPassword: "",
-    route: "",
+    route: "signin",
     signupOTP: "",
     forgotPasswordOTP: "",
     isLoading: false,
@@ -286,7 +286,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         onChange,
         onRouteChange,
         state,
-      }}>
+      }}
+    >
       {children}
     </OnboardingContext.Provider>
   );
