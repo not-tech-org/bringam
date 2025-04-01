@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useState, ChangeEvent, ReactNode } from "react";
 import {
   forgotPasswordApi,
