@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import SignoutButton from "./SignoutButton";
 
 const Sidebar = () => {
-  const vendor = true;
+  const vendor = false;
   const pathname = usePathname();
 
   const customerMenuItems = [

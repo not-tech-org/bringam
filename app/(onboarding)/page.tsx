@@ -104,7 +104,7 @@ function Onboarding() {
 
   return (
     <div className="flex items-center h-screen w-full">
-      <div className="bg-bgArmy w-1/2 h-full p-20 pb-32 flex flex-col justify-end">
+      <div className="bg-bgArmy w-1/2 h-full p-20 pb-32 flex flex-col justify-end text-white">
         <div className="">
           <Image
             src={description ? description?.asset : "/icons/account.svg"}

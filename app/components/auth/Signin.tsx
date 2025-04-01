@@ -117,7 +117,7 @@ const Signin = () => {
             </div>
           </Button>
         ) : (
-          <Button type="submit" primary>
+          <Button type="submit" primary className="w-full">
             Sign in
           </Button>
         )}
