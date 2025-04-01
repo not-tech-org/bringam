@@ -1,23 +1,34 @@
-import Image from "next/image";
-import React from "react";
+"use client";
 
-const VendorHeader = () => {
+import React from "react";
+import { usePathname } from "next/navigation";
+import { IoNotificationsOutline } from "react-icons/io5";
+import Image from "next/image";
+
+export default function VendorHeader() {
+  const pathname = usePathname();
+  const route = pathname.split("/").join("")?.split("-").pop() || "";
+  const formattedRoute = route.charAt(0).toUpperCase() + route.slice(1);
+
   return (
-    <div className="w-full flex justify-between items-center p-8 bg-offWhite border-b-2 border-[#EEEEEE] fixed top-0 right-0 left-[280px] z-10">
-      <div>
-        <p className="text-2xl font-semibold">Stores</p>
-      </div>
+    <div className="flex items-center justify-between py-6 px-8 pl-16 border-b bg-white">
+      <h1 className="text-2xl font-medium">{formattedRoute}</h1>
       <div className="flex items-center gap-4">
-        <Image
-          src="/icons/notificationIcon.svg"
-          width={25}
-          height={25}
-          alt="icon"
-        />
-        <Image src="/icons/Status.png" width={30} height={30} alt="icon" />
+        <button className="relative">
+          <IoNotificationsOutline className="w-6 h-6 text-gray-600" />
+          <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></span>
+        </button>
+        <div className="relative">
+          <Image
+            src="/images/avatar1.svg"
+            alt="User avatar"
+            width={32}
+            height={32}
+            className="rounded-full"
+          />
+          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></span>
+        </div>
       </div>
     </div>
   );
-};
-
-export default VendorHeader;
+}

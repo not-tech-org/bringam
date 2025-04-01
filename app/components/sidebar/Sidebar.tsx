@@ -98,7 +98,7 @@ const Sidebar = () => {
           width={30}
           height={30}
         />
-        <p className="text-lg font-bold">BringAm</p>
+        <p className="text-lg text-white font-bold">BringAm</p>
       </div>
       {!vendor ? (
         <div className="overflowForced h-full">
