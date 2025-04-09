@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,6 +8,17 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-ml: 1.25rem;
+  --space-lg: 2rem;
+  --space-xl: 3.25rem;
+  --space-2xl: 5rem;
+
+  --color-green: #1eb62d;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -16,15 +29,73 @@
   }
 }
 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.app_container {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
 body {
-  color: rgb(var(--foreground-rgb));
+  color: #181725;
+  background: white !important;
+  /* color: rgb(var(--foreground-rgb)); */
+  color: rgb(var(--background-start-rgb));
   background: linear-gradient(
       to bottom,
       transparent,
       rgb(var(--background-end-rgb))
     )
     rgb(var(--background-start-rgb));
+  font-family: "Poppins", sans-serif !important;
+  width: 100vw;
+  height: 100vh;
+  overflow-y: hidden;
 }
+
+button {
+  border-radius: 4px !important;
+  border: none;
+  background: #eee;
+  font-size: var(--font-size-2xs);
+  font-weight: 600 !important;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #3c4948;
+  color: #fff;
+  font-weight: 400;
+}
+
+.btn-secondary {
+  background: #F7F7F7;
+  color: #000000;
+  font-weight: 400;
+  --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.overflowForced {
+  overflow-y: scroll !important;
+}
+
+/* .poppins{
+  font-family: var(--font-poppins);
+}
+
+.inter{
+  font-family: var(--font-inter);
+} */
 
 @layer utilities {
   .text-balance {

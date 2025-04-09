@@ -1,0 +1,66 @@
+import React, { useContext } from "react";
+import Input from "../common/Input";
+import Button from "../common/Button";
+import Link from "next/link";
+import { FaChevronCircleLeft, FaChevronLeft } from "react-icons/fa";
+import { OnboardingContext } from "@/app/contexts/OnboardingContext";
+
+const ForgotPassword = () => {
+  const context = useContext(OnboardingContext);
+
+  if (!context) {
+    return <div>Error: OnboardingContext not found</div>;
+  }
+
+  const { onRouteChange, onChange, state, onForgetPassword } = context;
+
+  const { email } = state;
+
+  if (!context) {
+    return <div>Error: OnboardingContext not found</div>;
+  }
+
+  return (
+    <div
+      className="rounded-3xl border-2 border-[#EDEDED] p-14 bg-[#FCFCFC]"
+      style={{ width: 604 }}>
+      <div className="text-center">
+        <p className="font-bold text-2xl">Forgot Password</p>
+        <p className="font-semibold text-[#979797] text-sm mt-1">
+          Enter your Email address to get a passcode
+        </p>
+      </div>
+      <form className="w-full mt-6" onSubmit={onForgetPassword}>
+        <Input
+          label="Email Address"
+          type="email"
+          name="email"
+          id="email"
+          value={email}
+          onChange={onChange}
+          placeholder="abc@gmail.com"
+          className="border-gray-300 rounded w-100 mb-3"
+        />
+        <Button type="button" primary>Send passcode</Button>
+        <div className="flex justify-between items-center">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => onRouteChange("signin")}>
+            <FaChevronLeft />
+            <p className="text-textGray2 hover:text-bgArmy">Back</p>
+          </div>
+          <div className="">
+            <p className="text-textGray2">
+              {"Didn't"} receive a code?{" "}
+              <span className="text-bgArmy">
+                <Link href="#">Resend</Link>
+              </span>
+            </p>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default ForgotPassword;
