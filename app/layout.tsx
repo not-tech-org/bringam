@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
+import "toastify-js/src/toastify.css";
 import ClientLayout from "./components/ClientLayout";
 
 const poppins = Poppins({
