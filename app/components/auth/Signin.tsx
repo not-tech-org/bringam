@@ -8,6 +8,7 @@ import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 import { signinApi } from "@/app/services/AuthService";
 import { useRouter } from "next/navigation";
 import { showToast, validateEmail } from "../utils/helperFunctions";
+import Toastify from "toastify-js";
 
 const Signin = () => {
   const context = useContext(OnboardingContext);
@@ -32,11 +33,29 @@ const Signin = () => {
     };
 
     if (!validateEmail(email)) {
-      return showToast("Please enter a valid email", "error");
+      // return showToast("Please enter a valid email", "error");
+      return Toastify({
+        text: `Please enter a valid email`,
+        duration: 3000,
+        close: true,
+        gravity: "top",
+        position: "right",
+        backgroundColor: "#e89191",
+        stopOnFocus: true,
+      }).showToast();
     }
 
     if (!password) {
-      return showToast("Password cannot be empty", "error");
+      // return showToast("Password cannot be empty", "error");
+      return Toastify({
+        text: `Password cannot be empty`,
+        duration: 3000,
+        close: true,
+        gravity: "top",
+        position: "right",
+        backgroundColor: "#e89191",
+        stopOnFocus: true,
+      }).showToast();
     }
 
     setIsLoading(true);
@@ -47,7 +66,17 @@ const Signin = () => {
         expires: undefined,
       });
 
-      showToast(res.data.message, "success", "top-center");
+      // showToast(res.data.message, "success", "top-center");
+      Toastify({
+        text: `${res.data.message}`,
+        duration: 3000,
+        close: true,
+        gravity: "top",
+        position: "right",
+        backgroundColor: "#e89191",
+        stopOnFocus: true,
+      }).showToast();
+      
       router.push("/dashboard");
       setIsLoading(false);
     } catch (err: any) {
@@ -117,7 +146,7 @@ const Signin = () => {
             </div>
           </Button>
         ) : (
-          <Button type="submit" primary>
+          <Button type="submit" primary className="w-full">
             Sign in
           </Button>
         )}

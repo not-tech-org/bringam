@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useState, ChangeEvent, ReactNode } from "react";
 import {
   forgotPasswordApi,
@@ -52,7 +54,7 @@ const defaultContextValue: OnboardingContextType = {
     signupOTP: "",
     forgotPasswordOTP: "",
     isLoading: false,
-    route: "",
+    route: "signin",
   },
 };
 
@@ -66,7 +68,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     email: "",
     password: "",
     confirmPassword: "",
-    route: "",
+    route: "signin",
     signupOTP: "",
     forgotPasswordOTP: "",
     isLoading: false,
@@ -286,7 +288,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         onChange,
         onRouteChange,
         state,
-      }}>
+      }}
+    >
       {children}
     </OnboardingContext.Provider>
   );

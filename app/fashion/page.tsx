@@ -3,18 +3,18 @@
 import React from "react";
 import Wrapper from "../components/wrapper/Wrapper";
 
-const AllProductsPage = () => {
+const FashionPage = () => {
   return (
     <Wrapper>
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">All Products</h1>
+        <h1 className="text-2xl font-semibold">Fashion</h1>
         <p className="text-gray-600">
-          Browse through our complete collection of products across all
-          categories.
+          Stay stylish with our curated collection of clothing, accessories, and
+          footwear.
         </p>
       </div>
     </Wrapper>
   );
 };
 
-export default AllProductsPage;
+export default FashionPage;

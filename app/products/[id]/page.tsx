@@ -41,7 +41,7 @@ const ProductDetails = () => {
                 vulputate libero et velit interdum, ac aliquet odio mattis.
                 Class aptent taciti sociosqu ad litora torquent per... see more
               </p>
-              <Button primary style="p-3">
+              <Button primary style="p-3" type="button">
                 Buy Now
                 <Image
                   src="/icons/all.svg"
@@ -50,7 +50,7 @@ const ProductDetails = () => {
                   height={20}
                 />
               </Button>
-              <Button secondary style="p-3">
+              <Button secondary style="p-3" type="button">
                 Add to Cart
                 <Image
                   src="/icons/all.svg"
