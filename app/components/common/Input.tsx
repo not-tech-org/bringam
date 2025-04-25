@@ -75,7 +75,7 @@ const Input: React.FC<InputProps> = ({
           {label}
         </label>
       )}
-      {helperText && <p className="text-sm text-gray-500 mb-2">{helperText}</p>}
+      {helperText && <p className="text-xs text-gray-500 mb-2">{helperText}</p>}
       <div className="relative w-full">
         {prefix && (
           <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">

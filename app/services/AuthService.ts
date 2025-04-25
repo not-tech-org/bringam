@@ -8,8 +8,8 @@ const baseUrl = () => {
 const secoundaryUrl = () => {
   return {
     vendor: "vendor-service",
-  }
-}
+  };
+};
 
 const BACKEND_URL = `${process.env.NEXT_PUBLIC_API_URL}/auth-service/api/v1`;
 
@@ -74,10 +74,39 @@ export const forgotPasswordApi = async (email: string) => {
   return response;
 };
 
+export const forgotPasswordOtpVerifyApi = async (otp: string) => {
+  const response = await axios.post(
+    `${BACKEND_URL}/forgot-password/verify-password-reset-token/${otp}`,
+    null,
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response;
+};
+
+export const resetPasswordApi = async (data: {
+  newPassword: string;
+  confirmNewPassword: string;
+}) => {
+  const response = await axios.post(
+    `${BACKEND_URL}/forgot-password/reset-password`,
+    data,
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response;
+};
+
 export const createVendorStore = async (reqBody: object) => {
-  console.log(`${baseUrl()}/${secoundaryUrl().vendor}/api/v1/stores`)
-  console.log(reqBody)
-} 
+  console.log(`${baseUrl()}/${secoundaryUrl().vendor}/api/v1/stores`);
+  console.log(reqBody);
+};
 export const becomeVendorApi = async (data: object) => {
   const response = await axios.post(
     `${BACKEND_URL}/customers/become-a-vendor`,

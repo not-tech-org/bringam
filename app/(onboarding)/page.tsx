@@ -10,6 +10,8 @@ import {
   OnboardingContext,
   OnboardingProvider,
 } from "../contexts/OnboardingContext";
+import ForgotPasswordOTP from "../components/auth/ForgotPasswordOTP";
+import ResetPassword from "../components/auth/ResetPassword";
 
 const authStep = [
   {
@@ -75,10 +77,14 @@ function Onboarding() {
         return <Signup />;
       case "forgotPassword":
         return <ForgotPassword />;
+      case "forgotPasswordOTP":
+        return <ForgotPasswordOTP />;
       case "SignupOTP":
         return <SignupOTP />;
+      case "resetPassword":
+        return <ResetPassword />;
       default:
-        return <Signup />;
+        return <Signin />;
     }
   };
 

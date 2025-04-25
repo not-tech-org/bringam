@@ -3,6 +3,8 @@
 import React, { createContext, useState, ChangeEvent, ReactNode } from "react";
 import {
   forgotPasswordApi,
+  forgotPasswordOtpVerifyApi,
+  resetPasswordApi,
   logoutApi,
   otpApi,
   resendOtpApi,
@@ -16,10 +18,12 @@ import {
 } from "../components/utils/helperFunctions";
 
 interface OnboardingContextType {
-  onSignUp: (e: React.FormEvent) => any;
-  onOtp: (e: React.FormEvent) => any;
-  onResendOtp: (e: React.FormEvent) => any;
-  onForgetPassword: (e: React.FormEvent) => any;
+  onSignUp: (e: React.FormEvent) => Promise<any>;
+  onOtp: (e: React.FormEvent) => Promise<any>;
+  onResendOtp: (e: React.FormEvent) => Promise<any>;
+  onForgetPassword: (e: React.FormEvent) => Promise<any>;
+  onForgetPasswordOtpVerify: (e: React.FormEvent) => Promise<any>;
+  onResetPassword: (e: React.FormEvent) => Promise<any>;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onRouteChange: (value: string) => void;
   state: StateType;
@@ -33,16 +37,20 @@ interface StateType {
   confirmPassword: string;
   signupOTP: string;
   forgotPasswordOTP: string;
+  newPassword: string;
+  confirmNewPassword: string;
   isLoading: boolean;
   route: string;
 }
 
 // Default context value
 const defaultContextValue: OnboardingContextType = {
-  onSignUp: () => {},
-  onOtp: () => {},
-  onResendOtp: () => {},
-  onForgetPassword: () => {},
+  onSignUp: () => Promise.resolve(),
+  onOtp: () => Promise.resolve(),
+  onResendOtp: () => Promise.resolve(),
+  onForgetPassword: () => Promise.resolve(),
+  onForgetPasswordOtpVerify: () => Promise.resolve(),
+  onResetPassword: () => Promise.resolve(),
   onChange: () => {},
   onRouteChange: () => {},
   state: {
@@ -53,6 +61,8 @@ const defaultContextValue: OnboardingContextType = {
     confirmPassword: "",
     signupOTP: "",
     forgotPasswordOTP: "",
+    newPassword: "",
+    confirmNewPassword: "",
     isLoading: false,
     route: "signin",
   },
@@ -71,11 +81,22 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     route: "signin",
     signupOTP: "",
     forgotPasswordOTP: "",
+    newPassword: "",
+    confirmNewPassword: "",
     isLoading: false,
   });
 
-  const { firstName, lastName, email, password, confirmPassword, signupOTP } =
-    state;
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    confirmPassword,
+    signupOTP,
+    forgotPasswordOTP,
+    newPassword,
+    confirmNewPassword,
+  } = state;
 
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     setState((prevState) => ({
@@ -91,7 +112,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const onSignUp = async (e: React.FormEvent) => {
+  const onSignUp = async (e: React.FormEvent): Promise<any> => {
     e.preventDefault();
 
     const formApiData = {
@@ -104,31 +125,26 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     };
 
     if (!firstName) {
-      return showToast("First name cannot be empty", "error");
+      return Promise.reject(new Error("First name cannot be empty"));
     }
 
     if (!lastName) {
-      return showToast("Last name cannot be empty", "error");
+      return Promise.reject(new Error("Last name cannot be empty"));
     }
 
     if (!validateEmail(email)) {
-      return showToast("Please enter a valid email", "error");
+      return Promise.reject(new Error("Please enter a valid email"));
     }
 
     if (password !== confirmPassword) {
-      return toast.error("Please confirm password", {
-        position: "top-right",
-        theme: "colored",
-      });
+      return Promise.reject(new Error("Please confirm password"));
     }
 
     if (!validatePassword(password)) {
-      return toast.error(
-        "Password should include 1 capital, 1 small, and 1 special character",
-        {
-          position: "top-center",
-          theme: "colored",
-        }
+      return Promise.reject(
+        new Error(
+          "Password should include 1 capital, 1 small, and 1 special character"
+        )
       );
     }
 
@@ -139,10 +155,6 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const res = await signupApi(formApiData);
-      setState((prevState) => ({
-        ...prevState,
-        isLoading: false,
-      }));
 
       if (res.data.success) {
         const uuid = res.data.data;
@@ -151,46 +163,29 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("signupUUID", uuid);
 
         onRouteChange("SignupOTP");
-        toast.success("Signup successful! Proceed to OTP verification.", {
-          position: "top-right",
-          theme: "colored",
-        });
-      } else {
-        toast.error("Signup failed. Please try again.", {
-          position: "top-right",
-          theme: "colored",
-        });
       }
+
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
+
+      return res;
     } catch (err: any) {
       setState((prevState) => ({
         ...prevState,
         isLoading: false,
       }));
 
-      if (err.response) {
-        toast.error(err.response.data.message || "An error occurred", {
-          position: "top-right",
-          theme: "colored",
-        });
-        console.log(err.response);
-      } else {
-        toast.error("Network error or timeout", {
-          position: "top-right",
-          theme: "colored",
-        });
-        console.log(err);
-      }
+      return Promise.reject(err);
     }
   };
 
-  const onOtp = async (e: React.FormEvent) => {
+  const onOtp = async (e: React.FormEvent): Promise<any> => {
     e.preventDefault();
 
     if (!signupOTP) {
-      return toast.error("Please input OTP", {
-        position: "top-right",
-        theme: "colored",
-      });
+      return Promise.reject(new Error("Please input OTP"));
     }
 
     setState((prevState) => ({
@@ -200,81 +195,152 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const res = await otpApi(signupOTP);
+
+      onRouteChange("signin");
+
       setState((prevState) => ({
         ...prevState,
         isLoading: false,
       }));
 
-      showToast(res.data.message, "success");
-      onRouteChange("signin");
+      return res;
     } catch (err: any) {
       setState((prevState) => ({
         ...prevState,
         isLoading: false,
       }));
-      if (err.response) {
-        toast.error(err.response.data.message || "An error occurred");
-        console.log(err.response);
-      } else {
-        toast("Network error or timeout");
-        console.log(err);
-      }
+
+      return Promise.reject(err);
     }
   };
 
-  const onResendOtp = async (e: React.FormEvent) => {
+  const onResendOtp = async (e: React.FormEvent): Promise<any> => {
     e.preventDefault();
 
     const uuid = localStorage.getItem("signupUUID");
 
     if (!uuid) {
-      return toast.error("Please UUID cannot be empty", {
-        position: "top-right",
-        theme: "colored",
-      });
+      return Promise.reject(new Error("UUID cannot be empty"));
     }
 
     try {
       const res = await resendOtpApi(uuid);
-      toast.success(res.data.message, {
-        position: "top-right",
-        theme: "colored",
-      });
+      return res;
     } catch (err: any) {
-      if (err.response) {
-        toast.error(err.response.data.message || "An error occurred");
-        console.log(err.response);
-      } else {
-        toast("Network error or timeout");
-        console.log(err);
-      }
+      return Promise.reject(err);
     }
   };
 
-  const onForgetPassword = async (e: React.FormEvent) => {
+  const onForgetPassword = async (e: React.FormEvent): Promise<any> => {
     e.preventDefault();
 
     if (!email) {
-      return toast.error("Email cannot be empty", {
-        position: "top-right",
-        theme: "colored",
-      });
+      return Promise.reject(new Error("Email cannot be empty"));
     }
+
+    setState((prevState) => ({
+      ...prevState,
+      isLoading: true,
+    }));
 
     try {
       const res = await forgotPasswordApi(email);
-      toast.success(res.data.message, {
-        position: "top-right",
-        theme: "colored",
-      });
+
+      // Navigate to OTP verification on success
+      onRouteChange("forgotPasswordOTP");
+
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
+
+      return res;
     } catch (err: any) {
-      if (err.response) {
-        toast.error(err.response.data.message || "An error occurred");
-        console.log(err.response);
-      } else {
-        toast("Network error or timeout");
-        console.log(err);
-      }
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
+
+      return Promise.reject(err);
+    }
+  };
+
+  const onForgetPasswordOtpVerify = async (
+    e: React.FormEvent
+  ): Promise<any> => {
+    e.preventDefault();
+
+    if (!forgotPasswordOTP) {
+      return Promise.reject(new Error("OTP cannot be empty"));
+    }
+
+    setState((prevState) => ({
+      ...prevState,
+      isLoading: true,
+    }));
+
+    try {
+      const res = await forgotPasswordOtpVerifyApi(forgotPasswordOTP);
+
+      // Navigate to reset password on success
+      onRouteChange("resetPassword");
+
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
+
+      return res;
+    } catch (err: any) {
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
+
+      return Promise.reject(err);
+    }
+  };
+
+  const onResetPassword = async (e: React.FormEvent): Promise<any> => {
+    e.preventDefault();
+
+    if (!newPassword || !confirmNewPassword) {
+      return Promise.reject(new Error("Password fields cannot be empty"));
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      return Promise.reject(new Error("Passwords do not match"));
+    }
+
+    setState((prevState) => ({
+      ...prevState,
+      isLoading: true,
+    }));
+
+    try {
+      const res = await resetPasswordApi({
+        newPassword,
+        confirmNewPassword,
+      });
+
+      // Navigate to signin on success
+      setTimeout(() => {
+        onRouteChange("signin");
+      }, 2000);
+
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
+
+      return res;
+    } catch (err: any) {
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+      }));
+
+      return Promise.reject(err);
     }
   };
 
@@ -282,6 +348,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     <OnboardingContext.Provider
       value={{
         onForgetPassword,
+        onForgetPasswordOtpVerify,
+        onResetPassword,
         onOtp,
         onSignUp,
         onResendOtp,
