@@ -164,17 +164,14 @@ const Signup = () => {
   };
 
   return (
-    <div
-      className="rounded-3xl border-2 border-[#EDEDED] p-14 bg-[#FCFCFC]"
-      style={{ width: 604 }}
-    >
+    <div className="rounded-3xl border-2 border-[#EDEDED] p-8 md:p-14 bg-[#FCFCFC] w-full md:w-[604px]">
       <div className="text-center">
-        <p className="font-bold text-2xl">Create account</p>
-        <p className="font-semibold text-[#979797] text-sm mt-1">
+        <p className="font-bold text-xl md:text-2xl">Create account</p>
+        <p className="font-semibold text-[#979797] text-xs md:text-sm mt-1">
           Get started by creating an account
         </p>
       </div>
-      <form onSubmit={onSignUp} className="w-full mt-6">
+      <form onSubmit={onSignUp} className="w-full mt-4 md:mt-6">
         <Input
           label="First Name"
           type="text"

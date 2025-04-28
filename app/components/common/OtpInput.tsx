@@ -113,13 +113,15 @@ export default function OtpInput({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-black3 text-base font-semibold mb-2">
+        <label className="block text-black3 text-sm md:text-base font-semibold mb-2">
           {label}
         </label>
       )}
-      {helperText && <p className="text-sm text-gray-500 mb-2">{helperText}</p>}
+      {helperText && (
+        <p className="text-xs md:text-sm text-gray-500 mb-2">{helperText}</p>
+      )}
 
-      <div className="flex justify-between gap-2 md:gap-4">
+      <div className="flex justify-between gap-1 sm:gap-2 md:gap-4">
         {Array.from({ length }, (_, index) => (
           <input
             key={index}
@@ -133,7 +135,7 @@ export default function OtpInput({
             onPaste={handlePaste}
             onFocus={() => setActiveIndex(index)}
             className={cn(
-              "w-full aspect-square max-w-14 text-center text-xl font-bold border rounded-lg outline-none",
+              "w-full aspect-square max-w-10 sm:max-w-12 md:max-w-14 text-center text-lg md:text-xl font-bold border rounded-lg outline-none",
               "focus:border-[#2B3B2B] focus:ring-1 focus:ring-[#2B3B2B]",
               error ? "border-red-500" : "border-gray-300",
               "bg-[#F7F7F7]"
@@ -142,7 +144,7 @@ export default function OtpInput({
         ))}
       </div>
 
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+      {error && <p className="text-red-500 text-xs md:text-sm mt-1">{error}</p>}
     </div>
   );
 }

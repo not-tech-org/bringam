@@ -126,7 +126,8 @@ const Signin = () => {
         secure: process.env.NODE_ENV === "production", // Use secure cookies in production
         sameSite: "strict", // Restrict cookie to same site
       });
-
+      localStorage.setItem("userDetails", JSON.stringify(res.data.data));
+      // console.log("Sign-in response:", res.data)
       // Show success message
       showToast(res.data.message || "Signed in successfully", "success");
 
@@ -157,17 +158,14 @@ const Signin = () => {
   };
 
   return (
-    <div
-      className="rounded-3xl border-2 border-[#EDEDED] p-14 bg-[#FCFCFC]"
-      style={{ width: 604 }}
-    >
+    <div className="rounded-3xl border-2 border-[#EDEDED] p-8 md:p-14 bg-[#FCFCFC] w-full md:w-[604px]">
       <div className="text-center">
-        <p className="font-bold text-2xl">Sign in</p>
-        <p className="font-semibold text-[#979797] text-sm mt-1">
+        <p className="font-bold text-xl md:text-2xl">Sign in</p>
+        <p className="font-semibold text-[#979797] text-xs md:text-sm mt-1">
           Sign in to your account
         </p>
       </div>
-      <form className="w-full mt-6" onSubmit={onSignIn}>
+      <form className="w-full mt-4 md:mt-6" onSubmit={onSignIn}>
         <Input
           label="Email Address"
           type="email"

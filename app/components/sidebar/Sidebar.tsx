@@ -2,14 +2,26 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { MdArrowOutward } from "react-icons/md";
 import { usePathname } from "next/navigation";
 import SignoutButton from "./SignoutButton";
 
 const Sidebar = () => {
-  const vendor = true;
+  const [vendor, setVendor] = useState<boolean>(false);
   const pathname = usePathname();
+  const userType = JSON.parse(
+    localStorage.getItem("userDetails") || '{"type": "customer"}'
+  );
+
+  console.log(userType);
+  useEffect(() => {
+    if (userType?.scope?.includes("VENDOR")) {
+      setVendor(true);
+    } else {
+      setVendor(false);
+    }
+  }, [userType]);
 
   const customerMenuItems = [
     { path: "/all", label: "All", icon: "/icons/all.svg" },

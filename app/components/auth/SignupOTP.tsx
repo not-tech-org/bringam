@@ -145,20 +145,17 @@ const SignupOTP = () => {
   };
 
   return (
-    <div
-      className="rounded-3xl border-2 border-[#EDEDED] p-14 bg-[#FCFCFC]"
-      style={{ width: 604 }}
-    >
+    <div className="rounded-3xl border-2 border-[#EDEDED] p-8 md:p-14 bg-[#FCFCFC] w-full md:w-[604px]">
       <div className="text-center">
-        <p className="font-bold text-2xl">Account Verification</p>
-        <p className="font-semibold text-[#979797] text-sm mt-1">
+        <p className="font-bold text-xl md:text-2xl">Account Verification</p>
+        <p className="font-semibold text-[#979797] text-xs md:text-sm mt-1">
           A verification code has been sent to{" "}
           <span className="font-bold text-black">
             {formatMaskedEmail(email)}
           </span>
         </p>
       </div>
-      <form onSubmit={onOtp} className="mt-8">
+      <form onSubmit={onOtp} className="mt-4 md:mt-8">
         <OtpInput
           label="Enter verification code"
           value={signupOTP}
