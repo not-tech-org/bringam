@@ -10,8 +10,10 @@ import {
   OnboardingContext,
   OnboardingProvider,
 } from "../contexts/OnboardingContext";
+import ForgotPasswordOTP from "../components/auth/ForgotPasswordOTP";
+import ResetPassword from "../components/auth/ResetPassword";
 
-const authStep = [
+const authSteps = [
   {
     asset: "/icons/account.svg",
     title: "Create an account",
@@ -22,52 +24,75 @@ const authStep = [
     asset: "/icons/welcomeBack.svg",
     title: "Welcome back",
     description:
-      "Signin to your account to continue shopping. locate venors and find the best deals around you",
+      "Signin to your account to continue shopping. Locate vendors and find the best deals around you",
   },
   {
-    asset: "",
+    asset: "/icons/padlock.svg",
     title: "Forgot password?",
     description:
       "Easy! Just enter your Email address and get the password reset code sent to you in seconds!",
   },
   {
-    asset: "",
+    asset: "/icons/padlock.svg",
     title: "Reset password?",
     description:
       "Good, now enter the password reset code that was sent to your Email address.",
   },
   {
-    asset: "",
+    asset: "/icons/padlock.svg",
     title: "New password?",
     description:
-      "You’re almost there! Now input the new password you’d like to use and that’s it!",
+      "You're almost there! Now input the new password you'd like to use and that's it!",
   },
 ];
 
-interface authStepType {
+interface AuthStepType {
   asset: string;
   title: string;
   description: string;
 }
-[];
 
 function Onboarding() {
   const context = useContext(OnboardingContext);
-  const [description, setDescription] = useState<authStepType>();
+  const [currentStep, setCurrentStep] = useState<AuthStepType | null>(null);
+
+  const { state } = context || { state: { route: "signin" } };
+  const { route } = state;
+
+  // Update the current step whenever the route changes
+  useEffect(() => {
+    let stepIndex = 0;
+
+    switch (route) {
+      case "signin":
+        stepIndex = 1;
+        break;
+      case "signup":
+      case "SignupOTP":
+        stepIndex = 0;
+        break;
+      case "forgotPassword":
+        stepIndex = 2;
+        break;
+      case "forgotPasswordOTP":
+        stepIndex = 3;
+        break;
+      case "resetPassword":
+        stepIndex = 4;
+        break;
+      default:
+        stepIndex = 1; // default to signin
+    }
+
+    setCurrentStep(authSteps[stepIndex]);
+  }, [route]);
 
   if (!context) {
     return <div>Error: OnboardingContext not found</div>;
   }
 
-  const { state } = context;
-
-  // console.log(context);
-
-  const { route } = state;
-
+  // Render the appropriate component based on the current route
   const renderPages = () => {
-    console.log(route);
-
     switch (route) {
       case "signin":
         return <Signin />;
@@ -75,49 +100,38 @@ function Onboarding() {
         return <Signup />;
       case "forgotPassword":
         return <ForgotPassword />;
+      case "forgotPasswordOTP":
+        return <ForgotPasswordOTP />;
       case "SignupOTP":
         return <SignupOTP />;
+      case "resetPassword":
+        return <ResetPassword />;
       default:
-        return <Signup />;
+        return <Signin />;
     }
   };
-
-  const renderDescription = () => {
-    switch (route) {
-      case "signin":
-        setDescription(authStep[1]);
-      case "signup":
-        setDescription(authStep[0]);
-      case "SignupOTP":
-        setDescription(authStep[0]);
-      case "forgotPassword":
-        return <ForgotPassword />;
-      default:
-        setDescription(authStep[0]);
-    }
-  };
-
-  useEffect(() => {
-    // onRouteChange("SignupOTP");
-    renderDescription();
-  }, [route]);
 
   return (
-    <div className="flex items-center h-screen w-full">
-      <div className="bg-bgArmy w-1/2 h-full p-20 pb-32 flex flex-col justify-end text-white">
-        <div className="">
+    <div className="flex flex-col md:flex-row items-center min-h-screen w-full">
+      {/* Left side - hidden on mobile */}
+      <div className="hidden md:flex bg-bgArmy w-full h-full p-8 md:p-20 pb-32 flex-col justify-end text-white">
+        <div className="animate-fadeIn transition-all duration-300">
           <Image
-            src={description ? description?.asset : "/icons/account.svg"}
+            src={currentStep?.asset || "/icons/welcomeBack.svg"}
             alt="Icon vector"
             width={99}
             height={99}
           />
-          <p className="font-bold my-4 text-2xl">{description?.title}</p>
-          <p className="font-medium">{description?.description}</p>
+          <p className="font-bold my-4 text-2xl">{currentStep?.title}</p>
+          <p className="font-medium">{currentStep?.description}</p>
         </div>
       </div>
-      <div className="bg-white text-black w-1/2 h-full flex justify-center items-center">
-        {renderPages()}
+
+      {/* Right side - full width on mobile */}
+      <div className="bg-white text-black w-full h-full min-h-screen py-8 mx-auto flex justify-center items-center overflow-y-auto">
+        <div className="animate-fadeIn transition-all duration-300 w-full flex justify-center">
+          {renderPages()}
+        </div>
       </div>
     </div>
   );
