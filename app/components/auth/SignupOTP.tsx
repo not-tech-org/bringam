@@ -117,9 +117,43 @@ const SignupOTP = () => {
   const onResendOtp = () => {
     if (resendTimer > 0) return;
 
-    contextResendOtp();
+    // Create a synthetic form event
+    const syntheticEvent = {
+      preventDefault: () => {},
+    } as React.FormEvent;
+
+    try {
+      contextResendOtp(syntheticEvent)
+        .then((response: any) => {
+          if (response && response.data && response.data.message) {
+            showToast(response.data.message, "success");
+          } else {
+            showToast(
+              "Verification code has been resent to your email",
+              "success"
+            );
+          }
+        })
+        .catch((err: any) => {
+          let errorMessage = "Failed to resend code. Please try again.";
+          if (err.response && err.response.data && err.response.data.message) {
+            errorMessage = err.response.data.message;
+          }
+          showToast(errorMessage, "error");
+        });
+    } catch (error: any) {
+      let errorMessage = "Failed to resend code. Please try again.";
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
+        errorMessage = error.response.data.message;
+      }
+      showToast(errorMessage, "error");
+    }
+
     setResendTimer(60); // 60 seconds countdown
-    showToast("Verification code has been resent to your email", "success");
   };
 
   // Countdown timer for resend OTP
@@ -145,7 +179,7 @@ const SignupOTP = () => {
   };
 
   return (
-    <div className="rounded-3xl border-2 border-[#EDEDED] p-8 md:p-14 bg-[#FCFCFC] w-full md:w-[604px]">
+    <div className="rounded-3xl border-2 border-[#EDEDED] p-8 md:p-14 bg-[#FCFCFC] w-[90%] max-w-[604px]">
       <div className="text-center">
         <p className="font-bold text-xl md:text-2xl">Account Verification</p>
         <p className="font-semibold text-[#979797] text-xs md:text-sm mt-1">

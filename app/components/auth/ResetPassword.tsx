@@ -153,7 +153,7 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="rounded-3xl border-2 border-[#EDEDED] p-8 md:p-14 bg-[#FCFCFC] w-full md:w-[604px]">
+    <div className="rounded-3xl border-2 border-[#EDEDED] p-8 md:p-14 bg-[#FCFCFC] w-[90%] max-w-[604px]">
       <div className="text-center">
         <p className="font-bold text-xl md:text-2xl">Create a new password</p>
         <p className="font-semibold text-[#979797] text-xs md:text-sm mt-1">

@@ -56,32 +56,8 @@ function Onboarding() {
   const context = useContext(OnboardingContext);
   const [currentStep, setCurrentStep] = useState<AuthStepType | null>(null);
 
-  if (!context) {
-    return <div>Error: OnboardingContext not found</div>;
-  }
-
-  const { state } = context;
+  const { state } = context || { state: { route: "signin" } };
   const { route } = state;
-
-  // Render the appropriate component based on the current route
-  const renderPages = () => {
-    switch (route) {
-      case "signin":
-        return <Signin />;
-      case "signup":
-        return <Signup />;
-      case "forgotPassword":
-        return <ForgotPassword />;
-      case "forgotPasswordOTP":
-        return <ForgotPasswordOTP />;
-      case "SignupOTP":
-        return <SignupOTP />;
-      case "resetPassword":
-        return <ResetPassword />;
-      default:
-        return <Signin />;
-    }
-  };
 
   // Update the current step whenever the route changes
   useEffect(() => {
@@ -111,8 +87,32 @@ function Onboarding() {
     setCurrentStep(authSteps[stepIndex]);
   }, [route]);
 
+  if (!context) {
+    return <div>Error: OnboardingContext not found</div>;
+  }
+
+  // Render the appropriate component based on the current route
+  const renderPages = () => {
+    switch (route) {
+      case "signin":
+        return <Signin />;
+      case "signup":
+        return <Signup />;
+      case "forgotPassword":
+        return <ForgotPassword />;
+      case "forgotPasswordOTP":
+        return <ForgotPasswordOTP />;
+      case "SignupOTP":
+        return <SignupOTP />;
+      case "resetPassword":
+        return <ResetPassword />;
+      default:
+        return <Signin />;
+    }
+  };
+
   return (
-    <div className="flex flex-col md:flex-row items-center h-screen w-full">
+    <div className="flex flex-col md:flex-row items-center min-h-screen w-full">
       {/* Left side - hidden on mobile */}
       <div className="hidden md:flex bg-bgArmy w-full h-full p-8 md:p-20 pb-32 flex-col justify-end text-white">
         <div className="animate-fadeIn transition-all duration-300">
@@ -128,8 +128,8 @@ function Onboarding() {
       </div>
 
       {/* Right side - full width on mobile */}
-      <div className="bg-white text-black w-full h-full min-h-screen py-8 mx-auto flex justify-center items-center overflow-y-auto scrollbar-hide">
-        <div className="animate-fadeIn transition-all duration-300">
+      <div className="bg-white text-black w-full h-full min-h-screen py-8 mx-auto flex justify-center items-center overflow-y-auto">
+        <div className="animate-fadeIn transition-all duration-300 w-full flex justify-center">
           {renderPages()}
         </div>
       </div>

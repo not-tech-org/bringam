@@ -101,10 +101,10 @@ const CreateStore: React.FC<CreateStoreProps> = ({
             </div>
             <div className="p-8">
               <p className="font-semibold text-[#271303] text-xl mt-2">
-                Store's location
+                Store&apos;s location
               </p>
               <p className="text-[#7F7F7F] text-sm my-2">
-                Please enter your store’s address
+                Please enter your store&apos;s address
               </p>
               <Input
                 label="Street"
