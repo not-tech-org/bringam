@@ -30,6 +30,14 @@ const ForgotPasswordOTP = () => {
   const [error, setError] = useState<string>("");
   const [resendTimer, setResendTimer] = useState<number>(0);
 
+  // Countdown timer for resend OTP - moved to the top to avoid conditional hook error
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timerId = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+      return () => clearTimeout(timerId);
+    }
+  }, [resendTimer]);
+
   if (!context) {
     return <div>Error: OnboardingContext not found</div>;
   }
@@ -175,14 +183,6 @@ const ForgotPasswordOTP = () => {
 
     setResendTimer(60); // 60 seconds countdown
   };
-
-  // Countdown timer for resend OTP
-  useEffect(() => {
-    if (resendTimer > 0) {
-      const timerId = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
-      return () => clearTimeout(timerId);
-    }
-  }, [resendTimer]);
 
   // Format masked email for display
   const formatMaskedEmail = (email: string = "") => {
