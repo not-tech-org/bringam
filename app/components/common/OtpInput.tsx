@@ -36,8 +36,11 @@ export default function OtpInput({
 
   // Focus on the active input
   useEffect(() => {
-    if (inputRefs.current[activeIndex]) {
-      inputRefs.current[activeIndex].focus();
+    if (
+      inputRefs.current[activeIndex] !== null &&
+      inputRefs.current[activeIndex] !== undefined
+    ) {
+      inputRefs.current[activeIndex]?.focus();
     }
   }, [activeIndex]);
 

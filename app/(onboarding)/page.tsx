@@ -112,7 +112,7 @@ function Onboarding() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row items-center min-h-screen w-full">
+    <div className="flex flex-col md:flex-row items-center h-screen w-full">
       {/* Left side - hidden on mobile */}
       <div className="hidden md:flex bg-bgArmy w-full h-full p-8 md:p-20 pb-32 flex-col justify-end text-white">
         <div className="animate-fadeIn transition-all duration-300">

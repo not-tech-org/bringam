@@ -25,22 +25,17 @@ const TOAST_STYLES = {
   },
 };
 
-const ForgotPasswordOTP = () => {
-  const context = useContext(OnboardingContext);
+// Separate component to ensure hooks are called unconditionally
+const ForgotPasswordOTPContent = ({ context }: { context: any }) => {
   const [error, setError] = useState<string>("");
   const [resendTimer, setResendTimer] = useState<number>(0);
 
-  // Countdown timer for resend OTP - moved to the top to avoid conditional hook error
   useEffect(() => {
     if (resendTimer > 0) {
       const timerId = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
       return () => clearTimeout(timerId);
     }
   }, [resendTimer]);
-
-  if (!context) {
-    return <div>Error: OnboardingContext not found</div>;
-  }
 
   const {
     onRouteChange,
@@ -247,6 +242,17 @@ const ForgotPasswordOTP = () => {
       </form>
     </div>
   );
+};
+
+// Main component that conditionally renders content
+const ForgotPasswordOTP = () => {
+  const context = useContext(OnboardingContext);
+
+  if (!context) {
+    return <div>Error: OnboardingContext not found</div>;
+  }
+
+  return <ForgotPasswordOTPContent context={context} />;
 };
 
 export default ForgotPasswordOTP;

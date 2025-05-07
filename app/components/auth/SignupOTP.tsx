@@ -25,22 +25,17 @@ const TOAST_STYLES = {
   },
 };
 
-const SignupOTP = () => {
-  const context = useContext(OnboardingContext);
+// Separate component to ensure hooks are called unconditionally
+const SignupOTPContent = ({ context }: { context: any }) => {
   const [error, setError] = useState<string>("");
   const [resendTimer, setResendTimer] = useState<number>(0);
 
-  // Countdown timer for resend OTP - moved to the top to avoid conditional hook error
   useEffect(() => {
     if (resendTimer > 0) {
       const timerId = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
       return () => clearTimeout(timerId);
     }
   }, [resendTimer]);
-
-  if (!context) {
-    return <div>Error: OnboardingContext not found</div>;
-  }
 
   const {
     onOtp: contextOtp,
@@ -227,6 +222,17 @@ const SignupOTP = () => {
       </form>
     </div>
   );
+};
+
+// Main component that conditionally renders content
+const SignupOTP = () => {
+  const context = useContext(OnboardingContext);
+
+  if (!context) {
+    return <div>Error: OnboardingContext not found</div>;
+  }
+
+  return <SignupOTPContent context={context} />;
 };
 
 export default SignupOTP;
