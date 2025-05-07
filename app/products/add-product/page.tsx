@@ -23,6 +23,11 @@ export default function AddProductPage() {
             label="Product title"
             helperText="This will be displayed as the name of your product."
             placeholder="Enter text"
+            name={""}
+            type={""}
+            onChange={function (e: React.ChangeEvent<HTMLInputElement>): void {
+              throw new Error("Function not implemented.");
+            }}
           />
 
           <TextArea
@@ -37,14 +42,24 @@ export default function AddProductPage() {
               prefix="NGN"
               type="number"
               placeholder="0.00"
-              step="0.01"
+              name={""}
+              onChange={function (
+                e: React.ChangeEvent<HTMLInputElement>
+              ): void {
+                throw new Error("Function not implemented.");
+              }} // step="0.01"
             />
             <Input
               label="Cost price"
               prefix="NGN"
               type="number"
               placeholder="0.00"
-              step="0.01"
+              name={""}
+              onChange={function (
+                e: React.ChangeEvent<HTMLInputElement>
+              ): void {
+                throw new Error("Function not implemented.");
+              }} // step="0.01"
             />
           </div>
 
@@ -54,9 +69,35 @@ export default function AddProductPage() {
               type="number"
               placeholder="0.00"
               suffix="kg"
+              name={""}
+              onChange={function (
+                e: React.ChangeEvent<HTMLInputElement>
+              ): void {
+                throw new Error("Function not implemented.");
+              }}
             />
-            <Input label="Product length" type="number" placeholder="0.00" />
-            <Input label="Height" type="number" placeholder="0.00" />
+            <Input
+              label="Product length"
+              type="number"
+              placeholder="0.00"
+              name={""}
+              onChange={function (
+                e: React.ChangeEvent<HTMLInputElement>
+              ): void {
+                throw new Error("Function not implemented.");
+              }}
+            />
+            <Input
+              label="Height"
+              type="number"
+              placeholder="0.00"
+              name={""}
+              onChange={function (
+                e: React.ChangeEvent<HTMLInputElement>
+              ): void {
+                throw new Error("Function not implemented.");
+              }}
+            />
           </div>
 
           <div>
@@ -81,7 +122,16 @@ export default function AddProductPage() {
             <p className="text-sm text-gray-500 mb-2">
               What is the quantity available?
             </p>
-            <Input type="number" placeholder="Enter text" />
+            <Input
+              type="number"
+              placeholder="Enter text"
+              name={""}
+              onChange={function (
+                e: React.ChangeEvent<HTMLInputElement>
+              ): void {
+                throw new Error("Function not implemented.");
+              }}
+            />
           </div>
 
           <div>
