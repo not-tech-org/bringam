@@ -16,6 +16,7 @@ import {
   validateEmail,
   validatePassword,
 } from "../components/utils/helperFunctions";
+import { safeLocalStorage } from "@/app/lib/utils";
 
 interface OnboardingContextType {
   onSignUp: (e: React.FormEvent) => Promise<any>;
@@ -160,7 +161,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         const uuid = res.data.data;
 
         // Save UUID to localStorage
-        localStorage.setItem("signupUUID", uuid);
+        safeLocalStorage.setItem("signupUUID", uuid);
 
         onRouteChange("SignupOTP");
       }
@@ -217,7 +218,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
   const onResendOtp = async (e: React.FormEvent): Promise<any> => {
     e.preventDefault();
 
-    const uuid = localStorage.getItem("signupUUID");
+    const uuid = safeLocalStorage.getItem("signupUUID");
 
     if (!uuid) {
       return Promise.reject(new Error("UUID cannot be empty"));

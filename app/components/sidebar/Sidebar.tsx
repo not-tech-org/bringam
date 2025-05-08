@@ -6,12 +6,13 @@ import React, { useEffect, useState } from "react";
 import { MdArrowOutward } from "react-icons/md";
 import { usePathname } from "next/navigation";
 import SignoutButton from "./SignoutButton";
+import { safeLocalStorage } from "@/app/lib/utils";
 
 const Sidebar = () => {
   const [vendor, setVendor] = useState<boolean>(false);
   const pathname = usePathname();
   const userType = JSON.parse(
-    localStorage.getItem("userDetails") || '{"type": "customer"}'
+    safeLocalStorage.getItem("userDetails", '{"type": "customer"}')
   );
 
   console.log(userType);
