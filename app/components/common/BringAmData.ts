@@ -1,10 +1,10 @@
 export const businessCategoryDropdownData = [
   {
-    value: "CATEGORY_1",
-    label: "CATEGORY_1",
+    value: "vendor-cat-one",
+    label: "vendor-cat-one",
   },
   {
-    value: "CATEGORY_2",
-    label: "CATEGORY_2",
+    value: "vendor-cat-two",
+    label: "vendor-cat-two",
   },
 ];
