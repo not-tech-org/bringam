@@ -104,8 +104,17 @@ export const resetPasswordApi = async (data: {
 };
 
 export const createVendorStore = async (reqBody: object) => {
-  console.log(`${baseUrl()}/${secoundaryUrl().vendor}/api/v1/stores`);
-  console.log(reqBody);
+  const response = await axios.post(
+    `${baseUrl()}/${secoundaryUrl().vendor}/api/v1/stores`,
+    reqBody,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Cookies.get("bringAmToken")}`,
+      },
+    }
+  );
+  return response;
 };
 
 export const becomeVendorApi = async (data: object) => {

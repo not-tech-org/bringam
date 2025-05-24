@@ -15,65 +15,28 @@ import Image from "next/image";
 import Link from "next/link";
 import StoreCardMenu from "../components/common/StoreCardMenu";
 
-// Dummy data for stores
-const dummyStores = [
-  {
-    id: 1,
-    name: "Quality wears",
-    type: "Fashion & Jewelry store",
-    members: [
-      { id: 1, avatar: "/images/avatar1.svg" },
-      { id: 2, avatar: "/images/avatar1.svg" },
-      { id: 3, avatar: "/images/avatar1.svg" },
-    ],
-    additionalMembers: 2,
-  },
-  {
-    id: 2,
-    name: "Tech Gadgets",
-    type: "Electronics store",
-    members: [
-      { id: 1, avatar: "/images/avatar1.svg" },
-      { id: 2, avatar: "/images/avatar1.svg" },
-    ],
-    additionalMembers: 1,
-  },
-  {
-    id: 3,
-    name: "Beauty Corner",
-    type: "Health & Beauty store",
-    members: [
-      { id: 1, avatar: "/images/avatar1.svg" },
-      { id: 2, avatar: "/images/avatar1.svg" },
-      { id: 3, avatar: "/images/avatar1.svg" },
-    ],
-    additionalMembers: 3,
-  },
-];
-
 interface StateType {
   name: string;
   description: string;
   phoneNumber: string;
   email: string;
-  website?: string;
+  website: string;
   category?: string;
   street: string;
   city: string;
   lga: string;
+  state: string;
+  landmark: string;
   address?: {
-    uuid?: string;
-    entityUuid?: string;
-    city: string;
+    city: number;
+    country: number;
     landmark: string;
+    lga: string;
+    state: number;
+    street: string;
     longitude: number;
     latitude: number;
-    country: number;
-    lga: string;
-    state: string;
-    street: string;
   };
-  addressUuid: string;
   profilePhotoUrl: string;
   coverPhotoUrl: string;
   active: boolean;
@@ -98,53 +61,85 @@ const VendorStore = () => {
     street: "",
     city: "",
     lga: "",
+    state: "",
+    landmark: "",
     address: {
-      uuid: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-      entityUuid: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-      city: "",
+      city: 0,
       country: 0,
       landmark: "",
       lga: "",
-      state: "",
+      state: 0,
       street: "",
       longitude: 0,
       latitude: 0,
     },
-    addressUuid: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     profilePhotoUrl: "",
     coverPhotoUrl: "",
     active: true,
   });
 
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setState((prevState) => ({
       ...prevState,
       [e.target.name]: e.target.value,
     }));
   };
 
-  const { name, description, street, city, lga } = state;
+  const {
+    name,
+    description,
+    phoneNumber,
+    email,
+    website,
+    street,
+    city,
+    lga,
+    state: stateValue,
+    landmark,
+  } = state;
 
   const onCreateVendorStore = async () => {
     const reqBody = {
+      vendorUuid: vendorUuid,
       name,
       description,
+      phoneNumber,
+      email,
+      website,
       address: {
-        street,
+        city: Math.floor(Math.random() * 1000) + 1, // Random city ID for now
+        country: Math.floor(Math.random() * 100) + 1, // Random country ID for now
+        landmark,
         lga,
-        city,
+        state: Math.floor(Math.random() * 100) + 1, // Random state ID for now
+        street,
+        longitude: 0, // Default to 0, can be updated later
+        latitude: 0, // Default to 0, can be updated later
       },
+      profilePhotoUrl: "",
+      coverPhotoUrl: "",
+      active: true,
     };
+
     try {
       const response = await createVendorStore(reqBody);
-      setState((state) => ({
-        ...state,
+      console.log("Store created successfully:", response.data);
+
+      // Reset form
+      setState((prevState) => ({
+        ...prevState,
         name: "",
         description: "",
+        phoneNumber: "",
+        email: "",
+        website: "",
         street: "",
         lga: "",
         city: "",
+        state: "",
+        landmark: "",
       }));
+
       closeModal();
       // Refresh stores list after creating a new store
       if (vendorUuid) {
