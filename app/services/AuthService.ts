@@ -174,3 +174,16 @@ export const getAllStores = async (vendorUuid: string) => {
   );
   return response;
 };
+
+export const getStoreById = async (storeUuid: string) => {
+  const response = await axios.get(
+    `${baseUrl()}/${secoundaryUrl().vendor}/api/v1/stores/${storeUuid}`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Cookies.get("bringAmToken")}`,
+      },
+    }
+  );
+  return response;
+};
