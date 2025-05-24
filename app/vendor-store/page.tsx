@@ -6,10 +6,13 @@ import Button from "../components/common/Button";
 import { FaPlus } from "react-icons/fa";
 import Modal from "../components/common/Modal";
 import CreateStore from "../components/store/forms/CreateStore";
+import EditStore from "../components/store/forms/EditStore";
 import {
   createVendorStore,
   getUserProfile,
   getAllStores,
+  getStoreById,
+  updateVendorStore,
 } from "../services/AuthService";
 import Image from "next/image";
 import Link from "next/link";
@@ -44,12 +47,47 @@ interface StateType {
 
 const VendorStore = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingStoreId, setEditingStoreId] = useState<string>("");
   const [vendorUuid, setVendorUuid] = useState<string>("");
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
 
   const openModal = () => setIsOpen(true);
   const closeModal = () => setIsOpen(false);
+  const openEditModal = () => setIsEditOpen(true);
+  const closeEditModal = () => {
+    setIsEditOpen(false);
+    setEditingStoreId("");
+    // Reset edit state to initial values
+    setEditState({
+      name: "",
+      description: "",
+      phoneNumber: "",
+      email: "",
+      website: "",
+      category: "",
+      street: "",
+      city: "",
+      lga: "",
+      state: "",
+      landmark: "",
+      address: {
+        city: 0,
+        country: 0,
+        landmark: "",
+        lga: "",
+        state: 0,
+        street: "",
+        longitude: 0,
+        latitude: 0,
+      },
+      profilePhotoUrl: "",
+      coverPhotoUrl: "",
+      active: true,
+    });
+  };
 
   const [state, setState] = useState<StateType>({
     name: "",
@@ -78,8 +116,44 @@ const VendorStore = () => {
     active: true,
   });
 
+  const [editState, setEditState] = useState<StateType>({
+    name: "",
+    description: "",
+    phoneNumber: "",
+    email: "",
+    website: "",
+    category: "",
+    street: "",
+    city: "",
+    lga: "",
+    state: "",
+    landmark: "",
+    address: {
+      city: 0,
+      country: 0,
+      landmark: "",
+      lga: "",
+      state: 0,
+      street: "",
+      longitude: 0,
+      latitude: 0,
+    },
+    profilePhotoUrl: "",
+    coverPhotoUrl: "",
+    active: true,
+  });
+
   const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setState((prevState) => ({
+      ...prevState,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const onEditChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setEditState((prevState) => ({
       ...prevState,
       [e.target.name]: e.target.value,
     }));
@@ -150,17 +224,95 @@ const VendorStore = () => {
     }
   };
 
-  const handleEditStore = (storeId: number) => {
-    // TODO: Implement edit store functionality
-    console.log("Edit store", storeId);
+  const onUpdateVendorStore = async () => {
+    if (!editingStoreId) return;
+
+    const reqBody = {
+      vendorUuid: vendorUuid,
+      name: editState.name,
+      description: editState.description,
+      phoneNumber: editState.phoneNumber,
+      email: editState.email,
+      website: editState.website,
+      address: {
+        city: Math.floor(Math.random() * 1000) + 1, // Random city ID for now
+        country: Math.floor(Math.random() * 100) + 1, // Random country ID for now
+        landmark: editState.landmark,
+        lga: editState.lga,
+        state: Math.floor(Math.random() * 100) + 1, // Random state ID for now
+        street: editState.street,
+        longitude: 0, // Default to 0, can be updated later
+        latitude: 0, // Default to 0, can be updated later
+      },
+      profilePhotoUrl: "",
+      coverPhotoUrl: "",
+      active: true,
+    };
+
+    try {
+      setEditLoading(true);
+      const response = await updateVendorStore(editingStoreId, reqBody);
+      console.log("Store updated successfully:", response.data);
+
+      closeEditModal();
+      // Refresh stores list after updating
+      if (vendorUuid) {
+        await fetchVendorStores(vendorUuid);
+      }
+    } catch (error) {
+      console.error("Error updating vendor store:", error);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
-  const handleAddMember = (storeId: number) => {
+  const handleEditStore = async (storeId: string) => {
+    try {
+      setEditingStoreId(storeId);
+      // Fetch store details to pre-fill the form
+      const response = await getStoreById(storeId);
+      const storeData = response.data.data || response.data;
+
+      // Pre-fill the edit form with existing store data
+      setEditState({
+        name: storeData.name || "",
+        description: storeData.description || "",
+        phoneNumber: storeData.phoneNumber || "",
+        email: storeData.email || "",
+        website: storeData.website || "",
+        category: storeData.category || "",
+        street: storeData.address?.street || "",
+        city: storeData.address?.city || "",
+        lga: storeData.address?.lga || "",
+        state: storeData.address?.state || "",
+        landmark: storeData.address?.landmark || "",
+        address: {
+          city: storeData.address?.city || 0,
+          country: storeData.address?.country || 0,
+          landmark: storeData.address?.landmark || "",
+          lga: storeData.address?.lga || "",
+          state: storeData.address?.state || 0,
+          street: storeData.address?.street || "",
+          longitude: storeData.address?.longitude || 0,
+          latitude: storeData.address?.latitude || 0,
+        },
+        profilePhotoUrl: storeData.profilePhotoUrl || "",
+        coverPhotoUrl: storeData.coverPhotoUrl || "",
+        active: storeData.active !== undefined ? storeData.active : true,
+      });
+
+      openEditModal();
+    } catch (error) {
+      console.error("Error fetching store details for edit:", error);
+    }
+  };
+
+  const handleAddMember = (storeId: string) => {
     // TODO: Implement add member functionality
     console.log("Add member", storeId);
   };
 
-  const handleDeactivateStore = (storeId: number) => {
+  const handleDeactivateStore = (storeId: string) => {
     // TODO: Implement deactivate store functionality
     console.log("Deactivate store", storeId);
   };
@@ -213,6 +365,19 @@ const VendorStore = () => {
           />
         </div>
       </Modal>
+
+      <Modal isOpen={isEditOpen} onClose={closeEditModal}>
+        <div className="text-black">
+          <EditStore
+            handleSubmit={onUpdateVendorStore}
+            state={editState}
+            onChange={onEditChange}
+            onClose={closeEditModal}
+            loading={editLoading}
+          />
+        </div>
+      </Modal>
+
       <Wrapper>
         <div className="block">
           <div className="flex items-center justify-between mb-6">
