@@ -7,12 +7,14 @@ import { FaPlus } from "react-icons/fa";
 import Modal from "../components/common/Modal";
 import CreateStore from "../components/store/forms/CreateStore";
 import EditStore from "../components/store/forms/EditStore";
+import ConfirmationModal from "../components/common/ConfirmationModal";
 import {
   createVendorStore,
   getUserProfile,
   getAllStores,
   getStoreById,
   updateVendorStore,
+  deactivateVendorStore,
 } from "../services/AuthService";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,11 +50,16 @@ interface StateType {
 const VendorStore = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
   const [editingStoreId, setEditingStoreId] = useState<string>("");
+  const [deactivatingStoreId, setDeactivatingStoreId] = useState<string>("");
+  const [deactivatingStoreName, setDeactivatingStoreName] =
+    useState<string>("");
   const [vendorUuid, setVendorUuid] = useState<string>("");
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
 
   const openModal = () => setIsOpen(true);
   const closeModal = () => setIsOpen(false);
@@ -87,6 +94,13 @@ const VendorStore = () => {
       coverPhotoUrl: "",
       active: true,
     });
+  };
+
+  const openDeactivateModal = () => setIsDeactivateOpen(true);
+  const closeDeactivateModal = () => {
+    setIsDeactivateOpen(false);
+    setDeactivatingStoreId("");
+    setDeactivatingStoreName("");
   };
 
   const [state, setState] = useState<StateType>({
@@ -313,8 +327,31 @@ const VendorStore = () => {
   };
 
   const handleDeactivateStore = (storeId: string) => {
-    // TODO: Implement deactivate store functionality
-    console.log("Deactivate store", storeId);
+    // Find the store name for the confirmation message
+    const store = stores.find((s) => (s.id || s.uuid) === storeId);
+    setDeactivatingStoreId(storeId);
+    setDeactivatingStoreName(store?.name || "this store");
+    openDeactivateModal();
+  };
+
+  const confirmDeactivateStore = async () => {
+    if (!deactivatingStoreId) return;
+
+    try {
+      setDeactivateLoading(true);
+      const response = await deactivateVendorStore(deactivatingStoreId);
+      console.log("Store deactivated successfully:", response.data);
+
+      closeDeactivateModal();
+      // Refresh stores list after deactivating
+      if (vendorUuid) {
+        await fetchVendorStores(vendorUuid);
+      }
+    } catch (error) {
+      console.error("Error deactivating vendor store:", error);
+    } finally {
+      setDeactivateLoading(false);
+    }
   };
 
   const fetchUserProfile = async () => {
@@ -377,6 +414,18 @@ const VendorStore = () => {
           />
         </div>
       </Modal>
+
+      <ConfirmationModal
+        isOpen={isDeactivateOpen}
+        onClose={closeDeactivateModal}
+        onConfirm={confirmDeactivateStore}
+        title="Deactivate Store"
+        message={`Are you sure you want to deactivate "${deactivatingStoreName}"? This action will make the store unavailable to customers.`}
+        confirmText="Deactivate"
+        cancelText="Cancel"
+        loading={deactivateLoading}
+        type="danger"
+      />
 
       <Wrapper>
         <div className="block">

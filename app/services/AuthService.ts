@@ -131,3 +131,10 @@ export const updateVendorStore = async (storeUuid: string, reqBody: object) => {
   const response = await vendorApi.put(`/stores/${storeUuid}`, reqBody);
   return response;
 };
+
+export const deactivateVendorStore = async (storeUuid: string) => {
+  const response = await vendorApi.delete(
+    `/stores/deactivate-store/${storeUuid}`
+  );
+  return response;
+};
