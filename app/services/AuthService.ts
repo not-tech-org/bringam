@@ -107,6 +107,7 @@ export const createVendorStore = async (reqBody: object) => {
   console.log(`${baseUrl()}/${secoundaryUrl().vendor}/api/v1/stores`);
   console.log(reqBody);
 };
+
 export const becomeVendorApi = async (data: object) => {
   const response = await axios.post(
     `${BACKEND_URL}/customers/become-a-vendor`,
@@ -137,5 +138,30 @@ export const logoutApi = async () => {
     "authentication=false; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
   localStorage.clear();
   window.location.href = "/";
+  return response;
+};
+
+export const getUserProfile = async () => {
+  const response = await axios.get(`${BACKEND_URL}/users/get-user-profile`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${Cookies.get("bringAmToken")}`,
+    },
+  });
+  return response;
+};
+
+export const getAllStores = async (vendorUuid: string) => {
+  const response = await axios.get(
+    `${baseUrl()}/${
+      secoundaryUrl().vendor
+    }/api/v1/stores?vendorUuid=${vendorUuid}`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Cookies.get("bringAmToken")}`,
+      },
+    }
+  );
   return response;
 };
