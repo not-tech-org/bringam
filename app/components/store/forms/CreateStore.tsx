@@ -9,12 +9,21 @@ interface CreateStoreProps {
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onClose: () => void;
   state: any;
+  countries?: any[];
+  states?: any[];
+  onCountryChange?: (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => void;
 }
+
 const CreateStore: React.FC<CreateStoreProps> = ({
   handleSubmit,
   onChange,
   onClose,
   state,
+  countries = [],
+  states = [],
+  onCountryChange,
 }) => {
   const [step, setStep] = useState(0);
 
@@ -25,12 +34,23 @@ const CreateStore: React.FC<CreateStoreProps> = ({
     phoneNumber,
     email,
     website,
+    country,
     street,
     lga,
     city,
     state: stateValue,
     landmark,
   } = state;
+
+  const handleSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const syntheticEvent = {
+      target: {
+        name: e.target.name,
+        value: e.target.value,
+      },
+    } as ChangeEvent<HTMLInputElement>;
+    onChange(syntheticEvent);
+  };
 
   return (
     <>
@@ -150,6 +170,37 @@ const CreateStore: React.FC<CreateStoreProps> = ({
               <p className="text-[#7F7F7F] text-sm my-2">
                 Please enter your store&apos;s address
               </p>
+
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Country
+                </label>
+                <select
+                  name="country"
+                  value={country}
+                  onChange={(e) => {
+                    const syntheticEvent = {
+                      target: {
+                        name: e.target.name,
+                        value: e.target.value,
+                      },
+                    } as ChangeEvent<HTMLInputElement>;
+                    if (onCountryChange) {
+                      onCountryChange(syntheticEvent);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select a country</option>
+                  {countries.map((countryItem) => (
+                    <option key={countryItem.id} value={countryItem.id}>
+                      {countryItem.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <Input
                 label="Street"
                 type="text"
@@ -184,17 +235,26 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                 required
               />
               {/* Note: City value will be converted to city ID when submitting to API */}
-              <Input
-                label="State"
-                type="text"
-                name="state"
-                id="state"
-                value={stateValue}
-                onChange={onChange}
-                placeholder="Enter state"
-                className="border-gray-300 rounded w-100 mb-3"
-                required
-              />
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  State
+                </label>
+                <select
+                  name="state"
+                  value={stateValue}
+                  onChange={handleSelectChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  disabled={!country}
+                >
+                  <option value="">Select a state</option>
+                  {states.map((stateItem) => (
+                    <option key={stateItem.id} value={stateItem.id}>
+                      {stateItem.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {/* Note: State value will be converted to state ID when submitting to API */}
               <Input
                 label="Landmark (Optional)"

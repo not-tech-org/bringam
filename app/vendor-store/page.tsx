@@ -15,6 +15,8 @@ import {
   getStoreById,
   updateVendorStore,
   deactivateVendorStore,
+  getAllCountries,
+  getStatesByCountryId,
 } from "../services/AuthService";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,6 +29,7 @@ interface StateType {
   email: string;
   website: string;
   category?: string;
+  country: string;
   street: string;
   city: string;
   lga: string;
@@ -57,6 +60,8 @@ const VendorStore = () => {
     useState<string>("");
   const [vendorUuid, setVendorUuid] = useState<string>("");
   const [stores, setStores] = useState<any[]>([]);
+  const [countries, setCountries] = useState<any[]>([]);
+  const [states, setStates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
@@ -75,6 +80,7 @@ const VendorStore = () => {
       email: "",
       website: "",
       category: "",
+      country: "",
       street: "",
       city: "",
       lga: "",
@@ -110,6 +116,7 @@ const VendorStore = () => {
     email: "",
     website: "",
     category: "",
+    country: "",
     street: "",
     city: "",
     lga: "",
@@ -137,6 +144,7 @@ const VendorStore = () => {
     email: "",
     website: "",
     category: "",
+    country: "",
     street: "",
     city: "",
     lga: "",
@@ -179,6 +187,7 @@ const VendorStore = () => {
     phoneNumber,
     email,
     website,
+    country,
     street,
     city,
     lga,
@@ -196,10 +205,10 @@ const VendorStore = () => {
       website,
       address: {
         city: Math.floor(Math.random() * 1000) + 1, // Random city ID for now
-        country: Math.floor(Math.random() * 100) + 1, // Random country ID for now
+        country: parseInt(country) || Math.floor(Math.random() * 100) + 1, // Use selected country ID
         landmark,
         lga,
-        state: Math.floor(Math.random() * 100) + 1, // Random state ID for now
+        state: parseInt(stateValue) || Math.floor(Math.random() * 100) + 1, // Use selected state ID
         street,
         longitude: 0, // Default to 0, can be updated later
         latitude: 0, // Default to 0, can be updated later
@@ -221,6 +230,7 @@ const VendorStore = () => {
         phoneNumber: "",
         email: "",
         website: "",
+        country: "",
         street: "",
         lga: "",
         city: "",
@@ -250,10 +260,11 @@ const VendorStore = () => {
       website: editState.website,
       address: {
         city: Math.floor(Math.random() * 1000) + 1, // Random city ID for now
-        country: Math.floor(Math.random() * 100) + 1, // Random country ID for now
+        country:
+          parseInt(editState.country) || Math.floor(Math.random() * 100) + 1, // Use selected country ID
         landmark: editState.landmark,
         lga: editState.lga,
-        state: Math.floor(Math.random() * 100) + 1, // Random state ID for now
+        state: parseInt(editState.state) || Math.floor(Math.random() * 100) + 1, // Use selected state ID
         street: editState.street,
         longitude: 0, // Default to 0, can be updated later
         latitude: 0, // Default to 0, can be updated later
@@ -295,10 +306,11 @@ const VendorStore = () => {
         email: storeData.email || "",
         website: storeData.website || "",
         category: storeData.category || "",
+        country: storeData.address?.country?.toString() || "",
         street: storeData.address?.street || "",
         city: storeData.address?.city || "",
         lga: storeData.address?.lga || "",
-        state: storeData.address?.state || "",
+        state: storeData.address?.state?.toString() || "",
         landmark: storeData.address?.landmark || "",
         address: {
           city: storeData.address?.city || 0,
@@ -314,6 +326,11 @@ const VendorStore = () => {
         coverPhotoUrl: storeData.coverPhotoUrl || "",
         active: storeData.active !== undefined ? storeData.active : true,
       });
+
+      // Fetch states if country is available
+      if (storeData.address?.country) {
+        await fetchStates(storeData.address.country);
+      }
 
       openEditModal();
     } catch (error) {
@@ -386,8 +403,67 @@ const VendorStore = () => {
     }
   };
 
+  const fetchCountries = async () => {
+    try {
+      const response = await getAllCountries();
+      console.log("Countries:", response.data);
+      setCountries(response.data.data || []);
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+      setCountries([]);
+    }
+  };
+
+  const fetchStates = async (countryId: string | number) => {
+    try {
+      const response = await getStatesByCountryId(countryId);
+      console.log("States:", response.data);
+      setStates(response.data.data || []);
+    } catch (error) {
+      console.error("Error fetching states:", error);
+      setStates([]);
+    }
+  };
+
+  const handleCountryChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const countryId = e.target.value;
+    setState((prevState) => ({
+      ...prevState,
+      country: countryId,
+      state: "", // Reset state when country changes
+    }));
+
+    // Fetch states for the selected country
+    if (countryId) {
+      fetchStates(countryId);
+    } else {
+      setStates([]);
+    }
+  };
+
+  const handleEditCountryChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const countryId = e.target.value;
+    setEditState((prevState) => ({
+      ...prevState,
+      country: countryId,
+      state: "", // Reset state when country changes
+    }));
+
+    // Fetch states for the selected country
+    if (countryId) {
+      fetchStates(countryId);
+    } else {
+      setStates([]);
+    }
+  };
+
   useEffect(() => {
     fetchUserProfile();
+    fetchCountries();
   }, []);
 
   return (
@@ -399,6 +475,9 @@ const VendorStore = () => {
             state={state}
             onChange={onChange}
             onClose={closeModal}
+            countries={countries}
+            states={states}
+            onCountryChange={handleCountryChange}
           />
         </div>
       </Modal>
@@ -411,6 +490,9 @@ const VendorStore = () => {
             onChange={onEditChange}
             onClose={closeEditModal}
             loading={editLoading}
+            countries={countries}
+            states={states}
+            onCountryChange={handleEditCountryChange}
           />
         </div>
       </Modal>

@@ -10,6 +10,11 @@ interface EditStoreProps {
   onClose: () => void;
   state: any;
   loading?: boolean;
+  countries?: any[];
+  states?: any[];
+  onCountryChange?: (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => void;
 }
 
 const EditStore: React.FC<EditStoreProps> = ({
@@ -18,6 +23,9 @@ const EditStore: React.FC<EditStoreProps> = ({
   onClose,
   state,
   loading = false,
+  countries = [],
+  states = [],
+  onCountryChange,
 }) => {
   const [step, setStep] = useState(0);
 
@@ -28,12 +36,23 @@ const EditStore: React.FC<EditStoreProps> = ({
     phoneNumber,
     email,
     website,
+    country,
     street,
     lga,
     city,
     state: stateValue,
     landmark,
   } = state;
+
+  const handleSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const syntheticEvent = {
+      target: {
+        name: e.target.name,
+        value: e.target.value,
+      },
+    } as ChangeEvent<HTMLInputElement>;
+    onChange(syntheticEvent);
+  };
 
   return (
     <>
@@ -144,6 +163,59 @@ const EditStore: React.FC<EditStoreProps> = ({
               <p className="text-[#7F7F7F] text-sm my-2">
                 Update your store&apos;s address information
               </p>
+
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Country
+                </label>
+                <select
+                  name="country"
+                  value={country}
+                  onChange={(e) => {
+                    const syntheticEvent = {
+                      target: {
+                        name: e.target.name,
+                        value: e.target.value,
+                      },
+                    } as ChangeEvent<HTMLInputElement>;
+                    if (onCountryChange) {
+                      onCountryChange(syntheticEvent);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  disabled={loading}
+                >
+                  <option value="">Select a country</option>
+                  {countries.map((countryItem) => (
+                    <option key={countryItem.id} value={countryItem.id}>
+                      {countryItem.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  State
+                </label>
+                <select
+                  name="state"
+                  value={stateValue}
+                  onChange={handleSelectChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  disabled={loading || !country}
+                >
+                  <option value="">Select a state</option>
+                  {states.map((stateItem) => (
+                    <option key={stateItem.id} value={stateItem.id}>
+                      {stateItem.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <Input
                 label="Street"
                 type="text"
@@ -174,17 +246,6 @@ const EditStore: React.FC<EditStoreProps> = ({
                 value={city}
                 onChange={onChange}
                 placeholder="Enter city"
-                className="border-gray-300 rounded w-100 mb-3"
-                required
-              />
-              <Input
-                label="State"
-                type="text"
-                name="state"
-                id="state"
-                value={stateValue}
-                onChange={onChange}
-                placeholder="Enter state"
                 className="border-gray-300 rounded w-100 mb-3"
                 required
               />
@@ -233,7 +294,7 @@ const EditStore: React.FC<EditStoreProps> = ({
                 Your store information has been updated and is now live.
               </p>
 
-              <div className="flex items-center justify-between gap-8">
+              <div className="flex items-center justify-center gap-8">
                 <Button
                   type="button"
                   secondary

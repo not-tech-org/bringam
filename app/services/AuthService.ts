@@ -138,3 +138,15 @@ export const deactivateVendorStore = async (storeUuid: string) => {
   );
   return response;
 };
+
+export const getAllCountries = async () => {
+  const response = await authApi.get("/country/get-all-countries");
+  return response;
+};
+
+export const getStatesByCountryId = async (countryId: string | number) => {
+  const response = await authApi.get(
+    `/state/get-all-states-by-country-id/${countryId}`
+  );
+  return response;
+};
