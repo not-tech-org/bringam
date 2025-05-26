@@ -199,6 +199,7 @@ const VendorStore = () => {
   } = state;
 
   const onCreateVendorStore = async () => {
+    setCreateLoading(true);
     const reqBody = {
       vendorUuid: vendorUuid,
       name,
@@ -250,6 +251,8 @@ const VendorStore = () => {
     } catch (error) {
       console.error("Error creating vendor store:", error);
       throw error; // Re-throw to let the component handle the error
+    } finally {
+      setCreateLoading(false);
     }
   };
 
