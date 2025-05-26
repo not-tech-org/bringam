@@ -3,6 +3,7 @@ import React, { ChangeEvent, useState } from "react";
 import Input from "../../common/Input";
 import Select from "../../common/Select";
 import Button from "../../common/Button";
+import ReactSelect from "react-select";
 
 interface EditStoreProps {
   handleSubmit: () => void;
@@ -12,7 +13,11 @@ interface EditStoreProps {
   loading?: boolean;
   countries?: any[];
   states?: any[];
+  cities?: any[];
   onCountryChange?: (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => void;
+  onStateChange?: (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => void;
 }
@@ -25,9 +30,12 @@ const EditStore: React.FC<EditStoreProps> = ({
   loading = false,
   countries = [],
   states = [],
+  cities = [],
   onCountryChange,
+  onStateChange,
 }) => {
   const [step, setStep] = useState(0);
+  const [emailError, setEmailError] = useState("");
 
   const {
     name,
@@ -43,6 +51,33 @@ const EditStore: React.FC<EditStoreProps> = ({
     state: stateValue,
     landmark,
   } = state;
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const emailValue = e.target.value;
+    onChange(e);
+
+    if (emailValue && !validateEmail(emailValue)) {
+      setEmailError("Please enter a valid email address");
+    } else {
+      setEmailError("");
+    }
+  };
+
+  const canProceedToNext = () => {
+    return (
+      name &&
+      description &&
+      phoneNumber &&
+      email &&
+      validateEmail(email) &&
+      category
+    );
+  };
 
   const handleSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const syntheticEvent = {
@@ -106,11 +141,14 @@ const EditStore: React.FC<EditStoreProps> = ({
                 name="email"
                 id="email"
                 value={email}
-                onChange={onChange}
+                onChange={handleEmailChange}
                 placeholder="Enter your store's email"
                 className="border-gray-300 rounded w-100 mb-3"
                 required
               />
+              {emailError && (
+                <p className="text-red-500 text-xs mt-1">{emailError}</p>
+              )}
               <Input
                 label="Website (Optional)"
                 type="url"
@@ -126,8 +164,24 @@ const EditStore: React.FC<EditStoreProps> = ({
                   label="Category"
                   name="category"
                   value={category}
-                  options={[]}
-                  onChange={() => console.log()}
+                  options={[
+                    { value: "electronics", label: "Electronics" },
+                    { value: "fashion", label: "Fashion & Clothing" },
+                    { value: "food", label: "Food & Beverages" },
+                    { value: "health", label: "Health & Beauty" },
+                    { value: "home", label: "Home & Garden" },
+                    { value: "sports", label: "Sports & Fitness" },
+                    { value: "books", label: "Books & Media" },
+                    { value: "automotive", label: "Automotive" },
+                    { value: "toys", label: "Toys & Games" },
+                    { value: "jewelry", label: "Jewelry & Accessories" },
+                    { value: "pets", label: "Pet Supplies" },
+                    { value: "office", label: "Office & Business" },
+                    { value: "crafts", label: "Arts & Crafts" },
+                    { value: "services", label: "Services" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  onChange={handleSelectChange}
                   required
                   placeholder="Select a category"
                 />
@@ -146,7 +200,7 @@ const EditStore: React.FC<EditStoreProps> = ({
                   type="button"
                   primary
                   onClick={() => setStep(1)}
-                  disabled={loading}
+                  disabled={loading || !canProceedToNext()}
                 >
                   Next
                 </Button>
@@ -168,52 +222,117 @@ const EditStore: React.FC<EditStoreProps> = ({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Country
                 </label>
-                <select
+                <ReactSelect
                   name="country"
-                  value={country}
-                  onChange={(e) => {
+                  value={
+                    countries.find((c) => c.id.toString() === country)
+                      ? {
+                          value: country,
+                          label: countries.find(
+                            (c) => c.id.toString() === country
+                          )?.name,
+                        }
+                      : null
+                  }
+                  onChange={(selectedOption) => {
                     const syntheticEvent = {
                       target: {
-                        name: e.target.name,
-                        value: e.target.value,
+                        name: "country",
+                        value: selectedOption ? selectedOption.value : "",
                       },
                     } as ChangeEvent<HTMLInputElement>;
                     if (onCountryChange) {
                       onCountryChange(syntheticEvent);
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                  disabled={loading}
-                >
-                  <option value="">Select a country</option>
-                  {countries.map((countryItem) => (
-                    <option key={countryItem.id} value={countryItem.id}>
-                      {countryItem.name}
-                    </option>
-                  ))}
-                </select>
+                  options={countries.map((countryItem) => ({
+                    value: countryItem.id.toString(),
+                    label: countryItem.name,
+                  }))}
+                  placeholder="Select a country"
+                  isSearchable
+                  isClearable
+                  isDisabled={loading}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                />
               </div>
 
               <div className="mb-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   State
                 </label>
-                <select
+                <ReactSelect
                   name="state"
-                  value={stateValue}
-                  onChange={handleSelectChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                  disabled={loading || !country}
-                >
-                  <option value="">Select a state</option>
-                  {states.map((stateItem) => (
-                    <option key={stateItem.id} value={stateItem.id}>
-                      {stateItem.name}
-                    </option>
-                  ))}
-                </select>
+                  value={
+                    states.find((s) => s.id.toString() === stateValue)
+                      ? {
+                          value: stateValue,
+                          label: states.find(
+                            (s) => s.id.toString() === stateValue
+                          )?.name,
+                        }
+                      : null
+                  }
+                  onChange={(selectedOption) => {
+                    const syntheticEvent = {
+                      target: {
+                        name: "state",
+                        value: selectedOption ? selectedOption.value : "",
+                      },
+                    } as ChangeEvent<HTMLInputElement>;
+                    if (onStateChange) {
+                      onStateChange(syntheticEvent);
+                    }
+                  }}
+                  options={states.map((stateItem) => ({
+                    value: stateItem.id.toString(),
+                    label: stateItem.name,
+                  }))}
+                  placeholder="Select a state"
+                  isSearchable
+                  isClearable
+                  isDisabled={loading || !country}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  City
+                </label>
+                <ReactSelect
+                  name="city"
+                  value={
+                    cities.find((c) => c.id.toString() === city)
+                      ? {
+                          value: city,
+                          label: cities.find((c) => c.id.toString() === city)
+                            ?.name,
+                        }
+                      : null
+                  }
+                  onChange={(selectedOption) => {
+                    const syntheticEvent = {
+                      target: {
+                        name: "city",
+                        value: selectedOption ? selectedOption.value : "",
+                      },
+                    } as ChangeEvent<HTMLInputElement>;
+                    onChange(syntheticEvent);
+                  }}
+                  options={cities.map((cityItem) => ({
+                    value: cityItem.id.toString(),
+                    label: cityItem.name,
+                  }))}
+                  placeholder="Select a city"
+                  isSearchable
+                  isClearable
+                  isDisabled={loading || !stateValue}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                />
               </div>
 
               <Input
@@ -235,17 +354,6 @@ const EditStore: React.FC<EditStoreProps> = ({
                 value={lga}
                 onChange={onChange}
                 placeholder="Enter Local Government Area"
-                className="border-gray-300 rounded w-100 mb-3"
-                required
-              />
-              <Input
-                label="City"
-                type="text"
-                name="city"
-                id="city"
-                value={city}
-                onChange={onChange}
-                placeholder="Enter city"
                 className="border-gray-300 rounded w-100 mb-3"
                 required
               />

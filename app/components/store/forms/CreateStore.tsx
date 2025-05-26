@@ -3,15 +3,21 @@ import React, { ChangeEvent, useState } from "react";
 import Input from "../../common/Input";
 import Select from "../../common/Select";
 import Button from "../../common/Button";
+import ReactSelect from "react-select";
 
 interface CreateStoreProps {
   handleSubmit: () => void;
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onClose: () => void;
   state: any;
+  loading?: boolean;
   countries?: any[];
   states?: any[];
+  cities?: any[];
   onCountryChange?: (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => void;
+  onStateChange?: (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => void;
 }
@@ -21,11 +27,16 @@ const CreateStore: React.FC<CreateStoreProps> = ({
   onChange,
   onClose,
   state,
+  loading = false,
   countries = [],
   states = [],
+  cities = [],
   onCountryChange,
+  onStateChange,
 }) => {
   const [step, setStep] = useState(0);
+  const [emailError, setEmailError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     name,
@@ -41,6 +52,46 @@ const CreateStore: React.FC<CreateStoreProps> = ({
     state: stateValue,
     landmark,
   } = state;
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const emailValue = e.target.value;
+    onChange(e);
+
+    if (emailValue && !validateEmail(emailValue)) {
+      setEmailError("Please enter a valid email address");
+    } else {
+      setEmailError("");
+    }
+  };
+
+  const canProceedToNext = () => {
+    return (
+      name &&
+      description &&
+      phoneNumber &&
+      email &&
+      validateEmail(email) &&
+      category
+    );
+  };
+
+  const handleCreateStore = async () => {
+    setIsSubmitting(true);
+    try {
+      await handleSubmit();
+      setStep(3); // Move to success step after successful submission
+    } catch (error) {
+      console.error("Error creating store:", error);
+      // Stay on confirmation step if there's an error
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const syntheticEvent = {
@@ -112,11 +163,14 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                 name="email"
                 id="email"
                 value={email}
-                onChange={onChange}
+                onChange={handleEmailChange}
                 placeholder="Enter your store's email"
                 className="border-gray-300 rounded w-100 mb-3"
                 required
               />
+              {emailError && (
+                <p className="text-red-500 text-xs mb-1">{emailError}</p>
+              )}
               <Input
                 label="Website (Optional)"
                 type="url"
@@ -132,8 +186,24 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                   label="Category"
                   name="category"
                   value={category}
-                  options={[]}
-                  onChange={() => console.log()}
+                  options={[
+                    { value: "electronics", label: "Electronics" },
+                    { value: "fashion", label: "Fashion & Clothing" },
+                    { value: "food", label: "Food & Beverages" },
+                    { value: "health", label: "Health & Beauty" },
+                    { value: "home", label: "Home & Garden" },
+                    { value: "sports", label: "Sports & Fitness" },
+                    { value: "books", label: "Books & Media" },
+                    { value: "automotive", label: "Automotive" },
+                    { value: "toys", label: "Toys & Games" },
+                    { value: "jewelry", label: "Jewelry & Accessories" },
+                    { value: "pets", label: "Pet Supplies" },
+                    { value: "office", label: "Office & Business" },
+                    { value: "crafts", label: "Arts & Crafts" },
+                    { value: "services", label: "Services" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  onChange={handleSelectChange}
                   required
                   placeholder="Select a category"
                 />
@@ -147,7 +217,12 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                 >
                   Cancel
                 </Button>
-                <Button type="button" primary onClick={() => setStep(1)}>
+                <Button
+                  type="button"
+                  primary
+                  onClick={() => setStep(1)}
+                  disabled={!canProceedToNext()}
+                >
                   Next
                 </Button>
               </div>
@@ -175,30 +250,39 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Country
                 </label>
-                <select
+                <ReactSelect
                   name="country"
-                  value={country}
-                  onChange={(e) => {
+                  value={
+                    countries.find((c) => c.id.toString() === country)
+                      ? {
+                          value: country,
+                          label: countries.find(
+                            (c) => c.id.toString() === country
+                          )?.name,
+                        }
+                      : null
+                  }
+                  onChange={(selectedOption) => {
                     const syntheticEvent = {
                       target: {
-                        name: e.target.name,
-                        value: e.target.value,
+                        name: "country",
+                        value: selectedOption ? selectedOption.value : "",
                       },
                     } as ChangeEvent<HTMLInputElement>;
                     if (onCountryChange) {
                       onCountryChange(syntheticEvent);
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select a country</option>
-                  {countries.map((countryItem) => (
-                    <option key={countryItem.id} value={countryItem.id}>
-                      {countryItem.name}
-                    </option>
-                  ))}
-                </select>
+                  options={countries.map((countryItem) => ({
+                    value: countryItem.id.toString(),
+                    label: countryItem.name,
+                  }))}
+                  placeholder="Select a country"
+                  isSearchable
+                  isClearable
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                />
               </div>
 
               <Input
@@ -212,7 +296,7 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                 className="border-gray-300 rounded w-100 mb-3"
                 required
               />
-              <Input
+              {/* <Input
                 label="LGA"
                 type="text"
                 name="lga"
@@ -222,40 +306,84 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                 placeholder="Enter Local Government Area"
                 className="border-gray-300 rounded w-100 mb-3"
                 required
-              />
-              <Input
-                label="City"
-                type="text"
-                name="city"
-                id="city"
-                value={city}
-                onChange={onChange}
-                placeholder="Enter city"
-                className="border-gray-300 rounded w-100 mb-3"
-                required
-              />
-              {/* Note: City value will be converted to city ID when submitting to API */}
+              /> */}
               <div className="mb-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   State
                 </label>
-                <select
+                <ReactSelect
                   name="state"
-                  value={stateValue}
-                  onChange={handleSelectChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                  disabled={!country}
-                >
-                  <option value="">Select a state</option>
-                  {states.map((stateItem) => (
-                    <option key={stateItem.id} value={stateItem.id}>
-                      {stateItem.name}
-                    </option>
-                  ))}
-                </select>
+                  value={
+                    states.find((s) => s.id.toString() === stateValue)
+                      ? {
+                          value: stateValue,
+                          label: states.find(
+                            (s) => s.id.toString() === stateValue
+                          )?.name,
+                        }
+                      : null
+                  }
+                  onChange={(selectedOption) => {
+                    const syntheticEvent = {
+                      target: {
+                        name: "state",
+                        value: selectedOption ? selectedOption.value : "",
+                      },
+                    } as ChangeEvent<HTMLInputElement>;
+                    if (onStateChange) {
+                      onStateChange(syntheticEvent);
+                    }
+                  }}
+                  options={states.map((stateItem) => ({
+                    value: stateItem.id.toString(),
+                    label: stateItem.name,
+                  }))}
+                  placeholder="Select a state"
+                  isSearchable
+                  isClearable
+                  isDisabled={!country}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                />
               </div>
               {/* Note: State value will be converted to state ID when submitting to API */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  City
+                </label>
+                <ReactSelect
+                  name="city"
+                  value={
+                    cities.find((c) => c.id.toString() === city)
+                      ? {
+                          value: city,
+                          label: cities.find((c) => c.id.toString() === city)
+                            ?.name,
+                        }
+                      : null
+                  }
+                  onChange={(selectedOption) => {
+                    const syntheticEvent = {
+                      target: {
+                        name: "city",
+                        value: selectedOption ? selectedOption.value : "",
+                      },
+                    } as ChangeEvent<HTMLInputElement>;
+                    onChange(syntheticEvent);
+                  }}
+                  options={cities.map((cityItem) => ({
+                    value: cityItem.id.toString(),
+                    label: cityItem.name,
+                  }))}
+                  placeholder="Select a city"
+                  isSearchable
+                  isClearable
+                  isDisabled={!stateValue}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                />
+              </div>
+              {/* Note: City value will be converted to city ID when submitting to API */}
               <Input
                 label="Landmark (Optional)"
                 type="text"
@@ -275,15 +403,131 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                 >
                   Back
                 </Button>
+                <Button type="button" primary onClick={() => setStep(2)}>
+                  Review & Submit
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : step === 2 ? (
+          <div>
+            <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/confirmIcon.svg')] bg-cover bg-center">
+              {/* Confirmation step */}
+            </div>
+            <div className="p-8">
+              <p className="font-semibold text-[#271303] text-xl mt-2">
+                Confirm Store Details
+              </p>
+              <p className="text-[#7F7F7F] text-sm my-2">
+                Please review your store information before creating your store.
+              </p>
+
+              {/* Store Details Summary */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Store Name
+                    </p>
+                    <p className="text-sm text-gray-900">
+                      {name || "Not specified"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Phone Number
+                    </p>
+                    <p className="text-sm text-gray-900">
+                      {phoneNumber || "Not specified"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Email</p>
+                    <p className="text-sm text-gray-900">
+                      {email || "Not specified"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Website</p>
+                    <p className="text-sm text-gray-900">
+                      {website || "Not specified"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-medium text-gray-600 mb-2">
+                    Description
+                  </p>
+                  <p className="text-sm text-gray-900">
+                    {description || "Not specified"}
+                  </p>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-medium text-gray-600 mb-2">
+                    Location
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Country</p>
+                      <p className="text-sm text-gray-900">
+                        {countries.find((c) => c.id.toString() === country)
+                          ?.name || "Not selected"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">State</p>
+                      <p className="text-sm text-gray-900">
+                        {states.find((s) => s.id.toString() === stateValue)
+                          ?.name || "Not selected"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">City</p>
+                      <p className="text-sm text-gray-900">
+                        {cities.find((c) => c.id.toString() === city)?.name ||
+                          "Not selected"}
+                      </p>
+                    </div>
+                    {/* <div>
+                      <p className="text-xs text-gray-500">LGA</p>
+                      <p className="text-sm text-gray-900">
+                        {lga || "Not specified"}
+                      </p>
+                    </div> */}
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500">Street Address</p>
+                    <p className="text-sm text-gray-900">
+                      {street || "Not specified"}
+                    </p>
+                  </div>
+                  {landmark && (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-500">Landmark</p>
+                      <p className="text-sm text-gray-900">{landmark}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-8">
+                <Button
+                  type="button"
+                  secondary
+                  style="border-2"
+                  onClick={() => setStep(1)}
+                >
+                  Back to Edit
+                </Button>
                 <Button
                   type="button"
                   primary
-                  onClick={() => {
-                    handleSubmit();
-                    setStep(2);
-                  }}
+                  onClick={handleCreateStore}
+                  disabled={isSubmitting}
                 >
-                  Submit
+                  {isSubmitting ? "Creating Store..." : "Create Store"}
                 </Button>
               </div>
             </div>

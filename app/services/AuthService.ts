@@ -150,3 +150,10 @@ export const getStatesByCountryId = async (countryId: string | number) => {
   );
   return response;
 };
+
+export const getCitiesByStateId = async (stateId: string | number) => {
+  const response = await authApi.get(
+    `/city/get-all-cities-by-state-id/${stateId}`
+  );
+  return response;
+};

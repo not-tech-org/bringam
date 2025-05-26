@@ -17,6 +17,7 @@ import {
   deactivateVendorStore,
   getAllCountries,
   getStatesByCountryId,
+  getCitiesByStateId,
 } from "../services/AuthService";
 import Image from "next/image";
 import Link from "next/link";
@@ -62,8 +63,10 @@ const VendorStore = () => {
   const [stores, setStores] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
   const [states, setStates] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
 
   const openModal = () => setIsOpen(true);
@@ -204,7 +207,7 @@ const VendorStore = () => {
       email,
       website,
       address: {
-        city: Math.floor(Math.random() * 1000) + 1, // Random city ID for now
+        city: parseInt(city) || Math.floor(Math.random() * 1000) + 1, // Use selected city ID
         country: parseInt(country) || Math.floor(Math.random() * 100) + 1, // Use selected country ID
         landmark,
         lga,
@@ -238,13 +241,15 @@ const VendorStore = () => {
         landmark: "",
       }));
 
-      closeModal();
       // Refresh stores list after creating a new store
       if (vendorUuid) {
         await fetchVendorStores(vendorUuid);
       }
+
+      // Don't close modal here - let the success step handle it
     } catch (error) {
       console.error("Error creating vendor store:", error);
+      throw error; // Re-throw to let the component handle the error
     }
   };
 
@@ -259,7 +264,7 @@ const VendorStore = () => {
       email: editState.email,
       website: editState.website,
       address: {
-        city: Math.floor(Math.random() * 1000) + 1, // Random city ID for now
+        city: parseInt(editState.city) || Math.floor(Math.random() * 1000) + 1, // Use selected city ID
         country:
           parseInt(editState.country) || Math.floor(Math.random() * 100) + 1, // Use selected country ID
         landmark: editState.landmark,
@@ -308,7 +313,7 @@ const VendorStore = () => {
         category: storeData.category || "",
         country: storeData.address?.country?.toString() || "",
         street: storeData.address?.street || "",
-        city: storeData.address?.city || "",
+        city: storeData.address?.city?.toString() || "",
         lga: storeData.address?.lga || "",
         state: storeData.address?.state?.toString() || "",
         landmark: storeData.address?.landmark || "",
@@ -330,6 +335,11 @@ const VendorStore = () => {
       // Fetch states if country is available
       if (storeData.address?.country) {
         await fetchStates(storeData.address.country);
+      }
+
+      // Fetch cities if state is available
+      if (storeData.address?.state) {
+        await fetchCities(storeData.address.state);
       }
 
       openEditModal();
@@ -425,6 +435,17 @@ const VendorStore = () => {
     }
   };
 
+  const fetchCities = async (stateId: string | number) => {
+    try {
+      const response = await getCitiesByStateId(stateId);
+      console.log("Cities:", response.data);
+      setCities(response.data.data || []);
+    } catch (error) {
+      console.error("Error fetching cities:", error);
+      setCities([]);
+    }
+  };
+
   const handleCountryChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -433,6 +454,7 @@ const VendorStore = () => {
       ...prevState,
       country: countryId,
       state: "", // Reset state when country changes
+      city: "", // Reset city when country changes
     }));
 
     // Fetch states for the selected country
@@ -441,6 +463,8 @@ const VendorStore = () => {
     } else {
       setStates([]);
     }
+    // Clear cities when country changes
+    setCities([]);
   };
 
   const handleEditCountryChange = (
@@ -451,6 +475,7 @@ const VendorStore = () => {
       ...prevState,
       country: countryId,
       state: "", // Reset state when country changes
+      city: "", // Reset city when country changes
     }));
 
     // Fetch states for the selected country
@@ -458,6 +483,44 @@ const VendorStore = () => {
       fetchStates(countryId);
     } else {
       setStates([]);
+    }
+    // Clear cities when country changes
+    setCities([]);
+  };
+
+  const handleStateChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const stateId = e.target.value;
+    setState((prevState) => ({
+      ...prevState,
+      state: stateId,
+      city: "", // Reset city when state changes
+    }));
+
+    // Fetch cities for the selected state
+    if (stateId) {
+      fetchCities(stateId);
+    } else {
+      setCities([]);
+    }
+  };
+
+  const handleEditStateChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const stateId = e.target.value;
+    setEditState((prevState) => ({
+      ...prevState,
+      state: stateId,
+      city: "", // Reset city when state changes
+    }));
+
+    // Fetch cities for the selected state
+    if (stateId) {
+      fetchCities(stateId);
+    } else {
+      setCities([]);
     }
   };
 
@@ -475,9 +538,12 @@ const VendorStore = () => {
             state={state}
             onChange={onChange}
             onClose={closeModal}
+            loading={createLoading}
             countries={countries}
             states={states}
+            cities={cities}
             onCountryChange={handleCountryChange}
+            onStateChange={handleStateChange}
           />
         </div>
       </Modal>
@@ -492,7 +558,9 @@ const VendorStore = () => {
             loading={editLoading}
             countries={countries}
             states={states}
+            cities={cities}
             onCountryChange={handleEditCountryChange}
+            onStateChange={handleEditStateChange}
           />
         </div>
       </Modal>

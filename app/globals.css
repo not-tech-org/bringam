@@ -77,12 +77,14 @@ button:disabled {
 }
 
 .btn-secondary {
-  background: #F7F7F7;
+  background: #f7f7f7;
   color: #000000;
   font-weight: 400;
   --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color),
+    0 1px 2px -1px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
 .overflowForced {
@@ -101,4 +103,69 @@ button:disabled {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* React Select Styling */
+.react-select-container .react-select__control {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  min-height: 42px;
+  box-shadow: none;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.react-select-container .react-select__control:hover {
+  border-color: #d1d5db;
+}
+
+.react-select-container .react-select__control--is-focused {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+.react-select-container .react-select__value-container {
+  padding: 2px 12px;
+}
+
+.react-select-container .react-select__placeholder {
+  color: #9ca3af;
+}
+
+.react-select-container .react-select__single-value {
+  color: #374151;
+}
+
+.react-select-container .react-select__menu {
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+.react-select-container .react-select__option {
+  padding: 8px 12px;
+}
+
+.react-select-container .react-select__option--is-focused {
+  background-color: #f3f4f6;
+}
+
+.react-select-container .react-select__option--is-selected {
+  background-color: #3b82f6;
+}
+
+.react-select-container .react-select__indicator-separator {
+  background-color: #d1d5db;
+}
+
+.react-select-container .react-select__dropdown-indicator {
+  color: #6b7280;
+}
+
+.react-select-container .react-select__clear-indicator {
+  color: #6b7280;
+}
+
+.react-select-container .react-select__clear-indicator:hover {
+  color: #374151;
 }
