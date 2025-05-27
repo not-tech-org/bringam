@@ -34,7 +34,7 @@ const Sidebar = () => {
     },
     {
       path: "/phones-tablets",
-      label: "Phones and tablets",
+      label: "Phones and tablets", 
       icon: "/icons/phone.svg",
     },
     { path: "/fashion", label: "Fashion", icon: "/icons/fashion.svg" },
@@ -131,12 +131,21 @@ const Sidebar = () => {
             <SignoutButton />
           </div>
           <div className="mt-16">
-            <Link href="/vendor-auth">
-              <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer">
-                <p className="text-sm">Become a Vendor</p>
-                <MdArrowOutward />
-              </div>
-            </Link>
+            {!vendor ? (
+              <Link href="/vendor-signup">
+                <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer">
+                  <p className="text-sm">Become a Vendor</p>
+                  <MdArrowOutward />
+                </div>
+              </Link>
+            ) : (
+              <Link href="/vendor-signin">
+                <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer">
+                  <p className="text-sm">Vendor Signin</p>
+                  <MdArrowOutward />
+                </div>
+              </Link>
+            )}
           </div>
         </div>
       ) : (

@@ -1,13 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
+import { useParams } from "next/navigation";
 import { BiPowerOff } from "react-icons/bi";
 import { MdArrowOutward } from "react-icons/md";
 import { Column, Table } from "@/app/components/common/Table";
 import { cn } from "@/app/lib/utils";
 import Wrapper from "@/app/components/wrapper/Wrapper";
 import Button from "@/app/components/common/Button";
+import { getStoreById } from "@/app/services/AuthService";
 
 interface Product {
   id: string;
@@ -106,25 +108,48 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
 };
 
 const StorePage = () => {
+  const params = useParams();
+  const storeId = params.id as string;
+  const [store, setStore] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStoreData = async () => {
+    try {
+      setLoading(true);
+      const response = await getStoreById(storeId);
+      console.log("Store data:", response.data);
+      setStore(response.data.data || response.data);
+    } catch (error) {
+      console.error("Error fetching store data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (storeId) {
+      fetchStoreData();
+    }
+  }, [storeId]);
+
   const overviewData = [
     {
       title: "Active products",
-      value: "22",
+      value: store?.products?.length || "0",
       icon: "/icons/box.svg",
     },
     {
       title: "Members",
-      value: "4",
+      value: store?.members?.length || "0",
       icon: "/icons/people.svg",
-      avatars: [
-        "/images/avatar1.svg",
-        "/images/avatar1.svg",
-        "/images/avatar1.svg",
-      ],
+      avatars:
+        store?.members
+          ?.slice(0, 3)
+          ?.map((member: any) => member.avatar || "/images/avatar1.svg") || [],
     },
     {
       title: "Orders",
-      value: "24",
+      value: store?.orders?.length || "0",
       icon: "/icons/orderIcon.svg",
       subtitle: "All time",
     },
@@ -179,13 +204,36 @@ const StorePage = () => {
     },
   ];
 
+  if (loading) {
+    return (
+      <Wrapper>
+        <div className="p-8 flex justify-center items-center">
+          <p className="text-gray-500">Loading store data...</p>
+        </div>
+      </Wrapper>
+    );
+  }
+
+  if (!store) {
+    return (
+      <Wrapper>
+        <div className="p-8 flex justify-center items-center">
+          <p className="text-gray-500">Store not found</p>
+        </div>
+      </Wrapper>
+    );
+  }
+
   return (
     <Wrapper>
       <div className="p-8 space-y-8">
         <div>
-          <h1 className="text-2xl font-bold mb-2">Overview</h1>
+          <h1 className="text-2xl font-bold mb-2">
+            {store.name || "Store Overview"}
+          </h1>
           <p className="text-gray-500">
-            Track your store&apos;s performance and manage your products
+            {store.description ||
+              "Track your store's performance and manage your products"}
           </p>
         </div>
 
@@ -222,7 +270,7 @@ const StorePage = () => {
           </div>
           <Table
             columns={columns}
-            data={dummyProducts}
+            data={store.products || dummyProducts}
             onRowClick={(product) => console.log("Clicked product:", product)}
           />
         </div>

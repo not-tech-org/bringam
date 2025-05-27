@@ -5,7 +5,7 @@ import Select from "../../common/Select";
 import Button from "../../common/Button";
 import ReactSelect from "react-select";
 
-interface CreateStoreProps {
+interface EditStoreProps {
   handleSubmit: () => void;
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onClose: () => void;
@@ -22,7 +22,7 @@ interface CreateStoreProps {
   ) => void;
 }
 
-const CreateStore: React.FC<CreateStoreProps> = ({
+const EditStore: React.FC<EditStoreProps> = ({
   handleSubmit,
   onChange,
   onClose,
@@ -36,7 +36,6 @@ const CreateStore: React.FC<CreateStoreProps> = ({
 }) => {
   const [step, setStep] = useState(0);
   const [emailError, setEmailError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     name,
@@ -80,19 +79,6 @@ const CreateStore: React.FC<CreateStoreProps> = ({
     );
   };
 
-  const handleCreateStore = async () => {
-    setIsSubmitting(true);
-    try {
-      await handleSubmit();
-      setStep(3); // Move to success step after successful submission
-    } catch (error) {
-      console.error("Error creating store:", error);
-      // Stay on confirmation step if there's an error
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const syntheticEvent = {
       target: {
@@ -108,21 +94,13 @@ const CreateStore: React.FC<CreateStoreProps> = ({
       <form onSubmit={handleSubmit}>
         {step === 0 ? (
           <div>
-            <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/storeIcon.svg')] bg-cover bg-center">
-              {/* <Image
-              src="/icons/storeIcon.svg"
-              alt="Store icon"
-              width={50}
-              height={50}
-            /> */}
-            </div>
+            <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/storeIcon.svg')] bg-cover bg-center"></div>
             <div className="p-8">
               <p className="font-semibold text-[#271303] text-xl mt-2">
-                Create new store
+                Edit store details
               </p>
               <p className="text-[#7F7F7F] text-sm my-2">
-                Reach customers on the go. Your store will be optimized for
-                mobile, ensuring a seamless experience for users on all devices.
+                Update your store information to keep your customers informed.
               </p>
               <Input
                 label="Store name"
@@ -169,7 +147,7 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                 required
               />
               {emailError && (
-                <p className="text-red-500 text-xs mb-1">{emailError}</p>
+                <p className="text-red-500 text-xs mt-1">{emailError}</p>
               )}
               <Input
                 label="Website (Optional)"
@@ -214,6 +192,7 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                   secondary
                   style="border-2"
                   onClick={onClose}
+                  disabled={loading}
                 >
                   Cancel
                 </Button>
@@ -221,7 +200,7 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                   type="button"
                   primary
                   onClick={() => setStep(1)}
-                  disabled={!canProceedToNext()}
+                  disabled={loading || !canProceedToNext()}
                 >
                   Next
                 </Button>
@@ -230,20 +209,13 @@ const CreateStore: React.FC<CreateStoreProps> = ({
           </div>
         ) : step === 1 ? (
           <div>
-            <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/locationIcon.svg')] bg-cover bg-center">
-              {/* <Image
-              src="/icons/testLocationIcon.svg"
-              alt="Store icon"
-              width={50}
-              height={50}
-            /> */}
-            </div>
+            <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/locationIcon.svg')] bg-cover bg-center"></div>
             <div className="p-8">
               <p className="font-semibold text-[#271303] text-xl mt-2">
                 Store&apos;s location
               </p>
               <p className="text-[#7F7F7F] text-sm my-2">
-                Please enter your store&apos;s address
+                Update your store&apos;s address information
               </p>
 
               <div className="mb-3">
@@ -280,33 +252,12 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                   placeholder="Select a country"
                   isSearchable
                   isClearable
+                  isDisabled={loading}
                   className="react-select-container"
                   classNamePrefix="react-select"
                 />
               </div>
 
-              <Input
-                label="Street"
-                type="text"
-                name="street"
-                id="street"
-                value={street}
-                onChange={onChange}
-                placeholder="Enter street address"
-                className="border-gray-300 rounded w-100 mb-3"
-                required
-              />
-              {/* <Input
-                label="LGA"
-                type="text"
-                name="lga"
-                id="lga"
-                value={lga}
-                onChange={onChange}
-                placeholder="Enter Local Government Area"
-                className="border-gray-300 rounded w-100 mb-3"
-                required
-              /> */}
               <div className="mb-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   State
@@ -341,12 +292,12 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                   placeholder="Select a state"
                   isSearchable
                   isClearable
-                  isDisabled={!country}
+                  isDisabled={loading || !country}
                   className="react-select-container"
                   classNamePrefix="react-select"
                 />
               </div>
-              {/* Note: State value will be converted to state ID when submitting to API */}
+
               <div className="mb-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   City
@@ -378,12 +329,34 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                   placeholder="Select a city"
                   isSearchable
                   isClearable
-                  isDisabled={!stateValue}
+                  isDisabled={loading || !stateValue}
                   className="react-select-container"
                   classNamePrefix="react-select"
                 />
               </div>
-              {/* Note: City value will be converted to city ID when submitting to API */}
+
+              <Input
+                label="Street"
+                type="text"
+                name="street"
+                id="street"
+                value={street}
+                onChange={onChange}
+                placeholder="Enter street address"
+                className="border-gray-300 rounded w-100 mb-3"
+                required
+              />
+              <Input
+                label="LGA"
+                type="text"
+                name="lga"
+                id="lga"
+                value={lga}
+                onChange={onChange}
+                placeholder="Enter Local Government Area"
+                className="border-gray-300 rounded w-100 mb-3"
+                required
+              />
               <Input
                 label="Landmark (Optional)"
                 type="text"
@@ -400,157 +373,36 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                   secondary
                   style="border-2"
                   onClick={() => setStep(0)}
+                  disabled={loading}
                 >
                   Back
-                </Button>
-                <Button type="button" primary onClick={() => setStep(2)}>
-                  Review & Submit
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : step === 2 ? (
-          <div>
-            <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/confirmIcon.svg')] bg-cover bg-center">
-              {/* Confirmation step */}
-            </div>
-            <div className="p-8">
-              <p className="font-semibold text-[#271303] text-xl mt-2">
-                Confirm Store Details
-              </p>
-              <p className="text-[#7F7F7F] text-sm my-2">
-                Please review your store information before creating your store.
-              </p>
-
-              {/* Store Details Summary */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Store Name
-                    </p>
-                    <p className="text-sm text-gray-900">
-                      {name || "Not specified"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Phone Number
-                    </p>
-                    <p className="text-sm text-gray-900">
-                      {phoneNumber || "Not specified"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Email</p>
-                    <p className="text-sm text-gray-900">
-                      {email || "Not specified"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Website</p>
-                    <p className="text-sm text-gray-900">
-                      {website || "Not specified"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="border-t pt-3">
-                  <p className="text-sm font-medium text-gray-600 mb-2">
-                    Description
-                  </p>
-                  <p className="text-sm text-gray-900">
-                    {description || "Not specified"}
-                  </p>
-                </div>
-
-                <div className="border-t pt-3">
-                  <p className="text-sm font-medium text-gray-600 mb-2">
-                    Location
-                  </p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500">Country</p>
-                      <p className="text-sm text-gray-900">
-                        {countries.find((c) => c.id.toString() === country)
-                          ?.name || "Not selected"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">State</p>
-                      <p className="text-sm text-gray-900">
-                        {states.find((s) => s.id.toString() === stateValue)
-                          ?.name || "Not selected"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">City</p>
-                      <p className="text-sm text-gray-900">
-                        {cities.find((c) => c.id.toString() === city)?.name ||
-                          "Not selected"}
-                      </p>
-                    </div>
-                    {/* <div>
-                      <p className="text-xs text-gray-500">LGA</p>
-                      <p className="text-sm text-gray-900">
-                        {lga || "Not specified"}
-                      </p>
-                    </div> */}
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500">Street Address</p>
-                    <p className="text-sm text-gray-900">
-                      {street || "Not specified"}
-                    </p>
-                  </div>
-                  {landmark && (
-                    <div className="mt-2">
-                      <p className="text-xs text-gray-500">Landmark</p>
-                      <p className="text-sm text-gray-900">{landmark}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-8">
-                <Button
-                  type="button"
-                  secondary
-                  style="border-2"
-                  onClick={() => setStep(1)}
-                >
-                  Back to Edit
                 </Button>
                 <Button
                   type="button"
                   primary
-                  onClick={handleCreateStore}
-                  disabled={isSubmitting}
+                  onClick={() => {
+                    handleSubmit();
+                    setStep(2);
+                  }}
+                  disabled={loading}
                 >
-                  {isSubmitting ? "Creating Store..." : "Create Store"}
+                  {loading ? "Updating..." : "Update Store"}
                 </Button>
               </div>
             </div>
           </div>
         ) : (
           <div>
-            <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/successIcon.svg')] bg-cover bg-center">
-              {/* <Image
-              src="/icons/successIcon.svg"
-              alt="Success icon"
-              width={50}
-              height={50}
-            /> */}
-            </div>
+            <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/successIcon.svg')] bg-cover bg-center"></div>
             <div className="p-8">
               <p className="font-semibold text-[#271303] text-xl mt-2">
-                Your store has been created successfully!
+                Your store has been updated successfully!
               </p>
               <p className="text-[#7F7F7F] text-sm my-2">
-                You can now start adding products and managing your store.
+                Your store information has been updated and is now live.
               </p>
 
-              <div className="flex items-center justify-between gap-8">
+              <div className="flex items-center justify-center gap-8">
                 <Button
                   type="button"
                   secondary
@@ -571,4 +423,4 @@ const CreateStore: React.FC<CreateStoreProps> = ({
   );
 };
 
-export default CreateStore;
+export default EditStore;
