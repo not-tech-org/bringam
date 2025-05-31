@@ -34,7 +34,7 @@ const Sidebar = () => {
     },
     {
       path: "/phones-tablets",
-      label: "Phones and tablets", 
+      label: "Phones and tablets",
       icon: "/icons/phone.svg",
     },
     { path: "/fashion", label: "Fashion", icon: "/icons/fashion.svg" },
@@ -77,7 +77,7 @@ const Sidebar = () => {
     label: string;
     icon: string;
   }) => {
-    const isActive = pathname === item.path;
+    const isActive = pathname.startsWith(item.path) && item.path !== "/";
     return (
       <Link href={item.path} key={item.path}>
         <div

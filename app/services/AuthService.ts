@@ -157,3 +157,18 @@ export const getCitiesByStateId = async (stateId: string | number) => {
   );
   return response;
 };
+
+export const getAllProducts = async () => {
+  const response = await vendorApi.get("/product-pages");
+  return response;
+};
+
+export const getAllProductCategories = async () => {
+  const response = await vendorApi.get("/product-category/get-all-categories");
+  return response;
+};
+
+export const createProduct = async (reqBody: object) => {
+  const response = await vendorApi.post("/products/create-product", reqBody);
+  return response;
+};
