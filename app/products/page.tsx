@@ -8,6 +8,7 @@ import Pagination from "@/app/components/common/Pagination";
 import Button from "../components/common/Button";
 import Link from "next/link";
 import { getAllProducts } from "../services/AuthService";
+import { showToast } from "@/app/components/utils/helperFunctions";
 
 interface Product {
   id: string;
@@ -34,8 +35,20 @@ export default function ProductsPage() {
       const response = await getAllProducts();
       console.log("Products:", response.data);
       setProducts(response.data.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching products:", error);
+
+      // Extract error message for better user feedback
+      let errorMessage = "Failed to load products. Please try again.";
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      showToast(errorMessage, "error");
       setProducts([]);
     } finally {
       setLoading(false);

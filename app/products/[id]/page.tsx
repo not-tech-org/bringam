@@ -9,6 +9,7 @@ import {
   IoWarningOutline,
   IoCloudUploadOutline,
 } from "react-icons/io5";
+import { showToast } from "@/app/components/utils/helperFunctions";
 
 const ProductDetails = () => {
   const [selectedImage, setSelectedImage] = useState(0);
@@ -42,6 +43,7 @@ const ProductDetails = () => {
   const handleDeleteProduct = () => {
     // Handle product deletion logic here
     console.log("Product deleted");
+    showToast("Product deleted successfully", "success");
     setShowDeleteModal(false);
   };
 
@@ -60,6 +62,7 @@ const ProductDetails = () => {
   const handleSaveChanges = () => {
     // Handle product update logic here
     console.log("Product updated:", editFormData);
+    showToast("Product updated successfully", "success");
     setShowEditModal(false);
   };
 

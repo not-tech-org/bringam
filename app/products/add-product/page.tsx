@@ -10,6 +10,7 @@ import {
   getAllProductCategories,
   createProduct,
 } from "@/app/services/AuthService";
+import { showToast } from "@/app/components/utils/helperFunctions";
 
 export default function AddProductPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -43,18 +44,24 @@ export default function AddProductPage() {
         setCategories(response.data || []);
       } catch (error) {
         console.error("Error fetching categories:", error);
+        showToast("Failed to load product categories", "error");
       }
     };
 
     fetchCategories();
   }, []);
 
-  // Convert file to base64
+  // Convert file to base64 and remove the data URL prefix
   const convertToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+        const base64String = result.split(",")[1];
+        resolve(base64String);
+      };
       reader.onerror = (error) => reject(error);
     });
   };
@@ -65,7 +72,7 @@ export default function AddProductPage() {
 
     if (uploadedFiles.length > 0) {
       try {
-        // Convert first image to base64 for the API
+        // Convert first image to base64 for the API (without prefix)
         const base64Image = await convertToBase64(uploadedFiles[0]);
 
         // Update form data with the base64 image
@@ -80,9 +87,11 @@ export default function AddProductPage() {
         );
         setUploadedImages(imageUrls);
 
+        showToast("Images uploaded successfully", "success");
         console.log("Images uploaded successfully");
       } catch (error) {
         console.error("Error converting image to base64:", error);
+        showToast("Failed to upload images", "error");
       }
     } else {
       // Clear images if no files
@@ -142,6 +151,9 @@ export default function AddProductPage() {
       const response = await createProduct(formData);
       console.log("Product created successfully:", response.data);
 
+      // Show success message
+      showToast("Product created successfully!", "success");
+
       // Reset form after successful creation
       setFormData({
         productName: "",
@@ -161,8 +173,21 @@ export default function AddProductPage() {
       });
       setFiles([]);
       setUploadedImages([]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating product:", error);
+
+      // Extract error message from response
+      let errorMessage = "Failed to create product. Please try again.";
+
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      showToast(errorMessage, "error");
     } finally {
       setLoading(false);
     }
@@ -360,6 +385,51 @@ export default function AddProductPage() {
             <Button type="submit" primary className="w-full" disabled={loading}>
               {loading ? "Creating Product..." : "Create Product"}
             </Button>
+          </div>
+
+          {/* Demo section for new toast styles */}
+          <div className="pt-6 border-t border-gray-200">
+            <p className="text-sm font-medium text-gray-700 mb-3">
+              Toast Demo (New Subtle Colors)
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  showToast("Success message with subtle green!", "success")
+                }
+                className="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm hover:bg-green-200 transition-colors"
+              >
+                Success Toast
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  showToast("Error message with subtle red!", "error")
+                }
+                className="px-4 py-2 bg-red-100 text-red-800 rounded-lg text-sm hover:bg-red-200 transition-colors"
+              >
+                Error Toast
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  showToast("Warning message with subtle yellow!", "warning")
+                }
+                className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm hover:bg-yellow-200 transition-colors"
+              >
+                Warning Toast
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  showToast("Info message with subtle blue!", "info")
+                }
+                className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm hover:bg-blue-200 transition-colors"
+              >
+                Info Toast
+              </button>
+            </div>
           </div>
         </form>
       </div>
