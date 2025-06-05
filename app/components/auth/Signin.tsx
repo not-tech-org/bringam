@@ -5,30 +5,10 @@ import Input from "../common/Input";
 import Button from "../common/Button";
 import Cookies from "js-cookie";
 import { OnboardingContext } from "@/app/contexts/OnboardingContext";
-import { signinApi } from "@/app/services/AuthService";
+import { signinApi, getUserProfile } from "@/app/services/AuthService";
 import { useRouter } from "next/navigation";
-import { validateEmail } from "../utils/helperFunctions";
-import Toastify from "toastify-js";
+import { validateEmail, showToast } from "../utils/helperFunctions";
 import { safeLocalStorage } from "@/app/lib/utils";
-
-// Toast configuration constants
-const TOAST_STYLES = {
-  success: {
-    backgroundColor: "#ECFDF3", // Subtle green
-    textColor: "#027A48", // Dark green
-    icon: "✓",
-  },
-  error: {
-    backgroundColor: "#FEF3F2", // Subtle red
-    textColor: "#B42318", // Dark red
-    icon: "✕",
-  },
-  warning: {
-    backgroundColor: "#FFFAEB", // Subtle yellow
-    textColor: "#B54708", // Dark yellow/orange
-    icon: "⚠",
-  },
-};
 
 const Signin = () => {
   const context = useContext(OnboardingContext);
@@ -44,31 +24,6 @@ const Signin = () => {
 
   const { onRouteChange, onChange, state } = context;
   const { email, password } = state;
-
-  // Show toast notifications with consistent styling
-  const showToast = (
-    message: string,
-    type: "success" | "error" | "warning" = "success"
-  ) => {
-    const style = TOAST_STYLES[type];
-
-    Toastify({
-      text: `${style.icon} ${message}`,
-      duration: 3000,
-      close: true,
-      gravity: "top",
-      position: "right",
-      backgroundColor: style.backgroundColor,
-      className: "rounded-lg border",
-      style: {
-        color: style.textColor,
-        border: `1px solid ${style.textColor}20`,
-        fontWeight: "500",
-        minWidth: "300px",
-      },
-      stopOnFocus: true,
-    }).showToast();
-  };
 
   // Validate form inputs
   const validateForm = () => {
@@ -95,6 +50,47 @@ const Signin = () => {
 
     setErrors(newErrors);
     return isValid;
+  };
+
+  // Fetch user profile and save customer data to localStorage
+  const fetchUserProfile = async () => {
+    try {
+      const response = await getUserProfile();
+      console.log("User profile response:", response.data);
+
+      // Extract customerResp from the response
+      if (response.data.data.customerResp) {
+        const customerData = response.data.data.customerResp;
+        console.log("Customer data:", customerData);
+
+        // Save customer data to localStorage
+        safeLocalStorage.setItem("customerData", JSON.stringify(customerData));
+
+        // Also save the full user details (keeping existing functionality)
+        safeLocalStorage.setItem(
+          "userDetails",
+          JSON.stringify(response.data.data)
+        );
+
+        console.log("Customer data saved to localStorage:", {
+          uuid: customerData.uuid,
+          firstName: customerData.firstName,
+          picture: customerData.picture,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error fetching user profile:", error);
+
+      // Extract error message for user feedback
+      let errorMessage = "Failed to load user profile";
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      showToast(errorMessage, "warning");
+    }
   };
 
   const onSignIn = async (e: React.FormEvent) => {
@@ -127,10 +123,13 @@ const Signin = () => {
         secure: process.env.NODE_ENV === "production", // Use secure cookies in production
         sameSite: "strict", // Restrict cookie to same site
       });
-      safeLocalStorage.setItem("userDetails", JSON.stringify(res.data.data));
+      safeLocalStorage.setItem("user-details", JSON.stringify(res.data.data));
       // console.log("Sign-in response:", res.data)
       // Show success message
       showToast(res.data.message || "Signed in successfully", "success");
+
+      // Fetch user profile and save customer data
+      await fetchUserProfile();
 
       // Redirect to dashboard
       router.push("/dashboard");

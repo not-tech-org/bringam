@@ -105,10 +105,16 @@ export const becomeVendorApi = async (data: object) => {
 
 export const logoutApi = async () => {
   const response = await authApi.post("/logout", {});
+  // Remove the bringAmToken cookie
+  Cookies.remove("bringAmToken");
+  // Remove the old authentication cookie (if it exists)
   document.cookie =
     "authentication=false; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+  // Clear localStorage
   localStorage.clear();
+  // Redirect to home page
   window.location.href = "/";
+
   return response;
 };
 

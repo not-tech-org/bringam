@@ -12,7 +12,7 @@ const Sidebar = () => {
   const [vendor, setVendor] = useState<boolean>(false);
   const pathname = usePathname();
   const userType = JSON.parse(
-    safeLocalStorage.getItem("userDetails", '{"type": "customer"}')
+    safeLocalStorage.getItem("user-details", '{"type": "customer"}')
   );
 
   console.log(userType);
