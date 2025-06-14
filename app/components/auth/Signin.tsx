@@ -68,7 +68,7 @@ const Signin = () => {
 
         // Also save the full user details (keeping existing functionality)
         safeLocalStorage.setItem(
-          "userDetails",
+          "profileDetails",
           JSON.stringify(response.data.data)
         );
 
@@ -123,7 +123,7 @@ const Signin = () => {
         secure: process.env.NODE_ENV === "production", // Use secure cookies in production
         sameSite: "strict", // Restrict cookie to same site
       });
-      safeLocalStorage.setItem("user-details", JSON.stringify(res.data.data));
+      safeLocalStorage.setItem("userDetails", JSON.stringify(res.data.data));
       // console.log("Sign-in response:", res.data)
       // Show success message
       showToast(res.data.message || "Signed in successfully", "success");
