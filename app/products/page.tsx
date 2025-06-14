@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { Column, Table } from "@/app/components/common/Table";
 import Wrapper from "@/app/components/wrapper/Wrapper";
 import { IoSearch } from "react-icons/io5";
@@ -66,9 +67,11 @@ export default function ProductsPage() {
       render: (value, item) => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-gray-100">
-            <img
-              src={item.image}
+            <Image
+              src={item.image || "/images/placeholder.png"}
               alt={item.name}
+              width={40}
+              height={40}
               className="h-full w-full object-cover rounded-lg"
             />
           </div>

@@ -503,7 +503,7 @@ const VendorStore = () => {
   useEffect(() => {
     fetchUserProfile();
     fetchCountries();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -606,16 +606,17 @@ const VendorStore = () => {
                                 .slice(0, 3)
                                 .map((member, index: number) => (
                                   <div
-                                    key={member.id || index}
+                                    key={member?.id || index}
                                     className="relative"
                                     style={{
                                       marginLeft: index > 0 ? "-8px" : "0",
-                                      zIndex: store.members.length - index,
+                                      zIndex:
+                                        (store.members?.length || 0) - index,
                                     }}
                                   >
                                     <Image
                                       src={
-                                        member.avatar || "/images/avatar1.svg"
+                                        member?.avatar || "/images/avatar1.svg"
                                       }
                                       alt="Member"
                                       width={24}
@@ -641,12 +642,14 @@ const VendorStore = () => {
                   </Link>
                   <div className="absolute top-4 right-4 z-10">
                     <StoreCardMenu
-                      onEdit={() => handleEditStore(store.id || store.uuid)}
+                      onEdit={() =>
+                        handleEditStore(store.id || store.uuid || "")
+                      }
                       onAddMember={() =>
-                        handleAddMember(store.id || store.uuid)
+                        handleAddMember(store.id || store.uuid || "")
                       }
                       onDeactivate={() =>
-                        handleDeactivateStore(store.id || store.uuid)
+                        handleDeactivateStore(store.id || store.uuid || "")
                       }
                     />
                   </div>

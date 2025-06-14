@@ -37,13 +37,7 @@ export const showToast = (
   type: "success" | "error" | "warning" | "info" = "success",
   options?: {
     duration?: number;
-    position?:
-      | "top-left"
-      | "top-center"
-      | "top-right"
-      | "bottom-left"
-      | "bottom-center"
-      | "bottom-right";
+    position?: "left" | "center" | "right";
     gravity?: "top" | "bottom";
   }
 ) => {

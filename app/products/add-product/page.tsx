@@ -368,6 +368,7 @@ export default function AddProductPage() {
                 <div className="grid grid-cols-3 gap-4">
                   {uploadedImages.map((imageUrl, index) => (
                     <div key={index} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={imageUrl}
                         alt={`Product ${index + 1}`}
