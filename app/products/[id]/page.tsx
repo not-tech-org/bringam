@@ -336,8 +336,8 @@ const ProductDetails = () => {
                   Description
                 </label>
                 <p className="text-sm text-gray-500 mb-3">
-                  Describe your product. This can include 'size', specs, colours
-                  etc'.
+                  Describe your product. This can include &apos;size&apos;,
+                  specs, colours etc&apos;.
                 </p>
                 <textarea
                   name="productDescription"
