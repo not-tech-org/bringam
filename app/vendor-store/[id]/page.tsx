@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { BiPowerOff } from "react-icons/bi";
@@ -113,7 +113,7 @@ const StorePage = () => {
   const [store, setStore] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchStoreData = async () => {
+  const fetchStoreData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getStoreById(storeId);
@@ -124,13 +124,13 @@ const StorePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [storeId]);
 
   useEffect(() => {
     if (storeId) {
       fetchStoreData();
     }
-  }, [storeId]);
+  }, [storeId, fetchStoreData]);
 
   const overviewData = [
     {
@@ -145,7 +145,7 @@ const StorePage = () => {
       avatars:
         store?.members
           ?.slice(0, 3)
-          ?.map((member: any) => member.avatar || "/images/avatar1.svg") || [],
+          ?.map((member: any) => member?.avatar || "/images/avatar1.svg") || [],
     },
     {
       title: "Orders",
@@ -162,9 +162,11 @@ const StorePage = () => {
       render: (value, item) => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-gray-100">
-            <img
-              src={item.image}
+            <Image
+              src={item.image || "/images/placeholder.png"}
               alt={item.name}
+              width={40}
+              height={40}
               className="h-full w-full object-cover rounded-lg"
             />
           </div>
