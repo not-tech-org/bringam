@@ -2,27 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { MdArrowOutward } from "react-icons/md";
 import { usePathname } from "next/navigation";
 import SignoutButton from "./SignoutButton";
-import { safeLocalStorage } from "@/app/lib/utils";
+import { useUser } from "@/app/contexts/UserContext";
 
 const Sidebar = () => {
-  const [vendor, setVendor] = useState<boolean>(false);
   const pathname = usePathname();
-  const userType = JSON.parse(
-    safeLocalStorage.getItem("userDetails", '{"type": "customer"}')
-  );
-
-  console.log(userType);
-  useEffect(() => {
-    if (userType?.scope?.includes("VENDOR")) {
-      setVendor(true);
-    } else {
-      setVendor(false);
-    }
-  }, [userType]);
+  const { isVendorView, isVendorCapable, userName } = useUser();
 
   const customerMenuItems = [
     { path: "/all", label: "All", icon: "/icons/all.svg" },
@@ -34,7 +22,7 @@ const Sidebar = () => {
     },
     {
       path: "/phones-tablets",
-      label: "Phones and tablets", 
+      label: "Phones and tablets",
       icon: "/icons/phone.svg",
     },
     { path: "/fashion", label: "Fashion", icon: "/icons/fashion.svg" },
@@ -77,7 +65,7 @@ const Sidebar = () => {
     label: string;
     icon: string;
   }) => {
-    const isActive = pathname === item.path;
+    const isActive = pathname.startsWith(item.path) && item.path !== "/";
     return (
       <Link href={item.path} key={item.path}>
         <div
@@ -113,7 +101,7 @@ const Sidebar = () => {
         />
         <p className="text-lg text-white font-bold">BringAm</p>
       </div>
-      {!vendor ? (
+      {!isVendorView ? (
         <div className="overflowForced h-full">
           <div className="mt-8">
             <p className="text-sm text-lightArmy font-medium mb-6">
@@ -130,23 +118,35 @@ const Sidebar = () => {
             </div>
             <SignoutButton />
           </div>
-          <div className="mt-16">
-            {!vendor ? (
+
+          {/* User info section for customers */}
+          <div className="mt-8">
+            <div className="p-4 px-6 border rounded-lg flex items-center gap-3 bg-[#456563] text-[#CBD9D8]">
+              <Image
+                src="/icons/Status.png"
+                width={35}
+                height={35}
+                alt="profile"
+              />
+              <div className="flex-1">
+                <p className="text-sm text-white font-bold">{userName}</p>
+                <p className="text-xs" style={{ fontSize: 10 }}>
+                  Customer Account
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {!isVendorCapable && (
+            <div className="mt-8">
               <Link href="/vendor-signup">
                 <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer">
                   <p className="text-sm">Become a Vendor</p>
                   <MdArrowOutward />
                 </div>
               </Link>
-            ) : (
-              <Link href="/vendor-signin">
-                <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer">
-                  <p className="text-sm">Vendor Signin</p>
-                  <MdArrowOutward />
-                </div>
-              </Link>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="overflowForced h-full">
@@ -173,7 +173,7 @@ const Sidebar = () => {
                   alt="icon"
                 />
                 <div>
-                  <p className="text-sm text-white font-bold">Albert Gaits</p>
+                  <p className="text-xs text-white font-bold">{userName}</p>
                   <p className="text-xs" style={{ fontSize: 10 }}>
                     Account settings
                   </p>

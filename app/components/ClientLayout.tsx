@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, ReactNode } from "react";
 import { OnboardingProvider } from "@/app/contexts/OnboardingContext";
+import { UserProvider } from "@/app/contexts/UserContext";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -40,5 +41,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     );
   }
 
-  return <OnboardingProvider>{children}</OnboardingProvider>;
+  return (
+    <UserProvider>
+      <OnboardingProvider>{children}</OnboardingProvider>
+    </UserProvider>
+  );
 }

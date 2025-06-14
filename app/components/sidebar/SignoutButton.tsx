@@ -17,7 +17,7 @@ const SignoutButton = () => {
       const res = await logoutApi();
       setIsLoading(false);
       setShowLogoutModal(false);
-      showToast(res.data.message, "success");
+      showToast(res.data.message || "Signed out successfully", "success");
     } catch (err: any) {
       setIsLoading(false);
       if (err.response) {
