@@ -11,15 +11,18 @@ import {
   createProduct,
 } from "@/app/services/AuthService";
 import { showToast } from "@/app/components/utils/helperFunctions";
+import { useRouter } from "next/navigation";
+import { ProductCategory, ProductFormData } from "@/app/types";
 
 export default function AddProductPage() {
+  const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
 
   // Product form states
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProductFormData>({
     productName: "",
     productDescription: "",
     productCategory: "",
@@ -41,7 +44,7 @@ export default function AddProductPage() {
       try {
         const response = await getAllProductCategories();
         console.log("Categories:", response.data);
-        setCategories(response.data || []);
+        setCategories(response?.data?.data?.options || []);
       } catch (error) {
         console.error("Error fetching categories:", error);
         showToast("Failed to load product categories", "error");
@@ -50,6 +53,8 @@ export default function AddProductPage() {
 
     fetchCategories();
   }, []);
+
+  console.log("Categories:", categories);
 
   // Convert file to base64 and remove the data URL prefix
   const convertToBase64 = (file: File): Promise<string> => {
@@ -153,6 +158,7 @@ export default function AddProductPage() {
 
       // Show success message
       showToast("Product created successfully!", "success");
+      router.push("/products");
 
       // Reset form after successful creation
       setFormData({
@@ -332,8 +338,8 @@ export default function AddProductPage() {
               onChange={handleInputChange}
             >
               <option value="">Select a category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
+              {categories?.map((category) => (
+                <option key={category.uuid} value={category.uuid}>
                   {category.name}
                 </option>
               ))}

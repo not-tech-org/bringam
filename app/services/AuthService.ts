@@ -7,6 +7,7 @@ const baseUrl = () => {
 
 const secoundaryUrl = () => {
   return {
+    auth: "auth-service",
     vendor: "vendor-service",
   };
 };
@@ -15,7 +16,7 @@ const BACKEND_URL = `${process.env.NEXT_PUBLIC_API_URL}/auth-service/api/v1`;
 
 // Create axios instance for auth service
 const authApi = axios.create({
-  baseURL: BACKEND_URL,
+  baseURL: `${baseUrl()}/${secoundaryUrl().auth}/api/v1`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -170,7 +171,9 @@ export const getAllProducts = async () => {
 };
 
 export const getAllProductCategories = async () => {
-  const response = await vendorApi.get("/product-category/get-all-categories");
+  const response = await authApi.get(
+    "/option-groups/get-option-group/product-category"
+  );
   return response;
 };
 

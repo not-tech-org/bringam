@@ -22,34 +22,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import StoreCardMenu from "../components/common/StoreCardMenu";
-
-interface StateType {
-  name: string;
-  description: string;
-  phoneNumber: string;
-  email: string;
-  website: string;
-  category?: string;
-  country: string;
-  street: string;
-  city: string;
-  lga: string;
-  state: string;
-  landmark: string;
-  address?: {
-    city: number;
-    country: number;
-    landmark: string;
-    lga: string;
-    state: number;
-    street: string;
-    longitude: number;
-    latitude: number;
-  };
-  profilePhotoUrl: string;
-  coverPhotoUrl: string;
-  active: boolean;
-}
+import { StoreFormData, StoreData, Country, State, City } from "../types";
 
 const VendorStore = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -60,10 +33,10 @@ const VendorStore = () => {
   const [deactivatingStoreName, setDeactivatingStoreName] =
     useState<string>("");
   const [vendorUuid, setVendorUuid] = useState<string>("");
-  const [stores, setStores] = useState<any[]>([]);
-  const [countries, setCountries] = useState<any[]>([]);
-  const [states, setStates] = useState<any[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
+  const [stores, setStores] = useState<StoreData[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [states, setStates] = useState<State[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
@@ -112,7 +85,7 @@ const VendorStore = () => {
     setDeactivatingStoreName("");
   };
 
-  const [state, setState] = useState<StateType>({
+  const [state, setState] = useState<StoreFormData>({
     name: "",
     description: "",
     phoneNumber: "",
@@ -140,7 +113,7 @@ const VendorStore = () => {
     active: true,
   });
 
-  const [editState, setEditState] = useState<StateType>({
+  const [editState, setEditState] = useState<StoreFormData>({
     name: "",
     description: "",
     phoneNumber: "",
@@ -631,7 +604,7 @@ const VendorStore = () => {
                             <>
                               {store.members
                                 .slice(0, 3)
-                                .map((member: any, index: number) => (
+                                .map((member, index: number) => (
                                   <div
                                     key={member.id || index}
                                     className="relative"
