@@ -1,16 +1,21 @@
 "use client";
 
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
-import { MdArrowOutward } from "react-icons/md";
 import { usePathname } from "next/navigation";
-import SignoutButton from "./SignoutButton";
+import { MdArrowOutward } from "react-icons/md";
 import { useUser } from "@/app/contexts/UserContext";
+import UserProfileModal from "../common/UserProfileModal";
+import SignoutButton from "./SignoutButton";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { isVendorView, isVendorCapable, userName } = useUser();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const openProfileModal = () => setIsProfileModalOpen(true);
+  const closeProfileModal = () => setIsProfileModalOpen(false);
 
   const customerMenuItems = [
     { path: "/all", label: "All", icon: "/icons/all.svg" },
@@ -95,101 +100,116 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="w-[280px] h-screen bg-bgArmy px-8 py-4 fixed top-0 left-0 z-20 select-none">
-      {/* Header */}
-      <div className="flex items-center gap-2 h-20 flex-shrink-0">
-        <Image
-          src="/icons/brand-logo.svg"
-          alt="Brand Logo"
-          width={30}
-          height={30}
-          className="flex-shrink-0"
-        />
-        <p className="text-lg text-white font-bold">BringAm</p>
-      </div>
+    <>
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={closeProfileModal}
+      />
 
-      {/* Scrollable Content */}
-      {!isVendorView ? (
-        <div className="custom-scrollbar h-[calc(100vh-5rem)] flex flex-col">
-          <div className="mt-8 flex-shrink-0">
-            <p className="text-sm text-lightArmy font-medium mb-6">
-              Categories
-            </p>
-            <div className="pl-4 text-sm">
-              {customerMenuItems.map(renderMenuItem)}
+      <div className="w-[280px] h-screen bg-bgArmy px-8 py-4 fixed top-0 left-0 z-20 select-none">
+        {/* Header */}
+        <div className="flex items-center gap-2 h-20 flex-shrink-0">
+          <Image
+            src="/icons/brand-logo.svg"
+            alt="Brand Logo"
+            width={30}
+            height={30}
+            className="flex-shrink-0"
+          />
+          <p className="text-lg text-white font-bold">BringAm</p>
+        </div>
+
+        {/* Scrollable Content */}
+        {!isVendorView ? (
+          <div className="custom-scrollbar h-[calc(100vh-5rem)] flex flex-col">
+            <div className="mt-8 flex-shrink-0">
+              <p className="text-sm text-lightArmy font-medium mb-6">
+                Categories
+              </p>
+              <div className="pl-4 text-sm">
+                {customerMenuItems.map(renderMenuItem)}
+              </div>
             </div>
-          </div>
 
-          <div className="mt-12 flex-shrink-0">
-            <p className="text-sm text-lightArmy font-medium mb-6">Personal</p>
-            <div className="pl-4 text-sm">
-              {customerPersonalItems.map(renderMenuItem)}
+            <div className="mt-12 flex-shrink-0">
+              <p className="text-sm text-lightArmy font-medium mb-6">
+                Personal
+              </p>
+              <div className="pl-4 text-sm">
+                {customerPersonalItems.map(renderMenuItem)}
+              </div>
+              <SignoutButton />
             </div>
-            <SignoutButton />
-          </div>
 
-          {/* Spacer to push bottom content down */}
-          <div className="flex-grow"></div>
+            {/* Spacer to push bottom content down */}
+            <div className="flex-grow"></div>
 
-          {/* Bottom content - User info and Become Vendor */}
-          <div className="flex-shrink-0 pb-12">
-            {/* User info section for customers */}
-            <div className="mb-4">
-              <div className="p-4 px-6 border rounded-lg flex items-center gap-3 bg-[#456563] text-[#CBD9D8] transition-all duration-200 hover:bg-[#4a6b69]">
-                <Image
-                  src="/icons/Status.png"
-                  width={35}
-                  height={35}
-                  alt="profile"
-                  className="flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white font-bold truncate">
-                    {userName}
-                  </p>
-                  <p className="text-xs" style={{ fontSize: 10 }}>
-                    Customer Account
-                  </p>
+            {/* Bottom content - User info and Become Vendor */}
+            <div className="flex-shrink-0 pb-12">
+              {/* User info section for customers */}
+              <div className="mb-4">
+                <div
+                  onClick={openProfileModal}
+                  className="p-4 px-6 border rounded-lg flex items-center gap-3 bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69]"
+                >
+                  <Image
+                    src="/icons/Status.png"
+                    width={35}
+                    height={35}
+                    alt="profile"
+                    className="flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white font-bold truncate">
+                      {userName}
+                    </p>
+                    <p className="text-xs" style={{ fontSize: 10 }}>
+                      Customer Account
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {!isVendorCapable && (
-              <div>
-                <Link href="/vendor-signup">
-                  <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69] hover:scale-[1.02]">
-                    <p className="text-sm">Become a Vendor</p>
-                    <MdArrowOutward className="flex-shrink-0" />
-                  </div>
-                </Link>
+              {!isVendorCapable && (
+                <div>
+                  <Link href="/vendor-signup">
+                    <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69] hover:scale-[1.02]">
+                      <p className="text-sm">Become a Vendor</p>
+                      <MdArrowOutward className="flex-shrink-0" />
+                    </div>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="custom-scrollbar h-[calc(100vh-5rem)] flex flex-col">
+            <div className="mt-8 flex-shrink-0">
+              <p className="text-sm text-lightArmy font-medium mb-6">General</p>
+              <div className="pl-4 text-sm">
+                {vendorMenuItems.map(renderMenuItem)}
               </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="custom-scrollbar h-[calc(100vh-5rem)] flex flex-col">
-          <div className="mt-8 flex-shrink-0">
-            <p className="text-sm text-lightArmy font-medium mb-6">General</p>
-            <div className="pl-4 text-sm">
-              {vendorMenuItems.map(renderMenuItem)}
             </div>
-          </div>
 
-          <div className="mt-12 flex-shrink-0">
-            <p className="text-sm text-lightArmy font-medium mb-6">Personal</p>
-            <div className="pl-4 text-sm">
-              {vendorPersonalItems.map(renderMenuItem)}
+            <div className="mt-12 flex-shrink-0">
+              <p className="text-sm text-lightArmy font-medium mb-6">
+                Personal
+              </p>
+              <div className="pl-4 text-sm">
+                {vendorPersonalItems.map(renderMenuItem)}
+              </div>
+              <SignoutButton />
             </div>
-            <SignoutButton />
-          </div>
 
-          {/* Spacer to push bottom content down */}
-          <div className="flex-grow"></div>
+            {/* Spacer to push bottom content down */}
+            <div className="flex-grow"></div>
 
-          {/* Bottom content - Vendor account settings */}
-          <div className="flex-shrink-0 pb-12">
-            <Link href="/vendor-auth">
-              <div className="p-4 px-6 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69] hover:scale-[1.02]">
+            {/* Bottom content - Vendor account settings */}
+            <div className="flex-shrink-0 pb-12">
+              <div
+                onClick={openProfileModal}
+                className="p-4 px-6 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69] hover:scale-[1.02]"
+              >
                 <Image
                   src="/icons/Status.png"
                   width={35}
@@ -207,11 +227,11 @@ const Sidebar = () => {
                 </div>
                 <MdArrowOutward className="flex-shrink-0" />
               </div>
-            </Link>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 
