@@ -39,7 +39,7 @@ const DashboardPage = () => {
           </div>
 
           {/* Grid */}
-          <div className="overflowForced">
+          <div className="custom-scrollbar">
             {/* Store */}
             <div className="flex flex-col justify-center items-center w-full">
               <div className="grid grid-cols-4 grid-rows-2 gap-16 mt-12 mx-4">
@@ -107,7 +107,8 @@ const DashboardPage = () => {
                 <Button
                   type="button"
                   primary
-                  style="w-fit gap-4 p-4 px-8 mt-16">
+                  style="w-fit gap-4 p-4 px-8 mt-16"
+                >
                   <p>View more offers</p>
                   <FaArrowRight />
                 </Button>

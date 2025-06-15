@@ -16,6 +16,7 @@ type InputProps = {
   className?: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   required?: boolean;
+  disabled?: boolean;
   onKeyUp?: KeyboardEventHandler<HTMLInputElement>;
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
   error?: string;
@@ -33,6 +34,7 @@ const Input: React.FC<InputProps> = ({
   placeholder,
   onChange,
   required,
+  disabled,
   onKeyUp,
   onKeyDown,
   className,
@@ -85,7 +87,7 @@ const Input: React.FC<InputProps> = ({
         <input
           className={`${className} rounded-md p-2 outline-none w-full ${
             error ? "border-red-500 border" : ""
-          }`}
+          } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
           name={name}
           value={value}
           type={type === "password" && showPassword ? "text" : type}
@@ -93,10 +95,11 @@ const Input: React.FC<InputProps> = ({
           placeholder={placeholder}
           onChange={onChange}
           required={required}
+          disabled={disabled}
           onKeyUp={onKeyUp}
           onKeyDown={onKeyDown}
           style={{
-            backgroundColor: "#F7F7F7",
+            backgroundColor: disabled ? "#E5E5E5" : "#F7F7F7",
             height: 64,
             ...getPadding(),
           }}

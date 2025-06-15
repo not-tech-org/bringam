@@ -8,7 +8,7 @@ import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 import { signinApi, getUserProfile } from "@/app/services/AuthService";
 import { useRouter } from "next/navigation";
 import { validateEmail, showToast } from "../utils/helperFunctions";
-import { safeLocalStorage } from "@/app/lib/utils";
+import { safeLocalStorage, getUserTypeInfo } from "@/app/lib/utils";
 
 const Signin = () => {
   const context = useContext(OnboardingContext);
@@ -77,6 +77,9 @@ const Signin = () => {
           firstName: customerData.firstName,
           picture: customerData.picture,
         });
+
+        // Trigger custom event to notify UserContext of localStorage updates
+        window.dispatchEvent(new Event("userDataUpdated"));
       }
     } catch (error: any) {
       console.error("Error fetching user profile:", error);
@@ -91,6 +94,13 @@ const Signin = () => {
 
       showToast(errorMessage, "warning");
     }
+  };
+
+  // Determine appropriate route based on user type
+  const getDefaultRoute = () => {
+    const { vendorView } = getUserTypeInfo();
+    // Default to vendor dashboard if user is in vendor view, otherwise customer all page
+    return vendorView ? "/dashboard" : "/all";
   };
 
   const onSignIn = async (e: React.FormEvent) => {
@@ -124,15 +134,18 @@ const Signin = () => {
         sameSite: "strict", // Restrict cookie to same site
       });
       safeLocalStorage.setItem("userDetails", JSON.stringify(res.data.data));
-      // console.log("Sign-in response:", res.data)
+
       // Show success message
       showToast(res.data.message || "Signed in successfully", "success");
 
       // Fetch user profile and save customer data
       await fetchUserProfile();
 
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // Get the appropriate route based on user type
+      const defaultRoute = getDefaultRoute();
+
+      // Redirect to appropriate route
+      router.push(defaultRoute);
     } catch (err: any) {
       // Handle different types of errors
       if (err.response) {

@@ -10,16 +10,17 @@ import VendorHeader from "../vendor-header/VendorHeader";
 
 interface WrapperProps {
   children: ReactNode;
+  title?: string;
 }
 
-const Wrapper: React.FC<WrapperProps> = ({ children }) => {
+const Wrapper: React.FC<WrapperProps> = ({ children, title }) => {
   // const router = useRouter()
   // console.log("Wrapper: ", router)
   return (
     <div className="flex min-h-screen">
       <Sidebar />
       <div className="flex-1 ml-[280px]">
-        <VendorHeader />
+        <VendorHeader title={title} />
         <main className="pt-32 px-16">{children}</main>
       </div>
     </div>

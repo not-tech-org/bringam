@@ -13,6 +13,7 @@ import { PiUploadSimpleBold } from "react-icons/pi";
 import { TiTimes } from "react-icons/ti";
 import { useRouter } from "next/navigation";
 import Toastify from "toastify-js";
+import { safeLocalStorage, updateUserData } from "@/app/lib/utils";
 
 interface StateType {
   businessName: string;
@@ -227,7 +228,24 @@ const VendorAuth = () => {
         );
       }
 
-      // Redirect to dashboard after showing success message
+      // Update user scope to include VENDOR after successful vendor creation
+      const currentUserData = JSON.parse(
+        safeLocalStorage.getItem("userDetails", '{"scope": []}')
+      );
+
+      const currentScope = currentUserData.scope || [];
+      const updatedScope = currentScope.includes("VENDOR")
+        ? currentScope
+        : [...currentScope, "VENDOR"];
+
+      const updatedUserData = {
+        ...currentUserData,
+        scope: updatedScope,
+      };
+
+      updateUserData("userDetails", updatedUserData);
+
+      // Redirect to dashboard after showing success message (vendor account created means they should see vendor dashboard)
       setTimeout(() => {
         router.push("/dashboard");
       }, 1500);
