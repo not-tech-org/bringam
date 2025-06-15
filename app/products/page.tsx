@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { Column, Table } from "@/app/components/common/Table";
 import Wrapper from "@/app/components/wrapper/Wrapper";
 import { IoSearch } from "react-icons/io5";
 import Pagination from "@/app/components/common/Pagination";
 import Button from "../components/common/Button";
 import Link from "next/link";
+import { getAllProducts } from "../services/AuthService";
+import { showToast } from "@/app/components/utils/helperFunctions";
 
 interface Product {
   id: string;
@@ -18,60 +21,44 @@ interface Product {
   code: string;
 }
 
-const dummyProducts: Product[] = [
-  {
-    id: "1",
-    image: "/images/choc.png",
-    name: "Chocolate bar",
-    price: 2500,
-    quantity: 20,
-    isAvailable: true,
-    code: "#12568",
-  },
-  {
-    id: "2",
-    image: "/images/head.png",
-    name: "Beats Headset",
-    price: 80000,
-    quantity: 8,
-    isAvailable: true,
-    code: "#46892",
-  },
-  {
-    id: "3",
-    image: "/images/iphone.png",
-    name: "iPhone 8",
-    price: 90000,
-    quantity: 16,
-    isAvailable: false,
-    code: "#12568",
-  },
-  {
-    id: "4",
-    image: "/images/milk.png",
-    name: "Almond milk",
-    price: 2500,
-    quantity: 20,
-    isAvailable: true,
-    code: "#12568",
-  },
-  {
-    id: "5",
-    image: "/images/head.png",
-    name: "Beats Headset",
-    price: 80000,
-    quantity: 8,
-    isAvailable: true,
-    code: "#46892",
-  },
-];
-
 export default function ProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [priceFilter, setPriceFilter] = useState("");
   const [quantityFilter, setQuantityFilter] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllProducts();
+      console.log("Products:", response.data);
+      setProducts(response.data.data || []);
+    } catch (error: any) {
+      console.error("Error fetching products:", error);
+
+      // Extract error message for better user feedback
+      let errorMessage = "Failed to load products. Please try again.";
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      showToast(errorMessage, "error");
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const columns: Column<Product>[] = [
     {
@@ -80,9 +67,11 @@ export default function ProductsPage() {
       render: (value, item) => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-gray-100">
-            <img
-              src={item.image}
+            <Image
+              src={item.image || "/images/placeholder.png"}
               alt={item.name}
+              width={40}
+              height={40}
               className="h-full w-full object-cover rounded-lg"
             />
           </div>
@@ -181,16 +170,37 @@ export default function ProductsPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm">
-          <Table
-            columns={columns}
-            data={dummyProducts}
-            onRowClick={(product) => console.log("Clicked product:", product)}
-          />
-          <Pagination
-            currentPage={currentPage}
-            totalPages={5}
-            onPageChange={setCurrentPage}
-          />
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <p className="text-gray-500">Loading products...</p>
+            </div>
+          ) : products.length > 0 ? (
+            <>
+              <Table
+                columns={columns}
+                data={products}
+                onRowClick={(product) =>
+                  console.log("Clicked product:", product)
+                }
+              />
+              <Pagination
+                currentPage={currentPage}
+                totalPages={5}
+                onPageChange={setCurrentPage}
+              />
+            </>
+          ) : (
+            <div className="flex flex-col justify-center items-center py-12">
+              <p className="text-gray-500 text-center mb-4">
+                No products found. Add your first product to get started!
+              </p>
+              <Link href={"/products/add-product"}>
+                <Button type="button" primary>
+                  Add new product
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </Wrapper>
