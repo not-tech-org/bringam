@@ -260,13 +260,15 @@ const VendorStore = () => {
       const response = await updateVendorStore(editingStoreId, reqBody);
       console.log("Store updated successfully:", response.data);
 
-      closeEditModal();
       // Refresh stores list after updating
       if (vendorUuid) {
         await fetchVendorStores(vendorUuid);
       }
+
+      // Don't close modal here - let the EditStore component handle success
     } catch (error) {
       console.error("Error updating vendor store:", error);
+      throw error; // Re-throw to let the EditStore component handle the error
     } finally {
       setEditLoading(false);
     }
@@ -330,8 +332,26 @@ const VendorStore = () => {
   };
 
   const handleDeactivateStore = (storeId: string) => {
+    if (!storeId) {
+      console.error("No store ID provided for deactivation");
+      return;
+    }
+
     // Find the store name for the confirmation message
     const store = stores.find((s) => (s.id || s.uuid) === storeId);
+
+    if (!store) {
+      console.error("Store not found for deactivation:", storeId);
+      // Show error feedback if store is not found
+      import("../components/utils/helperFunctions").then(({ showToast }) => {
+        showToast(
+          "Store not found. Please refresh the page and try again.",
+          "error"
+        );
+      });
+      return;
+    }
+
     setDeactivatingStoreId(storeId);
     setDeactivatingStoreName(store?.name || "this store");
     openDeactivateModal();
@@ -345,13 +365,33 @@ const VendorStore = () => {
       const response = await deactivateVendorStore(deactivatingStoreId);
       console.log("Store deactivated successfully:", response.data);
 
+      // Show success feedback to user
+      const { showToast } = await import("../components/utils/helperFunctions");
+      showToast(
+        `"${deactivatingStoreName}" has been deactivated successfully!`,
+        "success"
+      );
+
       closeDeactivateModal();
       // Refresh stores list after deactivating
       if (vendorUuid) {
         await fetchVendorStores(vendorUuid);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deactivating vendor store:", error);
+
+      // Show error feedback to user
+      const { showToast } = await import("../components/utils/helperFunctions");
+
+      // Extract error message for user feedback
+      let errorMessage = `Failed to deactivate "${deactivatingStoreName}". Please try again.`;
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      showToast(errorMessage, "error");
     } finally {
       setDeactivateLoading(false);
     }
@@ -553,7 +593,7 @@ const VendorStore = () => {
         type="danger"
       />
 
-      <Wrapper>
+      <Wrapper title="My Stores">
         <div className="block">
           <div className="flex items-center justify-between mb-6">
             <p className="font-semibold text-lg">My stores</p>
@@ -610,7 +650,8 @@ const VendorStore = () => {
                                     className="relative"
                                     style={{
                                       marginLeft: index > 0 ? "-8px" : "0",
-                                      zIndex: store.members.length - index,
+                                      zIndex:
+                                        (store.members?.length || 0) - index,
                                     }}
                                   >
                                     <Image
@@ -641,12 +682,14 @@ const VendorStore = () => {
                   </Link>
                   <div className="absolute top-4 right-4 z-10">
                     <StoreCardMenu
-                      onEdit={() => handleEditStore(store.id || store.uuid)}
+                      onEdit={() =>
+                        handleEditStore(store.id || store.uuid || "")
+                      }
                       onAddMember={() =>
-                        handleAddMember(store.id || store.uuid)
+                        handleAddMember(store.id || store.uuid || "")
                       }
                       onDeactivate={() =>
-                        handleDeactivateStore(store.id || store.uuid)
+                        handleDeactivateStore(store.id || store.uuid || "")
                       }
                     />
                   </div>

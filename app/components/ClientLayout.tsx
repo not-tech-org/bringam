@@ -3,6 +3,7 @@
 import React, { useState, useEffect, ReactNode } from "react";
 import { OnboardingProvider } from "@/app/contexts/OnboardingContext";
 import { UserProvider } from "@/app/contexts/UserContext";
+import { applyOSClasses } from "../lib/utils";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -26,6 +27,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         },
       });
     }
+
+    // Apply OS and browser specific classes for cross-platform consistency
+    applyOSClasses();
   }, []);
 
   // During SSR and first mount, don't render anything that might use browser APIs

@@ -7,7 +7,11 @@ import Image from "next/image";
 import { RxExit } from "react-icons/rx";
 import { useUser } from "@/app/contexts/UserContext";
 
-export default function VendorHeader() {
+interface VendorHeaderProps {
+  title?: string;
+}
+
+export default function VendorHeader({ title }: VendorHeaderProps) {
   const pathname = usePathname();
   const route = pathname.split("/").join("")?.split("-").pop() || "";
   const formattedRoute = route.charAt(0).toUpperCase() + route.slice(1);
@@ -15,9 +19,12 @@ export default function VendorHeader() {
   const { isVendorView, isVendorCapable, switchToCustomer, switchToVendor } =
     useUser();
 
+  // Use provided title or fall back to URL-based title
+  const displayTitle = title || formattedRoute;
+
   return (
     <div className="flex items-center justify-between py-6 px-8 pl-16 border-b bg-white">
-      <h1 className="text-2xl font-medium">{formattedRoute}</h1>
+      <h1 className="text-2xl font-medium">{displayTitle}</h1>
       <div className="flex items-center gap-4">
         {isVendorCapable && (
           <button
