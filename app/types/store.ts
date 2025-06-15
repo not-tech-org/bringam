@@ -1,6 +1,8 @@
 // Store-related types and interfaces
 
 export interface StoreAddress {
+  uuid?: string;
+  entityUuid?: string;
   city: number;
   country: number;
   landmark: string;
