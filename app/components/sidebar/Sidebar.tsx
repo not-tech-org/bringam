@@ -69,7 +69,7 @@ const Sidebar = () => {
     return (
       <Link href={item.path} key={item.path}>
         <div
-          className={`flex items-center gap-2 my-6 group cursor-pointer ${
+          className={`flex items-center gap-2 my-6 group cursor-pointer transition-colors duration-200 ${
             isActive ? "text-white" : "text-lighterArmy hover:text-white"
           }`}
         >
@@ -78,11 +78,15 @@ const Sidebar = () => {
             alt={`${item.label} Icon`}
             width={16}
             height={16}
-            className={`${
+            className={`transition-opacity duration-200 ${
               isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100"
             }`}
           />
-          <p className={`font-medium ${isActive ? "font-bold" : ""}`}>
+          <p
+            className={`font-medium transition-all duration-200 ${
+              isActive ? "font-bold" : ""
+            }`}
+          >
             {item.label}
           </p>
         </div>
@@ -91,19 +95,23 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="w-[280px] h-screen bg-bgArmy px-8 py-4 fixed top-0 left-0 z-20">
-      <div className="flex items-center gap-2 h-20">
+    <div className="w-[280px] h-screen bg-bgArmy px-8 py-4 fixed top-0 left-0 z-20 select-none">
+      {/* Header */}
+      <div className="flex items-center gap-2 h-20 flex-shrink-0">
         <Image
           src="/icons/brand-logo.svg"
           alt="Brand Logo"
           width={30}
           height={30}
+          className="flex-shrink-0"
         />
         <p className="text-lg text-white font-bold">BringAm</p>
       </div>
+
+      {/* Scrollable Content */}
       {!isVendorView ? (
-        <div className="overflowForced h-full">
-          <div className="mt-8">
+        <div className="custom-scrollbar h-[calc(100vh-5rem)] flex flex-col">
+          <div className="mt-8 flex-shrink-0">
             <p className="text-sm text-lightArmy font-medium mb-6">
               Categories
             </p>
@@ -111,7 +119,8 @@ const Sidebar = () => {
               {customerMenuItems.map(renderMenuItem)}
             </div>
           </div>
-          <div className="mt-12">
+
+          <div className="mt-12 flex-shrink-0">
             <p className="text-sm text-lightArmy font-medium mb-6">Personal</p>
             <div className="pl-4 text-sm">
               {customerPersonalItems.map(renderMenuItem)}
@@ -119,66 +128,84 @@ const Sidebar = () => {
             <SignoutButton />
           </div>
 
-          {/* User info section for customers */}
-          <div className="mt-8">
-            <div className="p-4 px-6 border rounded-lg flex items-center gap-3 bg-[#456563] text-[#CBD9D8]">
-              <Image
-                src="/icons/Status.png"
-                width={35}
-                height={35}
-                alt="profile"
-              />
-              <div className="flex-1">
-                <p className="text-sm text-white font-bold">{userName}</p>
-                <p className="text-xs" style={{ fontSize: 10 }}>
-                  Customer Account
-                </p>
+          {/* Spacer to push bottom content down */}
+          <div className="flex-grow"></div>
+
+          {/* Bottom content - User info and Become Vendor */}
+          <div className="flex-shrink-0 pb-12">
+            {/* User info section for customers */}
+            <div className="mb-4">
+              <div className="p-4 px-6 border rounded-lg flex items-center gap-3 bg-[#456563] text-[#CBD9D8] transition-all duration-200 hover:bg-[#4a6b69]">
+                <Image
+                  src="/icons/Status.png"
+                  width={35}
+                  height={35}
+                  alt="profile"
+                  className="flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white font-bold truncate">
+                    {userName}
+                  </p>
+                  <p className="text-xs" style={{ fontSize: 10 }}>
+                    Customer Account
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {!isVendorCapable && (
-            <div className="mt-8">
-              <Link href="/vendor-signup">
-                <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer">
-                  <p className="text-sm">Become a Vendor</p>
-                  <MdArrowOutward />
-                </div>
-              </Link>
-            </div>
-          )}
+            {!isVendorCapable && (
+              <div>
+                <Link href="/vendor-signup">
+                  <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69] hover:scale-[1.02]">
+                    <p className="text-sm">Become a Vendor</p>
+                    <MdArrowOutward className="flex-shrink-0" />
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
-        <div className="overflowForced h-full">
-          <div className="mt-8">
+        <div className="custom-scrollbar h-[calc(100vh-5rem)] flex flex-col">
+          <div className="mt-8 flex-shrink-0">
             <p className="text-sm text-lightArmy font-medium mb-6">General</p>
             <div className="pl-4 text-sm">
               {vendorMenuItems.map(renderMenuItem)}
             </div>
           </div>
-          <div className="mt-12">
+
+          <div className="mt-12 flex-shrink-0">
             <p className="text-sm text-lightArmy font-medium mb-6">Personal</p>
             <div className="pl-4 text-sm">
               {vendorPersonalItems.map(renderMenuItem)}
             </div>
             <SignoutButton />
           </div>
-          <div className="mt-16">
+
+          {/* Spacer to push bottom content down */}
+          <div className="flex-grow"></div>
+
+          {/* Bottom content - Vendor account settings */}
+          <div className="flex-shrink-0 pb-12">
             <Link href="/vendor-auth">
-              <div className="p-4 px-6 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer">
+              <div className="p-4 px-6 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69] hover:scale-[1.02]">
                 <Image
                   src="/icons/Status.png"
                   width={35}
                   height={35}
                   alt="icon"
+                  className="flex-shrink-0"
                 />
-                <div>
-                  <p className="text-xs text-white font-bold">{userName}</p>
+                <div className="flex-1 min-w-0 mx-3">
+                  <p className="text-xs text-white font-bold truncate">
+                    {userName}
+                  </p>
                   <p className="text-xs" style={{ fontSize: 10 }}>
                     Account settings
                   </p>
                 </div>
-                <MdArrowOutward />
+                <MdArrowOutward className="flex-shrink-0" />
               </div>
             </Link>
           </div>

@@ -55,6 +55,9 @@ body {
   width: 100vw;
   height: 100vh;
   overflow-y: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 button {
@@ -63,6 +66,7 @@ button {
   background: #eee;
   font-size: var(--font-size-2xs);
   font-weight: 600 !important;
+  -webkit-appearance: none;
 }
 
 button:disabled {
@@ -87,8 +91,180 @@ button:disabled {
     var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+/* Cross-platform scrollbar styling - replaces overflowForced */
+.custom-scrollbar {
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Alternative scrollbar with minimal styling for when scrollbar is needed */
+.minimal-scrollbar {
+  overflow-y: auto;
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(155, 155, 155, 0.3) transparent; /* Firefox */
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+.minimal-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(155, 155, 155, 0.3);
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(155, 155, 155, 0.5);
+}
+
+/* Legacy support - keeping overflowForced for backward compatibility but with better styling */
 .overflowForced {
-  overflow-y: scroll !important;
+  overflow-y: auto !important;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.overflowForced::-webkit-scrollbar {
+  display: none;
+}
+
+/* Cross-platform button and input consistency */
+button,
+input,
+select,
+textarea {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Ensure consistent focus styles across browsers */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Remove default focus styles */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+}
+
+/* Cross-platform text selection */
+::selection {
+  background-color: #3b82f6;
+  color: white;
+}
+
+::-moz-selection {
+  background-color: #3b82f6;
+  color: white;
+}
+
+/* Prevent text selection on UI elements */
+.select-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Smooth scrolling for all browsers */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Fix for Windows high contrast mode */
+@media (prefers-contrast: high) {
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: ButtonText;
+  }
+
+  .minimal-scrollbar::-webkit-scrollbar-thumb {
+    background-color: ButtonText;
+  }
+}
+
+/* Fix for reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Additional cross-platform font rendering rules are already applied to body above */
+
+/* Fix for Safari button styling */
+button {
+  -webkit-appearance: none;
+  border-radius: 4px !important;
+}
+
+/* Fix for iOS Safari zoom on input focus */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Cross-platform image rendering */
+img {
+  -ms-interpolation-mode: bicubic;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Fix for Windows/Linux font weight rendering */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .font-bold {
+    font-weight: 600;
+  }
+}
+
+/* Consistent border-box sizing */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Fix for touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .hover\:scale-\[1\.02\]:hover {
+    transform: none;
+  }
+
+  .hover\:bg-\[\#4a6b69\]:hover {
+    background-color: #456563;
+  }
 }
 
 /* .poppins{
@@ -168,4 +344,81 @@ button:disabled {
 
 .react-select-container .react-select__clear-indicator:hover {
   color: #374151;
+}
+
+/* OS-specific styling */
+.os-windows {
+  /* Windows-specific adjustments */
+}
+
+.os-windows .custom-scrollbar {
+  /* Show minimal scrollbar on Windows for better UX */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(155, 155, 155, 0.2) transparent;
+}
+
+.os-windows .custom-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+
+.os-windows .custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.os-windows .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(155, 155, 155, 0.2);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.os-windows .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(155, 155, 155, 0.4);
+}
+
+.os-mac {
+  /* macOS-specific adjustments */
+}
+
+.os-linux {
+  /* Linux-specific adjustments */
+  font-weight: 500; /* Adjust font weight for better Linux rendering */
+}
+
+/* Browser-specific styling */
+.browser-firefox {
+  /* Firefox-specific adjustments */
+}
+
+.browser-safari {
+  /* Safari-specific adjustments */
+}
+
+.browser-chrome {
+  /* Chrome-specific adjustments */
+}
+
+.browser-edge {
+  /* Edge-specific adjustments */
+}
+
+/* Touch device optimizations */
+.touch-device button {
+  min-height: 44px; /* Ensure touch targets are large enough */
+  min-width: 44px;
+}
+
+.touch-device .cursor-pointer {
+  cursor: default; /* Remove pointer cursor on touch devices */
+}
+
+/* Reduced motion preferences */
+.reduced-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+.reduced-motion .hover\:scale-\[1\.02\]:hover {
+  transform: none;
 }

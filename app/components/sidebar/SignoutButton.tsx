@@ -32,8 +32,8 @@ const SignoutButton = () => {
     <>
       {isLoading ? (
         <div className="text-center flex items-center gap-2 my-5">
-          <Preloader />
-          <span className="text-lighterArmy font-medium">Loading...</span>
+          <Preloader height={30} />
+          {/* <span className="text-lighterArmy font-medium">Loading...</span> */}
         </div>
       ) : (
         <div

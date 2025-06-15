@@ -2,7 +2,11 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { safeLocalStorage } from "@/app/lib/utils";
+import {
+  safeLocalStorage,
+  updateUserData,
+  getUserTypeInfo,
+} from "@/app/lib/utils";
 
 interface UserContextType {
   isVendorView: boolean;
@@ -10,6 +14,8 @@ interface UserContextType {
   userName: string;
   switchToCustomer: () => void;
   switchToVendor: () => void;
+  getDefaultRoute: () => string;
+  updateUserState: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -24,20 +30,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Initialize and update user state
   const updateUserState = () => {
-    const userType = JSON.parse(
-      safeLocalStorage.getItem("userDetails", '{"scope": []}')
-    );
-    const profileData = JSON.parse(
-      safeLocalStorage.getItem("profileDetails", "{}")
-    );
+    const { vendorCapable, vendorView, profileData } = getUserTypeInfo();
 
-    // Update vendor view status
-    const vendorView = Boolean(userType?.scope?.includes("VENDOR"));
-    setIsVendorView(vendorView);
-
-    // Update vendor capability
-    const vendorCapable = Boolean(profileData?.vendorResp?.uuid);
+    // Update vendor capability first
     setIsVendorCapable(vendorCapable);
+
+    // Update vendor view status - only if user is vendor capable
+    setIsVendorView(vendorView);
 
     // Update user name
     let displayName = "User";
@@ -55,6 +54,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     setUserName(displayName);
   };
 
+  // Get the appropriate default route based on user type
+  const getDefaultRoute = () => {
+    const { vendorView } = getUserTypeInfo();
+    // Default to vendor dashboard if user is in vendor view, otherwise customer all page
+    return vendorView ? "/dashboard" : "/all";
+  };
+
   const switchToCustomer = () => {
     const currentUserData = JSON.parse(
       safeLocalStorage.getItem("userDetails", '{"scope": []}')
@@ -65,8 +71,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       scope: currentUserData.scope?.filter((s: string) => s !== "VENDOR") || [],
     };
 
-    safeLocalStorage.setItem("userDetails", JSON.stringify(updatedUserData));
-    updateUserState(); // Update state immediately
+    updateUserData("userDetails", updatedUserData);
     router.push("/all");
   };
 
@@ -85,13 +90,28 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       scope: updatedScope,
     };
 
-    safeLocalStorage.setItem("userDetails", JSON.stringify(updatedUserData));
-    updateUserState(); // Update state immediately
+    updateUserData("userDetails", updatedUserData);
     router.push("/dashboard");
   };
 
+  // Listen for localStorage changes to update state in real-time
   useEffect(() => {
     updateUserState();
+
+    // Listen for storage changes (when localStorage is updated)
+    const handleStorageChange = () => {
+      updateUserState();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also listen for custom events when localStorage is updated in the same tab
+    window.addEventListener("userDataUpdated", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("userDataUpdated", handleStorageChange);
+    };
   }, []);
 
   return (
@@ -102,6 +122,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         userName,
         switchToCustomer,
         switchToVendor,
+        getDefaultRoute,
+        updateUserState,
       }}
     >
       {children}

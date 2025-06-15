@@ -227,7 +227,7 @@ const StorePage = () => {
   }
 
   return (
-    <Wrapper>
+    <Wrapper title={store.name ? `Stores ▸ ${store.name}` : "Store"}>
       <div className="p-8 space-y-8">
         <div>
           <h1 className="text-2xl font-bold mb-2">

@@ -395,7 +395,7 @@ export default function AddProductPage() {
           </div>
 
           {/* Demo section for new toast styles */}
-          <div className="pt-6 border-t border-gray-200">
+          {/* <div className="pt-6 border-t border-gray-200">
             <p className="text-sm font-medium text-gray-700 mb-3">
               Toast Demo (New Subtle Colors)
             </p>
@@ -437,7 +437,7 @@ export default function AddProductPage() {
                 Info Toast
               </button>
             </div>
-          </div>
+          </div> */}
         </form>
       </div>
     </Wrapper>

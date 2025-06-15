@@ -4,9 +4,10 @@ import Input from "../../common/Input";
 import Select from "../../common/Select";
 import Button from "../../common/Button";
 import ReactSelect from "react-select";
+import { showToast } from "../../utils/helperFunctions";
 
 interface EditStoreProps {
-  handleSubmit: () => void;
+  handleSubmit: () => Promise<void>;
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onClose: () => void;
   state: any;
@@ -36,6 +37,7 @@ const EditStore: React.FC<EditStoreProps> = ({
 }) => {
   const [step, setStep] = useState(0);
   const [emailError, setEmailError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     name,
@@ -79,6 +81,36 @@ const EditStore: React.FC<EditStoreProps> = ({
     );
   };
 
+  const handleUpdateStore = async () => {
+    setIsSubmitting(true);
+    try {
+      await handleSubmit();
+      // Only move to success step if the API call succeeds
+      setStep(2);
+      showToast("Store updated successfully!", "success");
+
+      // Auto-close modal after showing success for 2 seconds
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (error: any) {
+      console.error("Error updating store:", error);
+
+      // Extract error message for user feedback
+      let errorMessage = "Failed to update store. Please try again.";
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      showToast(errorMessage, "error");
+      // Stay on the current step (step 1) if there's an error
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const syntheticEvent = {
       target: {
@@ -91,7 +123,7 @@ const EditStore: React.FC<EditStoreProps> = ({
 
   return (
     <>
-      <form onSubmit={handleSubmit}>
+      <form>
         {step === 0 ? (
           <div>
             <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/storeIcon.svg')] bg-cover bg-center"></div>
@@ -192,7 +224,7 @@ const EditStore: React.FC<EditStoreProps> = ({
                   secondary
                   style="border-2"
                   onClick={onClose}
-                  disabled={loading}
+                  disabled={loading || isSubmitting}
                 >
                   Cancel
                 </Button>
@@ -200,7 +232,7 @@ const EditStore: React.FC<EditStoreProps> = ({
                   type="button"
                   primary
                   onClick={() => setStep(1)}
-                  disabled={loading || !canProceedToNext()}
+                  disabled={loading || isSubmitting || !canProceedToNext()}
                 >
                   Next
                 </Button>
@@ -252,7 +284,7 @@ const EditStore: React.FC<EditStoreProps> = ({
                   placeholder="Select a country"
                   isSearchable
                   isClearable
-                  isDisabled={loading}
+                  isDisabled={loading || isSubmitting}
                   className="react-select-container"
                   classNamePrefix="react-select"
                 />
@@ -292,7 +324,7 @@ const EditStore: React.FC<EditStoreProps> = ({
                   placeholder="Select a state"
                   isSearchable
                   isClearable
-                  isDisabled={loading || !country}
+                  isDisabled={loading || isSubmitting || !country}
                   className="react-select-container"
                   classNamePrefix="react-select"
                 />
@@ -329,7 +361,7 @@ const EditStore: React.FC<EditStoreProps> = ({
                   placeholder="Select a city"
                   isSearchable
                   isClearable
-                  isDisabled={loading || !stateValue}
+                  isDisabled={loading || isSubmitting || !stateValue}
                   className="react-select-container"
                   classNamePrefix="react-select"
                 />
@@ -345,8 +377,9 @@ const EditStore: React.FC<EditStoreProps> = ({
                 placeholder="Enter street address"
                 className="border-gray-300 rounded w-100 mb-3"
                 required
+                disabled={isSubmitting}
               />
-              <Input
+              {/* <Input
                 label="LGA"
                 type="text"
                 name="lga"
@@ -356,7 +389,8 @@ const EditStore: React.FC<EditStoreProps> = ({
                 placeholder="Enter Local Government Area"
                 className="border-gray-300 rounded w-100 mb-3"
                 required
-              />
+                disabled={isSubmitting}
+              /> */}
               <Input
                 label="Landmark (Optional)"
                 type="text"
@@ -366,6 +400,7 @@ const EditStore: React.FC<EditStoreProps> = ({
                 onChange={onChange}
                 placeholder="Enter nearby landmark"
                 className="border-gray-300 rounded w-100 mb-3"
+                disabled={isSubmitting}
               />
               <div className="flex items-center justify-between gap-8">
                 <Button
@@ -373,20 +408,17 @@ const EditStore: React.FC<EditStoreProps> = ({
                   secondary
                   style="border-2"
                   onClick={() => setStep(0)}
-                  disabled={loading}
+                  disabled={loading || isSubmitting}
                 >
                   Back
                 </Button>
                 <Button
                   type="button"
                   primary
-                  onClick={() => {
-                    handleSubmit();
-                    setStep(2);
-                  }}
-                  disabled={loading}
+                  onClick={handleUpdateStore}
+                  disabled={loading || isSubmitting}
                 >
-                  {loading ? "Updating..." : "Update Store"}
+                  {isSubmitting ? "Updating..." : "Update Store"}
                 </Button>
               </div>
             </div>
