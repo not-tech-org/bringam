@@ -10,15 +10,41 @@ import Button from "../components/common/Button";
 import Link from "next/link";
 import { getAllProducts } from "../services/AuthService";
 import { showToast } from "@/app/components/utils/helperFunctions";
+import ProductOverviewCard, { getOverviewCards } from "../components/products/ProductOverviewCard";
 
 interface Product {
-  id: string;
-  image: string;
-  name: string;
-  price: number;
-  quantity: number;
-  isAvailable: boolean;
-  code: string;
+  uuid: string;
+  productName: string;
+  vendorUuid: string;
+  productImageUrl: string;
+}
+
+interface ProductsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    salesOverview: number;
+    productsInStock: number;
+    activeProducts: number;
+    productViews: number;
+    totalProductsSold: number;
+    products: {
+      content: Product[];
+      pageable: {
+        pageNumber: number;
+        pageSize: number;
+        sort: {
+          sorted: boolean;
+          empty: boolean;
+          unsorted: boolean;
+        };
+      };
+      totalPages: number;
+      totalElements: number;
+      size: number;
+      number: number;
+    };
+  };
 }
 
 export default function ProductsPage() {
@@ -27,7 +53,7 @@ export default function ProductsPage() {
   const [priceFilter, setPriceFilter] = useState("");
   const [quantityFilter, setQuantityFilter] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
+  const [productsData, setProductsData] = useState<ProductsResponse['data'] | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = async () => {
@@ -35,7 +61,12 @@ export default function ProductsPage() {
       setLoading(true);
       const response = await getAllProducts();
       console.log("Products:", response.data);
-      setProducts(response.data.data || []);
+      if (response.data.success) {
+        setProductsData(response.data.data);
+      } else {
+        showToast(response.data.message || "Failed to load products", "error");
+        setProductsData(null);
+      }
     } catch (error: any) {
       console.error("Error fetching products:", error);
 
@@ -50,7 +81,7 @@ export default function ProductsPage() {
       }
 
       showToast(errorMessage, "error");
-      setProducts([]);
+      setProductsData(null);
     } finally {
       setLoading(false);
     }
@@ -63,58 +94,48 @@ export default function ProductsPage() {
   const columns: Column<Product>[] = [
     {
       header: "Product",
-      key: "name",
+      key: "productName",
       render: (value, item) => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-gray-100">
             <Image
-              src={item.image || "/images/placeholder.png"}
-              alt={item.name}
+              src={item.productImageUrl || "/images/placeholder.png"}
+              alt={item.productName}
               width={40}
               height={40}
               className="h-full w-full object-cover rounded-lg"
             />
           </div>
-          <span className="font-medium">{item.name}</span>
+          <span className="font-medium">{item.productName}</span>
         </div>
       ),
     },
     {
-      header: "Price",
-      key: "price",
+      header: "Product ID",
+      key: "uuid",
       render: (value) => (
-        <span className="font-medium">₦{Number(value).toLocaleString()}</span>
+        <span className="text-sm text-gray-500">{value.slice(0, 8)}...</span>
       ),
-    },
-    {
-      header: "Quantity",
-      key: "quantity",
-      render: (value) => <span>{Number(value)}pcs</span>,
-    },
-    {
-      header: "Availability",
-      key: "isAvailable",
-      render: (value) => (
-        <span
-          className={
-            value
-              ? "text-[#027A48] bg-[#ECFDF3] px-3 py-1 rounded-full text-sm"
-              : "text-[#B42318] bg-[#FEF3F2] px-3 py-1 rounded-full text-sm"
-          }
-        >
-          {value ? "In stock" : "Out of stock"}
-        </span>
-      ),
-    },
-    {
-      header: "Product code",
-      key: "code",
     },
   ];
 
   return (
     <Wrapper>
       <div className="p-6 space-y-6">
+        {/* Overview Cards */}
+        {productsData && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            {getOverviewCards(productsData).map((card, index) => (
+              <ProductOverviewCard
+                key={index}
+                title={card.title}
+                value={card.value}
+                icon={card.icon}
+              />
+            ))}
+          </div>
+        )}
+
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <Link href={"/products/add-product"}>
             <Button type="button" primary>
@@ -127,44 +148,11 @@ export default function ProductsPage() {
               <IoSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search"
+                placeholder="Search products"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 border rounded-lg text-sm min-w-[240px]"
               />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Filter by</span>
-              <div className="flex gap-2">
-                <select
-                  value={priceFilter}
-                  onChange={(e) => setPriceFilter(e.target.value)}
-                  className="border rounded-lg px-4 py-2 text-sm min-w-[120px]"
-                >
-                  <option value="">Price</option>
-                  <option value="low">Low to High</option>
-                  <option value="high">High to Low</option>
-                </select>
-                <select
-                  value={quantityFilter}
-                  onChange={(e) => setQuantityFilter(e.target.value)}
-                  className="border rounded-lg px-4 py-2 text-sm min-w-[120px]"
-                >
-                  <option value="">Quantity</option>
-                  <option value="low">Low to High</option>
-                  <option value="high">High to Low</option>
-                </select>
-                <select
-                  value={availabilityFilter}
-                  onChange={(e) => setAvailabilityFilter(e.target.value)}
-                  className="border rounded-lg px-4 py-2 text-sm min-w-[120px]"
-                >
-                  <option value="">Availability</option>
-                  <option value="in">In Stock</option>
-                  <option value="out">Out of Stock</option>
-                </select>
-              </div>
             </div>
           </div>
         </div>
@@ -174,18 +162,18 @@ export default function ProductsPage() {
             <div className="flex justify-center items-center py-12">
               <p className="text-gray-500">Loading products...</p>
             </div>
-          ) : products.length > 0 ? (
+          ) : productsData?.products?.content?.length ? (
             <>
               <Table
                 columns={columns}
-                data={products}
+                data={productsData.products.content}
                 onRowClick={(product) =>
                   console.log("Clicked product:", product)
                 }
               />
               <Pagination
                 currentPage={currentPage}
-                totalPages={5}
+                totalPages={productsData.products.totalPages}
                 onPageChange={setCurrentPage}
               />
             </>
