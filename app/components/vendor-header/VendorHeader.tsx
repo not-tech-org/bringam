@@ -23,7 +23,7 @@ export default function VendorHeader({ title }: VendorHeaderProps) {
   const displayTitle = title || formattedRoute;
 
   return (
-    <div className="flex items-center justify-between py-6 px-8 pl-16 border-b bg-white">
+    <div className="flex items-center justify-between py-6 px-8 pl-16 border-b bg-white fixed top-0 left-[280px] right-0 z-50">
       <h1 className="text-2xl font-medium">{displayTitle}</h1>
       <div className="flex items-center gap-4">
         {isVendorCapable && (
