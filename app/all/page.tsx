@@ -9,6 +9,7 @@ import Button from "../components/common/Button";
 import { FaArrowRight, FaMapMarkerAlt, FaStar } from "react-icons/fa";
 import { StoreData } from "../types/store";
 import Preloader from "../components/common/Preloader";
+import Link from "next/link";
 
 const storeList: Partial<StoreData>[] = [
   { 
@@ -77,7 +78,7 @@ const DashboardPage = () => {
   return (
     <Wrapper>
       <div className="bg-white min-h-screen">
-        <div className="mx-auto px-4 pt-4">
+        <div className="mx-auto px-4 pt-20">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Top stores near me</h1>
@@ -137,14 +138,16 @@ const DashboardPage = () => {
                   </div>
 
                   <div className="mt-auto pt-3">
-                    <Button 
-                      type="button"
-                      style="w-full flex items-center justify-center gap-2"
-                      primary
-                    >
-                      Visit Store
-                      <FaArrowRight className="h-4 w-4" />
-                    </Button>
+                    <Link href={`/store/${store.id || key + 1}`}>
+                      <Button 
+                        type="button"
+                        style="w-full flex items-center justify-center gap-2"
+                        primary
+                      >
+                        Visit Store
+                        <FaArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </div>

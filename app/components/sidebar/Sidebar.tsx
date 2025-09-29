@@ -70,7 +70,11 @@ const Sidebar = () => {
     label: string;
     icon: string;
   }) => {
-    const isActive = pathname.startsWith(item.path) && item.path !== "/";
+    // Special case: store pages should highlight "All" menu item
+    const isStorePage = pathname.startsWith('/store/');
+    const isActive = (isStorePage && item.path === '/all') || 
+                     (pathname.startsWith(item.path) && item.path !== "/");
+    
     return (
       <Link href={item.path} key={item.path}>
         <div

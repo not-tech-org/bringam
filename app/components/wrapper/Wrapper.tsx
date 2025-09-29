@@ -21,7 +21,7 @@ const Wrapper: React.FC<WrapperProps> = ({ children, title }) => {
       <Sidebar />
       <div className="flex-1 ml-[280px]">
         <VendorHeader title={title} />
-        <main className="pt-32 px-16">{children}</main>
+        <main className="pt-16 px-16">{children}</main>
       </div>
     </div>
   );
