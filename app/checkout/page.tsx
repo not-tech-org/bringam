@@ -407,7 +407,7 @@ const CheckoutPage = () => {
 
       {/* Next Steps */}
       <div className="flex flex-col md:flex-row gap-4 pt-6">
-        <Link href="/my-orders" className="flex-1">
+        <Link href="/cart" className="flex-1">
           <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -417,7 +417,7 @@ const CheckoutPage = () => {
               style="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-[#3c4948] hover:bg-[#3c4948] hover:text-white hover:border-[#3c4948] hover:shadow-lg transition-all duration-300 ease-out font-medium shadow-sm"
             >
               <FaReceipt className="text-base" />
-              View Order Details
+              Back to Cart
             </Button>
           </motion.div>
         </Link>
@@ -432,7 +432,7 @@ const CheckoutPage = () => {
               primary
             >
               <FaBox className="text-base" />
-              Continue Shopping
+              Browse More Stores
             </Button>
           </motion.div>
         </Link>
