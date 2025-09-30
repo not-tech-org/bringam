@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect } from "react";
-import { ImCancelCircle } from "react-icons/im";
 import { RxCross2 } from "react-icons/rx";
 import { createPortal } from "react-dom";
+import { motion } from "framer-motion";
 
 interface ModalProps {
   isOpen: boolean;
@@ -31,23 +31,31 @@ const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center z-50"
+      className="fixed top-0 left-0 w-full h-full bg-black/50 backdrop-blur-sm flex justify-center items-center z-[60]"
       onClick={onClose}
     >
-      <div
-        className="relative w-11/12 md:w-1/2 max-w-lg bg-white p-6 pt-8 rounded-lg shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-        {closeIcon && (
-          <div
-            className="absolute top-4 right-8 mt-0 bg-transparent border border-1 p-6 cursor-pointer rounded-lg text-[#1D1D1F]"
-            onClick={onClose}
-          >
-            <RxCross2 size={20} />
+        <motion.div
+          className="relative w-11/12 md:w-1/2 max-w-lg bg-white rounded-xl shadow-xl overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+          initial={{ opacity: 0, scale: 0.96, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 16 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+        >
+          {closeIcon && (
+            <motion.button
+              className="absolute top-3 right-3 z-10 p-1.5 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+              onClick={onClose}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <RxCross2 className="text-gray-500 text-base" />
+            </motion.button>
+          )}
+          <div className="p-5">
+            {children}
           </div>
-        )}
-      </div>
+      </motion.div>
     </div>,
     document.body
   );
