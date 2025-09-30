@@ -56,9 +56,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Get the appropriate default route based on user type
   const getDefaultRoute = () => {
-    const { vendorView } = getUserTypeInfo();
-    // Default to vendor dashboard if user is in vendor view, otherwise customer all page
-    return vendorView ? "/dashboard" : "/all";
+    // Always default to customer view first, regardless of vendor capabilities
+    // Users can switch to vendor view later if they want to
+    return "/all";
   };
 
   const switchToCustomer = () => {

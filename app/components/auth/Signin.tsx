@@ -147,9 +147,9 @@ const Signin = () => {
 
   // Determine appropriate route based on user type
   const getDefaultRoute = () => {
-    const { vendorView } = getUserTypeInfo();
-    // Default to vendor dashboard if user is in vendor view, otherwise customer all page
-    return vendorView ? "/dashboard" : "/all";
+    // Always default to customer view first, regardless of vendor capabilities
+    // Users can switch to vendor view later if they want to
+    return "/all";
   };
 
   const onSignIn = async (e: React.FormEvent) => {
@@ -182,7 +182,14 @@ const Signin = () => {
         secure: process.env.NODE_ENV === "production", // Use secure cookies in production
         sameSite: "strict", // Restrict cookie to same site
       });
-      safeLocalStorage.setItem("userDetails", JSON.stringify(res.data.data));
+      
+      // Ensure user starts in customer view by default, even if they have vendor capabilities
+      const userData = res.data.data;
+      const updatedUserData = {
+        ...userData,
+        scope: userData.scope?.filter((s: string) => s !== "VENDOR") || []
+      };
+      safeLocalStorage.setItem("userDetails", JSON.stringify(updatedUserData));
 
       // Show success message
       showToast(res.data.message || "Signed in successfully", "success");
