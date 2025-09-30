@@ -10,6 +10,7 @@ import { FaArrowRight, FaMapMarkerAlt, FaStar } from "react-icons/fa";
 import { StoreData } from "../types/store";
 import Preloader from "../components/common/Preloader";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 const storeList: Partial<StoreData>[] = [
   { 
@@ -53,6 +54,46 @@ const DashboardPage = () => {
   const [displayedStores, setDisplayedStores] = useState(8);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.1
+      }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { 
+      opacity: 0, 
+      y: 20,
+      scale: 0.95
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const hoverVariants = {
+    hover: {
+      y: -4,
+      scale: 1.02,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut"
+      }
+    }
+  };
+
   const loadMoreStores = useCallback(() => {
     if (isLoading) return;
     
@@ -78,7 +119,7 @@ const DashboardPage = () => {
   return (
     <Wrapper>
       <div className="bg-white min-h-screen">
-        <div className="mx-auto px-4">
+        <div className="mx-auto px-4 pt-4">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Top stores near me</h1>
@@ -100,10 +141,17 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {repeatElements(storeList, displayedStores)?.map((store, key) => (
-              <div 
+              <motion.div 
                 key={key}
+                variants={cardVariants}
+                whileHover="hover"
                 className="bg-white rounded-lg border hover:shadow-md transition-shadow duration-200 flex flex-col"
               >
                 <div className="relative h-48 w-full">
@@ -139,25 +187,37 @@ const DashboardPage = () => {
 
                   <div className="mt-auto pt-3">
                     <Link href={`/store/${store.id || key + 1}`}>
-                      <Button 
-                        type="button"
-                        style="w-full flex items-center justify-center gap-2"
-                        primary
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ duration: 0.15, ease: "easeOut" }}
                       >
-                        Visit Store
-                        <FaArrowRight className="h-4 w-4" />
-                      </Button>
+                        <Button 
+                          type="button"
+                          style="w-full flex items-center justify-center gap-2"
+                          primary
+                        >
+                          Visit Store
+                          <FaArrowRight className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
                     </Link>
-                        </div>
+                  </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+              </motion.div>
+            ))}
+          </motion.div>
 
           {isLoading && (
-            <div className="mt-8">
+            <motion.div 
+              className="mt-8"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
               <Preloader height={40} />
-            </div>
+            </motion.div>
           )}
         </div>
       </div>

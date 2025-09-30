@@ -7,6 +7,7 @@ import Image from "next/image";
 import Button from "../../components/common/Button";
 import { FaArrowLeft, FaPhone, FaMapMarkerAlt, FaClock, FaStar, FaHeart, FaShare, FaShoppingCart } from "react-icons/fa";
 import { useCart } from "../../contexts/CartContext";
+import { motion } from "framer-motion";
 
 // Mock data - will be replaced with API integration later
 const mockStoreData = {
@@ -62,6 +63,72 @@ const mockStoreData = {
   ]
 };
 
+// Animation variants
+const pageVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: "easeOut"
+    }
+  }
+};
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2
+    }
+  }
+};
+
+const cardVariants = {
+  hidden: { 
+    opacity: 0, 
+    y: 20,
+    scale: 0.95
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      ease: "easeOut"
+    }
+  }
+};
+
+const productVariants = {
+  hidden: { 
+    opacity: 0, 
+    y: 15,
+    scale: 0.98
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.3,
+      ease: "easeOut"
+    }
+  },
+  hover: {
+    y: -2,
+    scale: 1.02,
+    transition: {
+      duration: 0.2,
+      ease: "easeOut"
+    }
+  }
+};
+
 const StorePage = () => {
   const params = useParams();
   const router = useRouter();
@@ -102,7 +169,12 @@ const StorePage = () => {
 
   return (
     <Wrapper>
-      <div className="bg-white min-h-screen">
+      <motion.div 
+        className="bg-white min-h-screen"
+        variants={pageVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {/* Back Button */}
         <div className="px-4">
           <Button 
@@ -116,7 +188,12 @@ const StorePage = () => {
         </div>
 
         {/* Store Header */}
-        <div className="relative">
+        <motion.div 
+          className="relative"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
           {/* Cover Photo */}
           <div className="relative h-64 w-full">
             <Image
@@ -177,12 +254,20 @@ const StorePage = () => {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Store Information */}
-        <div className="p-6 space-y-6">
+        <motion.div 
+          className="p-6 space-y-6"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {/* Contact & Hours */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            variants={cardVariants}
+          >
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="font-semibold text-gray-900 mb-3">Store Information</h3>
               <div className="space-y-3">
@@ -239,10 +324,10 @@ const StorePage = () => {
                 </Button>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Featured Products */}
-          <div>
+          <motion.div variants={cardVariants}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Featured Products</h2>
               <Button 
@@ -253,9 +338,19 @@ const StorePage = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <motion.div 
+              className="grid grid-cols-2 md:grid-cols-4 gap-4"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
               {store.products.map((product) => (
-                <div key={product.id} className="bg-white rounded-lg border hover:shadow-md transition-shadow">
+                <motion.div 
+                  key={product.id} 
+                  className="bg-white rounded-lg border hover:shadow-md transition-shadow"
+                  variants={productVariants}
+                  whileHover="hover"
+                >
                   <div className="relative h-32 w-full">
                     <Image
                       src={product.image}
@@ -268,22 +363,28 @@ const StorePage = () => {
                     <h4 className="font-medium text-sm text-gray-900 truncate">{product.name}</h4>
                     <p className="text-sm text-gray-600">{product.category}</p>
                     <p className="font-semibold text-blue-600 mt-1">{product.price}</p>
-                    <Button 
-                      type="button"
-                      style="w-full mt-2 flex items-center justify-center gap-2"
-                      primary
-                      onClick={() => handleAddToCart(product)}
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.15, ease: "easeOut" }}
                     >
-                      <FaShoppingCart className="h-3 w-3" />
-                      Add to Cart
-                    </Button>
+                      <Button 
+                        type="button"
+                        style="w-full mt-2 flex items-center justify-center gap-2"
+                        primary
+                        onClick={() => handleAddToCart(product)}
+                      >
+                        <FaShoppingCart className="h-3 w-3" />
+                        Add to Cart
+                      </Button>
+                    </motion.div>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
-          </div>
-        </div>
-      </div>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      </motion.div>
     </Wrapper>
   );
 };
