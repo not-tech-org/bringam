@@ -5,6 +5,7 @@ import Input from "../common/Input";
 import Button from "../common/Button";
 import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 import Toastify from "toastify-js";
+import { motion } from "framer-motion";
 
 // Toast configuration constants - matching the signin component
 const TOAST_STYLES = {
@@ -23,6 +24,54 @@ const TOAST_STYLES = {
     textColor: "#B54708", // Dark yellow/orange
     icon: "⚠",
   },
+};
+
+// Animation variants for subtle form interactions
+const containerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      staggerChildren: 0.08
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.3
+    }
+  }
+};
+
+const buttonVariants = {
+  hover: {
+    scale: 1.02,
+    transition: {
+      duration: 0.2
+    }
+  },
+  tap: {
+    scale: 0.98,
+    transition: {
+      duration: 0.1
+    }
+  }
+};
+
+const linkVariants = {
+  hover: {
+    scale: 1.05,
+    transition: {
+      duration: 0.15
+    }
+  }
 };
 
 const Signup = () => {
@@ -164,88 +213,126 @@ const Signup = () => {
   };
 
   return (
-    <div className="rounded-3xl border-2 border-[#EDEDED] p-8 md:p-14 bg-[#FCFCFC] w-[90%] max-w-[604px]">
-      <div className="text-center">
+    <motion.div 
+      className="rounded-3xl border-2 border-[#EDEDED] p-6 md:p-8 lg:p-10 bg-[#FCFCFC] w-[95%] max-w-[650px] max-h-[90vh] overflow-y-auto"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div 
+        className="text-center mb-4"
+        variants={itemVariants}
+      >
         <p className="font-bold text-xl md:text-2xl">Create account</p>
         <p className="font-semibold text-[#979797] text-xs md:text-sm mt-1">
           Get started by creating an account
         </p>
-      </div>
-      <form onSubmit={onSignUp} className="w-full mt-4 md:mt-6">
-        <Input
-          label="First Name"
-          type="text"
-          name="firstName"
-          id="firstName"
-          value={firstName}
-          onChange={handleInputChange}
-          placeholder="Enter first name"
-          className="border-gray-300 rounded w-100 mb-3"
-          error={errors.firstName}
-        />
-        <Input
-          label="Last Name"
-          type="text"
-          name="lastName"
-          id="lastName"
-          value={lastName}
-          onChange={handleInputChange}
-          placeholder="Enter last name"
-          className="border-gray-300 rounded w-100 mb-3"
-          error={errors.lastName}
-        />
-        <Input
-          label="Email Address"
-          type="email"
-          name="email"
-          id="email"
-          value={email}
-          onChange={handleInputChange}
-          placeholder="abc@gmail.com"
-          className="border-gray-300 rounded w-100 mb-3"
-          error={errors.email}
-        />
-        <Input
-          label="Password"
-          type="password"
-          name="password"
-          id="password"
-          value={password}
-          onChange={handleInputChange}
-          placeholder="**************"
-          className="border-gray-300 rounded w-100 mb-3"
-          error={errors.password}
-          helperText="Password must be at least 8 characters with uppercase, lowercase and numbers"
-        />
-        <Input
-          label="Confirm Password"
-          type="password"
-          name="confirmPassword"
-          id="confirmPassword"
-          value={confirmPassword}
-          onChange={handleInputChange}
-          placeholder="**************"
-          className="border-gray-300 rounded w-100 mb-3"
-          error={errors.confirmPassword}
-        />
+      </motion.div>
+      <motion.form 
+        onSubmit={onSignUp} 
+        className="w-full space-y-4"
+        variants={itemVariants}
+      >
+        {/* Name fields in a row on larger screens */}
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          variants={itemVariants}
+        >
+          <Input
+            label="First Name"
+            type="text"
+            name="firstName"
+            id="firstName"
+            value={firstName}
+            onChange={handleInputChange}
+            placeholder="Enter first name"
+            className="border-gray-300 rounded w-100"
+            error={errors.firstName}
+          />
+          <Input
+            label="Last Name"
+            type="text"
+            name="lastName"
+            id="lastName"
+            value={lastName}
+            onChange={handleInputChange}
+            placeholder="Enter last name"
+            className="border-gray-300 rounded w-100"
+            error={errors.lastName}
+          />
+        </motion.div>
 
-        <Button type="submit" primary className="w-full" isLoading={isLoading}>
-          Create account
-        </Button>
+        <motion.div variants={itemVariants}>
+          <Input
+            label="Email Address"
+            type="email"
+            name="email"
+            id="email"
+            value={email}
+            onChange={handleInputChange}
+            placeholder="abc@gmail.com"
+            className="border-gray-300 rounded w-100"
+            error={errors.email}
+          />
+        </motion.div>
 
-        <div className="text-center mt-4">
+        <motion.div variants={itemVariants}>
+          <Input
+            label="Password"
+            type="password"
+            name="password"
+            id="password"
+            value={password}
+            onChange={handleInputChange}
+            placeholder="**************"
+            className="border-gray-300 rounded w-100"
+            error={errors.password}
+            helperText="8+ chars with uppercase, lowercase & numbers"
+          />
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <Input
+            label="Confirm Password"
+            type="password"
+            name="confirmPassword"
+            id="confirmPassword"
+            value={confirmPassword}
+            onChange={handleInputChange}
+            placeholder="**************"
+            className="border-gray-300 rounded w-100"
+            error={errors.confirmPassword}
+          />
+        </motion.div>
+
+        <motion.div 
+          variants={itemVariants}
+          whileHover="hover"
+          whileTap="tap"
+        >
+          <Button type="submit" primary className="w-full" isLoading={isLoading}>
+            Create account
+          </Button>
+        </motion.div>
+
+        <motion.div 
+          className="text-center mt-4"
+          variants={itemVariants}
+        >
           <p className="text-textGray2">
             Already have an account?{" "}
-            <span
+            <motion.span
               className="text-bgArmy cursor-pointer font-medium"
               onClick={() => onRouteChange("signin")}
+              variants={linkVariants}
+              whileHover="hover"
             >
               Sign in
-            </span>
+            </motion.span>
           </p>
-        </div>
-      </form>
-    </div>
+        </motion.div>
+      </motion.form>
+    </motion.div>
   );
 };
 
