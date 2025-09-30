@@ -78,6 +78,11 @@ button:disabled {
   background: #3c4948;
   color: #fff;
   font-weight: 400;
+  transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #2a3a39;
 }
 
 .btn-secondary {

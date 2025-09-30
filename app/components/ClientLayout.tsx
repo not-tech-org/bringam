@@ -3,6 +3,7 @@
 import React, { useState, useEffect, ReactNode } from "react";
 import { OnboardingProvider } from "@/app/contexts/OnboardingContext";
 import { UserProvider } from "@/app/contexts/UserContext";
+import CartProvider from "@/app/contexts/CartContext";
 import { applyOSClasses } from "../lib/utils";
 
 interface ClientLayoutProps {
@@ -47,7 +48,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
   return (
     <UserProvider>
-      <OnboardingProvider>{children}</OnboardingProvider>
+      <CartProvider>
+        <OnboardingProvider>{children}</OnboardingProvider>
+      </CartProvider>
     </UserProvider>
   );
 }

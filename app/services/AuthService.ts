@@ -166,7 +166,7 @@ export const getCitiesByStateId = async (stateId: string | number) => {
 };
 
 export const getAllProducts = async () => {
-  const response = await vendorApi.get("/product-pages");
+  const response = await vendorApi.get("/products");
   return response;
 };
 

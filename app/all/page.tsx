@@ -1,120 +1,223 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AppLayout from "../components/AppLayout";
 import Header from "../components/Header";
 import Wrapper from "../components/wrapper/Wrapper";
 import Image from "next/image";
 import Button from "../components/common/Button";
-import { FaArrowRight } from "react-icons/fa";
+import { FaArrowRight, FaMapMarkerAlt, FaStar } from "react-icons/fa";
+import { StoreData } from "../types/store";
+import Preloader from "../components/common/Preloader";
+import Link from "next/link";
+import { motion } from "framer-motion";
 
-const storeList = [
-  { asset: "/images/st.png", storeName: "Store Name", tagName: "Tagname..." },
-];
-
-const offerList = [
-  {
-    asset: "/images/offer.png",
-    storeName: "Turtle Neck",
-    tagName: "Abike clothings",
-    oldPrice: "N3,000",
-    newPrice: "N2,500",
+const storeList: Partial<StoreData>[] = [
+  { 
+    profilePhotoUrl: "/images/stores/fashion-store.jpg",
+    name: "Fashion Hub",
+    description: "Premium Fashion",
+    category: "Fashion",
+    active: true
+  },
+  { 
+    profilePhotoUrl: "/images/stores/electronics-store.jpg",
+    name: "Tech World",
+    description: "Latest Electronics",
+    category: "Electronics",
+    active: true
+  },
+  { 
+    profilePhotoUrl: "/images/stores/food-store.jpg",
+    name: "Gourmet Delights",
+    description: "Fine Dining",
+    category: "Food & Dining",
+    active: true
+  },
+  { 
+    profilePhotoUrl: "/images/stores/beauty-store.jpg",
+    name: "Beauty Zone",
+    description: "Health & Beauty",
+    category: "Health & Beauty",
+    active: false
   },
 ];
 
 function repeatElements<T>(array: T[], times: number): T[] {
-  return array.flatMap((item) => Array(times).fill(item));
+  return Array(times).fill(null).map((_, i) => ({
+    ...array[i % array.length],
+    id: i + 1,
+  }));
 }
+
 const DashboardPage = () => {
+  const [displayedStores, setDisplayedStores] = useState(8);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Animation variants
+  const containerVariants = {
+    initial: { opacity: 0 },
+    animate: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.1
+      }
+    }
+  };
+
+  const cardVariants = {
+    initial: { 
+      opacity: 0, 
+      y: 20,
+      scale: 0.95
+    },
+    animate: {
+      opacity: 1,
+      y: 0,
+      scale: 1
+    }
+  };
+
+  const hoverVariants = {
+    hover: {
+      y: -4,
+      scale: 1.02,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const loadMoreStores = useCallback(() => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    // Simulate API call delay
+    setTimeout(() => {
+      setDisplayedStores(prev => prev + 8);
+      setIsLoading(false);
+    }, 500);
+  }, [isLoading]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 1000) {
+        loadMoreStores();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loadMoreStores]);
+
   return (
     <Wrapper>
-      <div className="bg-white h-full text-black ">
-        <div className="mx-auto px-4">
-          <p className="text-2xl font-bold">Top stores near me</p>
-          <div className="flex items-center justify-between text-textGray3 text-sm">
-            <p className=" ">Best stores around your location</p>
+      <div className="bg-white min-h-screen">
+        <div className="mx-auto px-4 pt-4">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <p>Filter by</p>
+              <h1 className="text-2xl font-bold text-gray-900">Top stores near me</h1>
+              <p className="text-sm text-gray-600 mt-1">Best stores around your location</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <select className="px-4 py-2 border rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">All Categories</option>
+                <option value="fashion">Fashion</option>
+                <option value="electronics">Electronics</option>
+                <option value="food">Food & Dining</option>
+                <option value="health">Health & Beauty</option>
+              </select>
+              <select className="px-4 py-2 border rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="distance">Distance</option>
+                <option value="rating">Rating</option>
+                <option value="name">Name</option>
+              </select>
             </div>
           </div>
 
-          {/* Grid */}
-          <div className="custom-scrollbar">
-            {/* Store */}
-            <div className="flex flex-col justify-center items-center w-full">
-              <div className="grid grid-cols-4 grid-rows-2 gap-16 mt-12 mx-4">
-                {repeatElements(storeList, 8)?.map((store, key) => (
-                  <div className="bg-white h-60 w-44" key={key}>
-                    <div className="h-3/5">
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            variants={containerVariants}
+            initial="initial"
+            animate="animate"
+          >
+            {repeatElements(storeList, displayedStores)?.map((store, key) => (
+              <motion.div 
+                key={key}
+                variants={cardVariants}
+                initial="initial"
+                animate="animate"
+                whileHover="hover"
+                transition={{ type: "spring", duration: 0.4 }}
+                className="bg-white rounded-lg border hover:shadow-md transition-shadow duration-200 flex flex-col"
+              >
+                <div className="relative h-48 w-full">
                       <Image
-                        src={store?.asset}
-                        alt="Store icon"
-                        width={183}
-                        height={173}
-                      />
+                    src={store.profilePhotoUrl || "/images/placeholder.png"}
+                    alt={`${store.name} store front`}
+                    fill
+                    className="object-cover rounded-t-lg"
+                  />
+                  {store.active && (
+                    <span className="absolute top-2 right-2 px-2 py-1 bg-black/70 backdrop-blur-sm text-white text-xs rounded-full border border-white/20">
+                      Open
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4 flex flex-col flex-grow">
+                  <div className="flex items-start justify-between mb-1">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{store.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{store.description}</p>
                     </div>
-                    <div className="h-2/5 flex flex-col items-center justify-center hover:border border-1 cursor-pointer hover:rotate-2 transform transition hover:shadow-lg">
-                      <p className="font-bold">{store?.storeName}</p>
-                      <p className="text-sm font-bold text-lighterArmy">
-                        {store?.tagName}
-                      </p>
+                    <div className="flex items-center">
+                      <FaStar className="h-4 w-4 text-yellow-400" />
+                      <span className="ml-1 text-sm text-gray-600">4.5</span>
                     </div>
                   </div>
-                ))}
-              </div>
-              <Button type="button" primary style="w-fit gap-4 p-4 px-8 mt-16">
-                <p>View more stores</p>
-                <FaArrowRight />
-              </Button>
+
+                  <div className="flex items-center mt-2 text-sm text-gray-500">
+                    <FaMapMarkerAlt className="h-4 w-4" />
+                    <span className="ml-1">2.3 km away</span>
             </div>
 
-            {/* Weekly offers */}
-            <div className="mt-12">
-              <p className="text-2xl font-bold">Top offers for the week</p>
-              <div className="flex items-center justify-between text-textGray3 text-sm">
-                <p className=" ">The best offers from vendors around you</p>
-                {/* <Button>Load</Button> */}
-              </div>
-              <div className="flex flex-col justify-center items-center w-full">
-                <div className="grid grid-cols-4 grid-rows-2 gap-16 mt-12 mx-4">
-                  {repeatElements(offerList, 8)?.map((store, key) => (
-                    <div className="bg-white h-60 w-44" key={key}>
-                      <div className="h-3/5">
-                        <Image
-                          src={store?.asset}
-                          alt="Store icon"
-                          width={183}
-                          height={173}
-                        />
+                  <div className="mt-auto pt-3">
+                    <Link href={`/store/${store.id || key + 1}`}>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ duration: 0.15, ease: "easeOut" }}
+                      >
+                        <Button 
+                          type="button"
+                          style="w-full flex items-center justify-center gap-2"
+                          primary
+                        >
+                          Visit Store
+                          <FaArrowRight className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    </Link>
+                  </div>
                       </div>
-                      <div className="mt-7 h-2/5 flex flex-col items-center justify-center hover:border border-1 cursor-pointer hover:rotate-2 transform transition hover:shadow-lg">
-                        <p className="font-bold">{store?.storeName}</p>
-                        <p className="text-sm font-bold text-lighterArmy">
-                          {store?.tagName}
-                        </p>
-                        <div className="flex items-center justify-between w-full px-4 pt-1">
-                          <p className="text-sm font-bold text-textGray4 line-through">
-                            {store?.oldPrice}
-                          </p>
-                          <p className="text-sm font-bold text-green">
-                            {store?.newPrice}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button
-                  type="button"
-                  primary
-                  style="w-fit gap-4 p-4 px-8 mt-16"
-                >
-                  <p>View more offers</p>
-                  <FaArrowRight />
-                </Button>
-              </div>
-            </div>
-          </div>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {isLoading && (
+            <motion.div 
+              className="mt-8"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Preloader height={40} />
+            </motion.div>
+          )}
         </div>
       </div>
     </Wrapper>

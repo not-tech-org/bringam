@@ -31,6 +31,7 @@ const config: Config = {
         black1: "#252C32",
         black2: "#1F1F1F",
         black3: "#1A1A1A",
+        primary: "#3C4948",
         green: "#23856D",
         searchBg: "#FCFCFC",
         borderColor: "#EEEEEE",

@@ -8,6 +8,13 @@ import { MdArrowOutward } from "react-icons/md";
 import { useUser } from "@/app/contexts/UserContext";
 import UserProfileModal from "../common/UserProfileModal";
 import SignoutButton from "./SignoutButton";
+import { motion } from "framer-motion";
+
+// Animation variants for sidebar menu items
+const menuItemVariants = {
+  initial: { x: 0 },
+  hover: { x: 4 }
+};
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -70,13 +77,21 @@ const Sidebar = () => {
     label: string;
     icon: string;
   }) => {
-    const isActive = pathname.startsWith(item.path) && item.path !== "/";
+    // Special case: store pages should highlight "All" menu item
+    const isStorePage = pathname.startsWith('/store/');
+    const isActive = (isStorePage && item.path === '/all') || 
+                     (pathname.startsWith(item.path) && item.path !== "/");
+    
     return (
       <Link href={item.path} key={item.path}>
-        <div
+        <motion.div
           className={`flex items-center gap-2 my-6 group cursor-pointer transition-colors duration-200 ${
             isActive ? "text-white" : "text-lighterArmy hover:text-white"
           }`}
+          variants={menuItemVariants}
+          initial="initial"
+          whileHover="hover"
+          transition={{ type: "spring", duration: 0.2 }}
         >
           <Image
             src={item.icon}
@@ -94,7 +109,7 @@ const Sidebar = () => {
           >
             {item.label}
           </p>
-        </div>
+        </motion.div>
       </Link>
     );
   };
@@ -148,9 +163,11 @@ const Sidebar = () => {
             <div className="flex-shrink-0 pb-12">
               {/* User info section for customers */}
               <div className="mb-4">
-                <div
+                <motion.div
                   onClick={openProfileModal}
                   className="p-4 px-6 border rounded-lg flex items-center gap-3 bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69]"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <Image
                     src="/icons/Status.png"
@@ -167,16 +184,20 @@ const Sidebar = () => {
                       Customer Account
                     </p>
                   </div>
-                </div>
+                </motion.div>
               </div>
 
               {!isVendorCapable && (
                 <div>
                   <Link href="/vendor-signup">
-                    <div className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69] hover:scale-[1.02]">
+                    <motion.div 
+                      className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69]"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
                       <p className="text-sm">Become a Vendor</p>
                       <MdArrowOutward className="flex-shrink-0" />
-                    </div>
+                    </motion.div>
                   </Link>
                 </div>
               )}
@@ -206,9 +227,11 @@ const Sidebar = () => {
 
             {/* Bottom content - Vendor account settings */}
             <div className="flex-shrink-0 pb-12">
-              <div
+              <motion.div
                 onClick={openProfileModal}
-                className="p-4 px-6 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69] hover:scale-[1.02]"
+                className="p-4 px-6 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69]"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <Image
                   src="/icons/Status.png"
@@ -226,7 +249,7 @@ const Sidebar = () => {
                   </p>
                 </div>
                 <MdArrowOutward className="flex-shrink-0" />
-              </div>
+              </motion.div>
             </div>
           </div>
         )}
