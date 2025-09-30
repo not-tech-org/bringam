@@ -78,7 +78,7 @@ const DashboardPage = () => {
   return (
     <Wrapper>
       <div className="bg-white min-h-screen">
-        <div className="mx-auto px-4 pt-20">
+        <div className="mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Top stores near me</h1>
@@ -107,7 +107,7 @@ const DashboardPage = () => {
                 className="bg-white rounded-lg border hover:shadow-md transition-shadow duration-200 flex flex-col"
               >
                 <div className="relative h-48 w-full">
-                  <Image
+                      <Image
                     src={store.profilePhotoUrl || "/images/placeholder.png"}
                     alt={`${store.name} store front`}
                     fill
@@ -135,7 +135,7 @@ const DashboardPage = () => {
                   <div className="flex items-center mt-2 text-sm text-gray-500">
                     <FaMapMarkerAlt className="h-4 w-4" />
                     <span className="ml-1">2.3 km away</span>
-                  </div>
+            </div>
 
                   <div className="mt-auto pt-3">
                     <Link href={`/store/${store.id || key + 1}`}>
@@ -148,11 +148,11 @@ const DashboardPage = () => {
                         <FaArrowRight className="h-4 w-4" />
                       </Button>
                     </Link>
-                  </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
 
           {isLoading && (
             <div className="mt-8">

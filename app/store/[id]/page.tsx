@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Wrapper from "../../components/wrapper/Wrapper";
 import Image from "next/image";
 import Button from "../../components/common/Button";
-import { FaArrowLeft, FaPhone, FaMapMarkerAlt, FaClock, FaStar, FaHeart, FaShare } from "react-icons/fa";
+import { FaArrowLeft, FaPhone, FaMapMarkerAlt, FaClock, FaStar, FaHeart, FaShare, FaShoppingCart } from "react-icons/fa";
+import { useCart } from "../../contexts/CartContext";
 
 // Mock data - will be replaced with API integration later
 const mockStoreData = {
@@ -64,6 +65,7 @@ const mockStoreData = {
 const StorePage = () => {
   const params = useParams();
   const router = useRouter();
+  const { addToCart } = useCart();
   const storeId = params.id as string;
   
   // For now, we'll use mock data. Later this will be replaced with API call
@@ -71,6 +73,31 @@ const StorePage = () => {
 
   const handleBackToStores = () => {
     router.push('/all');
+  };
+
+  const handleAddToCart = (product: any) => {
+    try {
+      // Improved price parsing with error handling
+      const priceString = product.price.toString();
+      const numericPrice = parseFloat(priceString.replace(/[^\d.]/g, ''));
+      
+      if (isNaN(numericPrice) || numericPrice <= 0) {
+        console.error('Invalid price format:', product.price);
+        return;
+      }
+
+      addToCart({
+        productId: product.id,
+        storeId: store.id,
+        storeName: store.name,
+        name: product.name,
+        price: numericPrice,
+        image: product.image,
+        category: product.category,
+      });
+    } catch (error) {
+      console.error('Error adding item to cart:', error);
+    }
   };
 
   return (
@@ -186,12 +213,18 @@ const StorePage = () => {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900 mb-3">Quick Actions</h3>
-              <div className="space-y-3">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-[#3c4948] rounded-lg flex items-center justify-center">
+                  <FaPhone className="h-4 w-4 text-white" />
+                </div>
+                <h3 className="font-semibold text-gray-900">Quick Actions</h3>
+              </div>
+              <div className="flex gap-3">
                 <Button 
                   type="button"
-                  style="w-full flex items-center justify-center gap-2 bg-[#23856D] hover:bg-[#1a6b52] text-white"
+                  style="flex-1 flex items-center justify-center gap-2"
+                  primary
                 >
                   <FaPhone className="h-4 w-4" />
                   Call Store
@@ -199,7 +232,7 @@ const StorePage = () => {
                 
                 <Button 
                   type="button"
-                  style="w-full flex items-center justify-center gap-2 bg-[#23A6F0] hover:bg-[#1e8dd4] text-white"
+                  style="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-[#3c4948] hover:bg-[#3c4948] hover:text-white hover:border-[#3c4948] hover:scale-[1.02] hover:shadow-lg transition-all duration-300 ease-out font-medium shadow-sm"
                 >
                   <FaMapMarkerAlt className="h-4 w-4" />
                   Get Directions
@@ -212,7 +245,10 @@ const StorePage = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Featured Products</h2>
-              <Button type="button" style="text-[#23A6F0] hover:text-[#1e8dd4]">
+              <Button 
+                type="button" 
+                style="text-[#3c4948] hover:text-[#2a3a39] font-medium"
+              >
                 View All Products
               </Button>
             </div>
@@ -232,6 +268,15 @@ const StorePage = () => {
                     <h4 className="font-medium text-sm text-gray-900 truncate">{product.name}</h4>
                     <p className="text-sm text-gray-600">{product.category}</p>
                     <p className="font-semibold text-blue-600 mt-1">{product.price}</p>
+                    <Button 
+                      type="button"
+                      style="w-full mt-2 flex items-center justify-center gap-2"
+                      primary
+                      onClick={() => handleAddToCart(product)}
+                    >
+                      <FaShoppingCart className="h-3 w-3" />
+                      Add to Cart
+                    </Button>
                   </div>
                 </div>
               ))}
