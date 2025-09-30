@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Wrapper from "../components/wrapper/Wrapper";
 import Button from "../components/common/Button";
 import Input from "../components/common/Input";
-import { FaArrowLeft, FaCheck, FaMapMarkerAlt, FaUser, FaCreditCard, FaEye, FaUniversity, FaMobile, FaShieldAlt, FaTimes, FaReceipt, FaBox } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaMapMarkerAlt, FaUser, FaCreditCard, FaEye, FaUniversity, FaMobile, FaShieldAlt, FaTimes, FaReceipt, FaBox, FaCheckCircle, FaEnvelope, FaFileAlt, FaTruck } from "react-icons/fa";
 import { useCart } from "../contexts/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -300,6 +300,143 @@ const CheckoutPage = () => {
         placeholder="Any special delivery instructions..."
         className="border-gray-300 rounded-lg"
       />
+    </motion.div>
+  );
+
+  const renderStep4 = () => (
+    <motion.div
+      variants={itemVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-8 py-8"
+    >
+      {/* Success Animation */}
+      <motion.div 
+        className="flex flex-col items-center text-center"
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+      >
+        <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.4, ease: "easeOut" }}
+          >
+            <FaCheckCircle className="text-green-600 text-4xl" />
+          </motion.div>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h2>
+        <p className="text-gray-600 max-w-md">
+          Thank you for your order. We've received your order and will begin processing it right away.
+        </p>
+      </motion.div>
+
+      {/* Order Information */}
+      <motion.div
+        variants={itemVariants}
+        className="bg-gray-50 rounded-xl p-6 space-y-4"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-[#3c4948]/10 flex items-center justify-center">
+            <FaFileAlt className="text-[#3c4948] text-xl" />
+          </div>
+          <div>
+            <h3 className="font-medium text-gray-900">Order #BRG-{Math.floor(Math.random() * 10000).toString().padStart(4, '0')}</h3>
+            <p className="text-sm text-gray-600">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
+              <FaEnvelope className="text-[#3c4948]" />
+              Order Confirmation
+            </h4>
+            <p className="text-sm text-gray-600">
+              A confirmation email has been sent to {formData.email}
+            </p>
+          </div>
+          <div>
+            <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
+              <FaTruck className="text-[#3c4948]" />
+              Estimated Delivery
+            </h4>
+            <p className="text-sm text-gray-600">
+              {new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Delivery Details */}
+      <motion.div
+        variants={itemVariants}
+        className="bg-gray-50 rounded-xl p-6 space-y-4"
+      >
+        <h3 className="font-medium text-gray-900 flex items-center gap-2">
+          <FaMapMarkerAlt className="text-[#3c4948]" />
+          Delivery Details
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Delivery Address</h4>
+            <div className="text-sm text-gray-600 space-y-1">
+              <p>{formData.firstName} {formData.lastName}</p>
+              <p>{formData.address}</p>
+              <p>{formData.city}, {formData.state} {formData.postalCode}</p>
+              <p>{formData.phone}</p>
+            </div>
+          </div>
+          <div>
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Payment Method</h4>
+            <div className="text-sm text-gray-600">
+              {selectedPaymentMethod === 'card' && (
+                <p>Credit Card ending in {formData.cardNumber.slice(-4)}</p>
+              )}
+              {selectedPaymentMethod === 'bank' && (
+                <p>Bank Transfer</p>
+              )}
+              {selectedPaymentMethod === 'mobile' && (
+                <p>Mobile Money</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Next Steps */}
+      <div className="flex flex-col md:flex-row gap-4 pt-6">
+        <Link href="/my-orders" className="flex-1">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button 
+              type="button"
+              style="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-[#3c4948] hover:bg-[#3c4948] hover:text-white hover:border-[#3c4948] hover:shadow-lg transition-all duration-300 ease-out font-medium shadow-sm"
+            >
+              <FaReceipt className="text-base" />
+              View Order Details
+            </Button>
+          </motion.div>
+        </Link>
+        <Link href="/all" className="flex-1">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button 
+              type="button"
+              style="w-full flex items-center justify-center gap-2"
+              primary
+            >
+              <FaBox className="text-base" />
+              Continue Shopping
+            </Button>
+          </motion.div>
+        </Link>
+      </div>
     </motion.div>
   );
 
@@ -778,6 +915,7 @@ const CheckoutPage = () => {
               {currentStep === 1 && renderStep1()}
               {currentStep === 2 && renderStep2()}
               {currentStep === 3 && renderStep3()}
+              {currentStep === 4 && renderStep4()}
             </div>
             
             <div className="lg:col-span-1">
