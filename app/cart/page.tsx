@@ -370,13 +370,15 @@ const CartPage = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Button 
-                  type="button"
-                  style="flex-1 flex items-center justify-center gap-2"
-                  primary
-                >
-                  Proceed to Checkout
-                </Button>
+                <Link href="/checkout">
+                  <Button 
+                    type="button"
+                    style="flex-1 flex items-center justify-center gap-2"
+                    primary
+                  >
+                    Proceed to Checkout
+                  </Button>
+                </Link>
               </motion.div>
             </div>
           </motion.div>
