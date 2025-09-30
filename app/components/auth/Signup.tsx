@@ -28,25 +28,21 @@ const TOAST_STYLES = {
 
 // Animation variants for subtle form interactions
 const containerVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
+  initial: { opacity: 0, y: 20 },
+  animate: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.5,
       staggerChildren: 0.08
     }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: {
+  initial: { opacity: 0, y: 15 },
+  animate: {
     opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.3
-    }
+    y: 0
   }
 };
 
@@ -216,8 +212,9 @@ const Signup = () => {
     <motion.div 
       className="rounded-3xl border-2 border-[#EDEDED] p-6 md:p-8 lg:p-10 bg-[#FCFCFC] w-[95%] max-w-[650px] max-h-[90vh] overflow-y-auto"
       variants={containerVariants}
-      initial="hidden"
-      animate="visible"
+      initial="initial"
+      animate="animate"
+      transition={{ type: "spring", duration: 0.5 }}
     >
       <motion.div 
         className="text-center mb-4"

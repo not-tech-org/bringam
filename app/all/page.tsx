@@ -56,8 +56,8 @@ const DashboardPage = () => {
 
   // Animation variants
   const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
+    initial: { opacity: 0 },
+    animate: {
       opacity: 1,
       transition: {
         staggerChildren: 0.1,
@@ -67,19 +67,15 @@ const DashboardPage = () => {
   };
 
   const cardVariants = {
-    hidden: { 
+    initial: { 
       opacity: 0, 
       y: 20,
       scale: 0.95
     },
-    visible: {
+    animate: {
       opacity: 1,
       y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.4,
-        ease: "easeOut"
-      }
+      scale: 1
     }
   };
 
@@ -144,14 +140,17 @@ const DashboardPage = () => {
           <motion.div 
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
             variants={containerVariants}
-            initial="hidden"
-            animate="visible"
+            initial="initial"
+            animate="animate"
           >
             {repeatElements(storeList, displayedStores)?.map((store, key) => (
               <motion.div 
                 key={key}
                 variants={cardVariants}
+                initial="initial"
+                animate="animate"
                 whileHover="hover"
+                transition={{ type: "spring", duration: 0.4 }}
                 className="bg-white rounded-lg border hover:shadow-md transition-shadow duration-200 flex flex-col"
               >
                 <div className="relative h-48 w-full">

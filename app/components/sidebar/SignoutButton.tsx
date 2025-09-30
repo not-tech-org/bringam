@@ -26,27 +26,20 @@ const buttonVariants = {
 };
 
 const modalVariants = {
-  hidden: {
+  initial: {
     opacity: 0,
     scale: 0.95,
     y: 20
   },
-  visible: {
+  animate: {
     opacity: 1,
     scale: 1,
-    y: 0,
-    transition: {
-      duration: 0.3,
-      ease: [0.25, 0.1, 0.25, 1]
-    }
+    y: 0
   },
   exit: {
     opacity: 0,
     scale: 0.95,
-    y: 20,
-    transition: {
-      duration: 0.2
-    }
+    y: 20
   }
 };
 
@@ -113,9 +106,10 @@ const SignoutButton = () => {
         <motion.div
           className="text-center"
           variants={modalVariants}
-          initial="hidden"
-          animate="visible"
+          initial="initial"
+          animate="animate"
           exit="exit"
+          transition={{ type: "spring", duration: 0.3 }}
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-5 border-b border-red-100">
@@ -144,7 +138,7 @@ const SignoutButton = () => {
           <div className="px-6 py-6">
             <div className="text-center mb-6">
               <p className="text-gray-700 leading-relaxed text-base">
-                Are you sure you want to sign out? You'll need to sign in again to access your account.
+                Are you sure you want to sign out? You&apos;ll need to sign in again to access your account.
               </p>
             </div>
 

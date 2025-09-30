@@ -40,7 +40,7 @@ const Modal: React.FC<ModalProps> = ({
           initial={{ opacity: 0, scale: 0.96, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 16 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
+          transition={{ type: "spring", duration: 0.25 }}
         >
           {closeIcon && (
             <motion.button

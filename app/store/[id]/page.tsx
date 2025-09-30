@@ -65,20 +65,16 @@ const mockStoreData = {
 
 // Animation variants
 const pageVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
+  initial: { opacity: 0, y: 20 },
+  animate: {
     opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-      ease: "easeOut"
-    }
+    y: 0
   }
 };
 
 const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
+  initial: { opacity: 0 },
+  animate: {
     opacity: 1,
     transition: {
       staggerChildren: 0.1,
@@ -88,44 +84,32 @@ const containerVariants = {
 };
 
 const cardVariants = {
-  hidden: { 
+  initial: { 
     opacity: 0, 
     y: 20,
     scale: 0.95
   },
-  visible: {
+  animate: {
     opacity: 1,
     y: 0,
-    scale: 1,
-    transition: {
-      duration: 0.4,
-      ease: "easeOut"
-    }
+    scale: 1
   }
 };
 
 const productVariants = {
-  hidden: { 
+  initial: { 
     opacity: 0, 
     y: 15,
     scale: 0.98
   },
-  visible: {
+  animate: {
     opacity: 1,
     y: 0,
-    scale: 1,
-    transition: {
-      duration: 0.3,
-      ease: "easeOut"
-    }
+    scale: 1
   },
   hover: {
     y: -2,
-    scale: 1.02,
-    transition: {
-      duration: 0.2,
-      ease: "easeOut"
-    }
+    scale: 1.02
   }
 };
 
@@ -172,8 +156,9 @@ const StorePage = () => {
       <motion.div 
         className="bg-white min-h-screen"
         variants={pageVariants}
-        initial="hidden"
-        animate="visible"
+        initial="initial"
+        animate="animate"
+        transition={{ type: "spring", duration: 0.5 }}
       >
         {/* Back Button */}
         <div className="px-4">
@@ -260,8 +245,9 @@ const StorePage = () => {
         <motion.div 
           className="p-6 space-y-6"
           variants={containerVariants}
-          initial="hidden"
-          animate="visible"
+          initial="initial"
+          animate="animate"
+          transition={{ type: "spring", duration: 0.5 }}
         >
           {/* Contact & Hours */}
           <motion.div 
@@ -341,8 +327,9 @@ const StorePage = () => {
             <motion.div 
               className="grid grid-cols-2 md:grid-cols-4 gap-4"
               variants={containerVariants}
-              initial="hidden"
-              animate="visible"
+              initial="initial"
+              animate="animate"
+              transition={{ type: "spring", duration: 0.5 }}
             >
               {store.products.map((product) => (
                 <motion.div 

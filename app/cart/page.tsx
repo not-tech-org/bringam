@@ -13,25 +13,21 @@ import { motion } from "framer-motion";
 
 // Animation variants for cart page
 const pageVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
+  initial: { opacity: 0, y: 20 },
+  animate: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.5,
       staggerChildren: 0.1
     }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: {
+  initial: { opacity: 0, y: 15 },
+  animate: {
     opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.3
-    }
+    y: 0
   }
 };
 
@@ -104,8 +100,9 @@ const CartPage = () => {
         <motion.div 
           className="bg-white min-h-screen"
           variants={pageVariants}
-          initial="hidden"
-          animate="visible"
+          initial="initial"
+          animate="animate"
+          transition={{ type: "spring", duration: 0.5 }}
         >
           <motion.div 
             className="px-4"
@@ -148,7 +145,7 @@ const CartPage = () => {
                 className="text-gray-600 mb-8"
                 variants={itemVariants}
               >
-                Looks like you haven't added any items to your cart yet.
+                Looks like you haven&apos;t added any items to your cart yet.
               </motion.p>
               
               {/* Popular categories */}
@@ -257,9 +254,9 @@ const CartPage = () => {
                 key={store.storeId} 
                 className="bg-gray-50 rounded-lg p-4"
                 variants={itemVariants}
-                initial="hidden"
-                animate="visible"
-                transition={{ delay: storeIndex * 0.1 }}
+                initial="initial"
+                animate="animate"
+                transition={{ type: "spring", duration: 0.3, delay: storeIndex * 0.1 }}
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">{store.storeName}</h3>
@@ -414,7 +411,7 @@ const CartPage = () => {
             <div className="px-6 py-6">
               <div className="text-center mb-6">
                 <p className="text-gray-700 leading-relaxed text-base">
-                  Are you sure you want to remove all items from your cart? You'll need to add items again to continue shopping.
+                  Are you sure you want to remove all items from your cart? You&apos;ll need to add items again to continue shopping.
                 </p>
               </div>
 

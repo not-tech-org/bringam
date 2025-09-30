@@ -12,25 +12,21 @@ import { motion } from "framer-motion";
 
 // Animation variants for subtle form interactions
 const pageVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
+  initial: { opacity: 0, y: 20 },
+  animate: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.5,
       staggerChildren: 0.1
     }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: {
+  initial: { opacity: 0, y: 15 },
+  animate: {
     opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.3
-    }
+    y: 0
   }
 };
 
@@ -181,8 +177,9 @@ const CheckoutPage = () => {
   const renderStep1 = () => (
     <motion.div
       variants={itemVariants}
-      initial="hidden"
-      animate="visible"
+      initial="initial"
+      animate="animate"
+      transition={{ type: "spring", duration: 0.3 }}
       className="space-y-6"
     >
       <div>
@@ -306,8 +303,9 @@ const CheckoutPage = () => {
   const renderStep4 = () => (
     <motion.div
       variants={itemVariants}
-      initial="hidden"
-      animate="visible"
+      initial="initial"
+      animate="animate"
+      transition={{ type: "spring", duration: 0.3 }}
       className="space-y-8 py-8"
     >
       {/* Success Animation */}
@@ -328,7 +326,7 @@ const CheckoutPage = () => {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h2>
         <p className="text-gray-600 max-w-md">
-          Thank you for your order. We've received your order and will begin processing it right away.
+          Thank you for your order. We&apos;ve received your order and will begin processing it right away.
         </p>
       </motion.div>
 
@@ -443,8 +441,9 @@ const CheckoutPage = () => {
   const renderStep3 = () => (
     <motion.div
       variants={itemVariants}
-      initial="hidden"
-      animate="visible"
+      initial="initial"
+      animate="animate"
+      transition={{ type: "spring", duration: 0.3 }}
       className="space-y-6"
     >
       <div>
@@ -615,7 +614,7 @@ const CheckoutPage = () => {
           <div>
             <h4 className="text-sm font-medium text-blue-900">Order Confirmation</h4>
             <p className="text-sm text-blue-700 mt-1">
-              By clicking "Place Order", you agree to our terms and conditions. Your order will be processed securely.
+              By clicking &quot;Place Order&quot;, you agree to our terms and conditions. Your order will be processed securely.
             </p>
           </div>
         </div>
@@ -626,8 +625,9 @@ const CheckoutPage = () => {
   const renderStep2 = () => (
     <motion.div
       variants={itemVariants}
-      initial="hidden"
-      animate="visible"
+      initial="initial"
+      animate="animate"
+      transition={{ type: "spring", duration: 0.3 }}
       className="space-y-6"
     >
       <div>
@@ -803,8 +803,9 @@ const CheckoutPage = () => {
   const renderOrderSummary = () => (
     <motion.div
       variants={itemVariants}
-      initial="hidden"
-      animate="visible"
+      initial="initial"
+      animate="animate"
+      transition={{ type: "spring", duration: 0.3 }}
       className="bg-gray-50 rounded-lg p-6 sticky top-4"
     >
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
@@ -852,8 +853,9 @@ const CheckoutPage = () => {
         <motion.div
           className="bg-white min-h-screen flex items-center justify-center"
           variants={pageVariants}
-          initial="hidden"
-          animate="visible"
+          initial="initial"
+          animate="animate"
+          transition={{ type: "spring", duration: 0.5 }}
         >
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-gray-900 mb-4">Your cart is empty</h1>

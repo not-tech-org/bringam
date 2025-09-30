@@ -12,13 +12,8 @@ import { motion } from "framer-motion";
 
 // Animation variants for sidebar menu items
 const menuItemVariants = {
-  hover: {
-    x: 4,
-    transition: {
-      duration: 0.2,
-      ease: "easeOut"
-    }
-  }
+  initial: { x: 0 },
+  hover: { x: 4 }
 };
 
 const Sidebar = () => {
@@ -94,7 +89,9 @@ const Sidebar = () => {
             isActive ? "text-white" : "text-lighterArmy hover:text-white"
           }`}
           variants={menuItemVariants}
+          initial="initial"
           whileHover="hover"
+          transition={{ type: "spring", duration: 0.2 }}
         >
           <Image
             src={item.icon}
