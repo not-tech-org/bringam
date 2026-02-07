@@ -543,6 +543,7 @@ const VendorStore = () => {
   useEffect(() => {
     fetchUserProfile();
     fetchCountries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

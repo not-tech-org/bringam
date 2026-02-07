@@ -89,6 +89,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         console.log("API cart fetch failed, using local cart");
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, hasApiConnection]);
 
   // ===== UTILITY FUNCTIONS =====
@@ -286,7 +287,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         const newItem: CartItem = {
           ...itemData,
           id: `${itemData.productId}-${Date.now()}`,
-          storeProductUuid,
+          storeProductUuid: storeProductUuid ?? undefined,
           quantity: 1,
           addedAt: new Date().toISOString(),
         };

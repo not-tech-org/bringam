@@ -207,7 +207,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
           >
             Cancel
           </Button>
-          <Button type="submit" primary loading={loading}>
+          <Button type="submit" primary isLoading={loading}>
             Submit Review
           </Button>
         </div>

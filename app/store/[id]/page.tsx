@@ -417,7 +417,7 @@ const StorePage = () => {
                     />
                   </motion.button>
 
-                  <Link href={`/product/${product.id || product.uuid || product.id}`}>
+                  <Link href={`/product/${product.id}`}>
                     <div className="cursor-pointer">
                       <div className="relative h-32 w-full">
                         <Image

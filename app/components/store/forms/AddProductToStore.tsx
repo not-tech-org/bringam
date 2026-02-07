@@ -164,6 +164,7 @@ const AddProductToStore: React.FC<AddProductToStoreProps> = ({
         <div>
           <Input
             label="Quantity"
+            name="quantity"
             type="number"
             id="quantity"
             value={quantity.toString()}
@@ -179,6 +180,7 @@ const AddProductToStore: React.FC<AddProductToStoreProps> = ({
         <div>
           <Input
             label="Price (₦)"
+            name="price"
             type="number"
             id="price"
             value={price.toString()}
@@ -203,7 +205,7 @@ const AddProductToStore: React.FC<AddProductToStoreProps> = ({
           <Button 
             type="submit" 
             primary 
-            loading={loading}
+            isLoading={loading}
             disabled={loading || loadingProducts}
           >
             {loading ? "Adding..." : "Add to Store"}
