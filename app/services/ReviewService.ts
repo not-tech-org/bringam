@@ -1,6 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
-import { ReviewApiResponse, GetReviewsParams } from "../types/review";
+import { ReviewApiResponse, GetReviewsParams, AddReviewRequest, AddReviewResponse } from "../types/review";
 
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
@@ -72,5 +72,13 @@ export const getProductReviewsApi = async (
   const response = await reviewApi.get(
     `/reviews/${encodeURIComponent(productUuid)}?${queryParams.toString()}`
   );
+  return response.data;
+};
+
+// Add product review
+export const addProductReviewApi = async (
+  request: AddReviewRequest
+): Promise<AddReviewResponse> => {
+  const response = await reviewApi.post("/reviews/add-product-review", request);
   return response.data;
 };

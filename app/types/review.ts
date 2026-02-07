@@ -65,3 +65,18 @@ export interface GetReviewsParams {
   endDate?: string; // ISO 8601 format
   statuses?: string; // Comma-separated: "ACTIVE,INACTIVE"
 }
+
+// ===== POST REVIEW REQUEST =====
+export interface AddReviewRequest {
+  storeProductId: string; // UUID of the store product
+  summary: string;
+  comment: string;
+  rating: number; // 1-5
+}
+
+// ===== POST REVIEW RESPONSE =====
+export interface AddReviewResponse {
+  success: boolean;
+  message: string;
+  data: null;
+}

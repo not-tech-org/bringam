@@ -6,8 +6,10 @@ import Wrapper from "../../components/wrapper/Wrapper";
 import Image from "next/image";
 import Button from "../../components/common/Button";
 import Preloader from "../../components/common/Preloader";
-import { FaArrowLeft, FaStar, FaShoppingCart, FaHeart } from "react-icons/fa";
-import { getProductReviewsApi } from "../../services/ReviewService";
+import Modal from "../../components/common/Modal";
+import ReviewForm from "../../components/reviews/ReviewForm";
+import { FaArrowLeft, FaStar, FaShoppingCart, FaHeart, FaEdit } from "react-icons/fa";
+import { getProductReviewsApi, addProductReviewApi } from "../../services/ReviewService";
 import { ReviewItem } from "../../types/review";
 import { showToast } from "../../components/utils/helperFunctions";
 import { motion } from "framer-motion";
@@ -61,10 +63,25 @@ const ProductDetailPage = () => {
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingToWishlist, setAddingToWishlist] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Resolve product UUID for API calls
   const resolveProductUuid = (product: any): string | null => {
     return product?.uuid || product?.productUuid || product?.id || null;
+  };
+
+  // Resolve storeProductId for review API calls
+  const resolveStoreProductId = (product: any): string | null => {
+    // Try multiple possible field names (API might use different field names)
+    return (
+      product?.storeProductId ||
+      product?.storeProductUuid ||
+      product?.uuid ||
+      product?.productUuid ||
+      product?.id ||
+      null
+    );
   };
 
   // Fetch product reviews
@@ -171,6 +188,44 @@ const ProductDetailPage = () => {
       showToast(errorMessage, "error");
     } finally {
       setAddingToWishlist(false);
+    }
+  };
+
+  const openReviewModal = () => setIsReviewModalOpen(true);
+  const closeReviewModal = () => setIsReviewModalOpen(false);
+
+  const handleSubmitReview = async (data: {
+    storeProductId: string;
+    summary: string;
+    comment: string;
+    rating: number;
+  }) => {
+    setSubmittingReview(true);
+    try {
+      const response = await addProductReviewApi(data);
+      if (response.success) {
+        showToast(
+          response.message || "Review submitted successfully!",
+          "success"
+        );
+        closeReviewModal();
+        // Refresh reviews after successful submission
+        const productUuid = resolveProductUuid(product);
+        if (productUuid) {
+          await fetchReviews(productUuid);
+        }
+      } else {
+        throw new Error(response.message || "Failed to submit review");
+      }
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to submit review. Please try again.";
+      showToast(errorMessage, "error");
+      throw err; // Re-throw to let form handle it
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -331,11 +386,22 @@ const ProductDetailPage = () => {
               <h2 className="text-2xl font-bold text-gray-900">
                 Customer Reviews
               </h2>
-              {reviews.length > 0 && (
-                <span className="text-sm text-gray-600">
-                  {reviews.length} review{reviews.length !== 1 ? "s" : ""}
-                </span>
-              )}
+              <div className="flex items-center gap-4">
+                {reviews.length > 0 && (
+                  <span className="text-sm text-gray-600">
+                    {reviews.length} review{reviews.length !== 1 ? "s" : ""}
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  style="flex items-center gap-2"
+                  primary
+                  onClick={openReviewModal}
+                >
+                  <FaEdit className="h-4 w-4" />
+                  Write a Review
+                </Button>
+              </div>
             </div>
 
             {/* Reviews Loading State */}
@@ -435,6 +501,16 @@ const ProductDetailPage = () => {
           </motion.div>
         </div>
       </motion.div>
+
+      {/* Review Form Modal */}
+      <Modal isOpen={isReviewModalOpen} onClose={closeReviewModal} closeIcon>
+        <ReviewForm
+          storeProductId={resolveStoreProductId(product) || ""}
+          onSubmit={handleSubmitReview}
+          onClose={closeReviewModal}
+          loading={submittingReview}
+        />
+      </Modal>
     </Wrapper>
   );
 };
