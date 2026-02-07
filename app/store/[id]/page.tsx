@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import Wrapper from "../../components/wrapper/Wrapper";
 import Image from "next/image";
 import Button from "../../components/common/Button";
@@ -398,7 +399,10 @@ const StorePage = () => {
                 >
                   {/* Wishlist button */}
                   <motion.button
-                    onClick={() => handleToggleWishlist(product)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleWishlist(product);
+                    }}
                     disabled={addingToWishlist.has(product.id || "")}
                     className="absolute top-2 right-2 z-10 p-2 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={{ scale: 1.1 }}
@@ -413,18 +417,26 @@ const StorePage = () => {
                     />
                   </motion.button>
 
-                  <div className="relative h-32 w-full">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className=" rounded-t-lg"
-                    />
-                  </div>
-                  <div className="p-3">
-                    <h4 className="font-medium text-sm text-gray-900 truncate">{product.name}</h4>
-                    <p className="text-sm text-gray-600">{product.category}</p>
-                    <p className="font-semibold text-blue-600 mt-1">{product.price}</p>
+                  <Link href={`/product/${product.id || product.uuid || product.id}`}>
+                    <div className="cursor-pointer">
+                      <div className="relative h-32 w-full">
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          className=" rounded-t-lg"
+                        />
+                      </div>
+                      <div className="p-3">
+                        <h4 className="font-medium text-sm text-gray-900 truncate hover:text-[#3c4948] transition-colors">
+                          {product.name}
+                        </h4>
+                        <p className="text-sm text-gray-600">{product.category}</p>
+                        <p className="font-semibold text-blue-600 mt-1">{product.price}</p>
+                      </div>
+                    </div>
+                  </Link>
+                  <div className="p-3 pt-0">
                     <motion.div
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
