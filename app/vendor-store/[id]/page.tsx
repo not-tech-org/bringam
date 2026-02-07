@@ -9,7 +9,10 @@ import { Column, Table } from "@/app/components/common/Table";
 import { cn } from "@/app/lib/utils";
 import Wrapper from "@/app/components/wrapper/Wrapper";
 import Button from "@/app/components/common/Button";
-import { getStoreById } from "@/app/services/AuthService";
+import Modal from "@/app/components/common/Modal";
+import AddProductToStore from "@/app/components/store/forms/AddProductToStore";
+import { getStoreById, addProductToStore } from "@/app/services/AuthService";
+import { showToast } from "@/app/components/utils/helperFunctions";
 
 interface Product {
   id: string;
@@ -112,6 +115,11 @@ const StorePage = () => {
   const storeId = params.id as string;
   const [store, setStore] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [addProductLoading, setAddProductLoading] = useState(false);
+
+  const openAddProductModal = () => setIsAddProductOpen(true);
+  const closeAddProductModal = () => setIsAddProductOpen(false);
 
   const fetchStoreData = useCallback(async () => {
     try {
@@ -131,6 +139,45 @@ const StorePage = () => {
       fetchStoreData();
     }
   }, [storeId, fetchStoreData]);
+
+  const handleAddProductToStore = async (data: {
+    productUuid: string;
+    storeUuid: string;
+    quantity: number;
+    price: number;
+  }) => {
+    setAddProductLoading(true);
+    try {
+      const response = await addProductToStore(data);
+      console.log("Product added to store successfully:", response.data);
+      
+      showToast("Product added to store successfully!", "success");
+      
+      // Refresh store data to show updated products
+      await fetchStoreData();
+      
+      // Close modal
+      closeAddProductModal();
+    } catch (error: any) {
+      console.error("Error adding product to store:", error);
+      
+      // Extract error message from response
+      let errorMessage = "Failed to add product to store. Please try again.";
+      
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      showToast(errorMessage, "error");
+      throw error; // Re-throw to let the modal handle the error
+    } finally {
+      setAddProductLoading(false);
+    }
+  };
 
   const overviewData = [
     {
@@ -251,7 +298,7 @@ const StorePage = () => {
           <div className="p-6 flex items-center justify-between border-b">
             <h2 className="text-xl font-semibold">Products</h2>
             <div className="flex items-center justify-between gap-4">
-              <Button type="button" primary>
+              <Button type="button" primary onClick={openAddProductModal}>
                 Add products to store
               </Button>
               <div className="flex items-center gap-2">
@@ -277,6 +324,18 @@ const StorePage = () => {
           />
         </div>
       </div>
+
+      {/* Add Product to Store Modal */}
+      <Modal isOpen={isAddProductOpen} onClose={closeAddProductModal}>
+        <div className="text-black">
+          <AddProductToStore
+            storeUuid={storeId}
+            handleSubmit={handleAddProductToStore}
+            onClose={closeAddProductModal}
+            loading={addProductLoading}
+          />
+        </div>
+      </Modal>
     </Wrapper>
   );
 };

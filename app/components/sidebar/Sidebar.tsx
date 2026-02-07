@@ -44,6 +44,7 @@ const Sidebar = () => {
 
   const customerPersonalItems = [
     { path: "/my-orders", label: "My Orders", icon: "/icons/all.svg" },
+    { path: "/wishlist", label: "Wishlist", icon: "/icons/heart.svg" },
     { path: "/vendors", label: "Vendors", icon: "/icons/headset.svg" },
     {
       path: "/notifications",

@@ -181,3 +181,8 @@ export const createProduct = async (reqBody: object) => {
   const response = await vendorApi.post("/products/create-product", reqBody);
   return response;
 };
+
+export const addProductToStore = async (reqBody: object) => {
+  const response = await vendorApi.put("/store-products/add-product-to-store", reqBody);
+  return response;
+};
