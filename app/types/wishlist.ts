@@ -6,6 +6,7 @@ export interface WishlistItem {
   uuid?: string;
   productId?: string;
   productUuid?: string;
+  storeProductUuid?: string; // UUID of the product when linked to a store (used for API calls)
   storeId?: string;
   storeUuid?: string;
   storeName?: string;
@@ -67,4 +68,11 @@ export interface GetWishlistParams {
   sortDir?: "asc" | "desc";
   startDate?: string; // ISO 8601 format
   endDate?: string; // ISO 8601 format
+}
+
+// ===== TOGGLE WISHLIST RESPONSE =====
+export interface ToggleWishlistResponse {
+  success: boolean;
+  message: string;
+  data: null;
 }

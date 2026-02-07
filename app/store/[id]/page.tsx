@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Wrapper from "../../components/wrapper/Wrapper";
 import Image from "next/image";
 import Button from "../../components/common/Button";
 import { FaArrowLeft, FaPhone, FaMapMarkerAlt, FaClock, FaStar, FaHeart, FaShare, FaShoppingCart } from "react-icons/fa";
 import { useCart } from "../../contexts/CartContext";
+import { toggleWishlistItemApi } from "../../services/WishlistService";
+import { showToast } from "../../components/utils/helperFunctions";
 import { motion } from "framer-motion";
 
 // Mock data - will be replaced with API integration later
@@ -118,6 +120,7 @@ const StorePage = () => {
   const router = useRouter();
   const { addToCart } = useCart();
   const storeId = params.id as string;
+  const [addingToWishlist, setAddingToWishlist] = useState<Set<string>>(new Set());
   
   // For now, we'll use mock data. Later this will be replaced with API call
   const store = mockStoreData;
@@ -148,6 +151,61 @@ const StorePage = () => {
       });
     } catch (error) {
       console.error('Error adding item to cart:', error);
+    }
+  };
+
+  // Helper to resolve storeProductUuid from product
+  const resolveStoreProductUuid = (product: any): string | null => {
+    // Try multiple possible field names (API might use different field names)
+    return (
+      product.storeProductUuid ||
+      product.uuid ||
+      product.productUuid ||
+      product.id ||
+      null
+    );
+  };
+
+  const handleToggleWishlist = async (product: any) => {
+    const storeProductUuid = resolveStoreProductUuid(product);
+    const productId = product.id || product.uuid || "";
+
+    if (!storeProductUuid) {
+      showToast("Unable to add to wishlist: missing product identifier", "error");
+      return;
+    }
+
+    setAddingToWishlist((prev) => new Set(prev).add(productId));
+
+    try {
+      const response = await toggleWishlistItemApi(storeProductUuid);
+
+      if (response.success) {
+        // Determine if item was added or removed based on message or API response
+        // For now, we'll show a generic success message
+        const message = response.message || "Item added to wishlist";
+        const isAdded = message.toLowerCase().includes("add") || 
+                       message.toLowerCase().includes("success");
+        
+        showToast(
+          isAdded ? "Item added to wishlist" : "Item removed from wishlist",
+          "success"
+        );
+      } else {
+        throw new Error(response.message || "Failed to update wishlist");
+      }
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to update wishlist. Please try again.";
+      showToast(errorMessage, "error");
+    } finally {
+      setAddingToWishlist((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
     }
   };
 
@@ -334,10 +392,27 @@ const StorePage = () => {
               {store.products.map((product) => (
                 <motion.div 
                   key={product.id} 
-                  className="bg-white rounded-lg border hover:shadow-md transition-shadow"
+                  className="bg-white rounded-lg border hover:shadow-md transition-shadow relative"
                   variants={productVariants}
                   whileHover="hover"
                 >
+                  {/* Wishlist button */}
+                  <motion.button
+                    onClick={() => handleToggleWishlist(product)}
+                    disabled={addingToWishlist.has(product.id || "")}
+                    className="absolute top-2 right-2 z-10 p-2 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <FaHeart
+                      className={`h-4 w-4 ${
+                        addingToWishlist.has(product.id || "")
+                          ? "text-gray-400"
+                          : "text-red-500"
+                      }`}
+                    />
+                  </motion.button>
+
                   <div className="relative h-32 w-full">
                     <Image
                       src={product.image}

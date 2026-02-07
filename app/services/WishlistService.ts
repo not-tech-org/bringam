@@ -1,6 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
-import { WishlistApiResponse, GetWishlistParams } from "../types/wishlist";
+import { WishlistApiResponse, GetWishlistParams, ToggleWishlistResponse } from "../types/wishlist";
 
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
@@ -63,6 +63,16 @@ export const getCustomerWishlistApi = async (
 
   const response = await wishlistApi.get(
     `/customer-wishlist?${queryParams.toString()}`
+  );
+  return response.data;
+};
+
+// Toggle wishlist item (add if not present, remove if present)
+export const toggleWishlistItemApi = async (
+  storeProductUuid: string
+): Promise<ToggleWishlistResponse> => {
+  const response = await wishlistApi.put(
+    `/customer-wishlist?store-product-uuid=${encodeURIComponent(storeProductUuid)}`
   );
   return response.data;
 };

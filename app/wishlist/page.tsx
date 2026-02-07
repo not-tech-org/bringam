@@ -6,7 +6,7 @@ import Image from "next/image";
 import Button from "../components/common/Button";
 import Preloader from "../components/common/Preloader";
 import { FaHeart, FaTrash, FaShoppingCart, FaArrowLeft } from "react-icons/fa";
-import { getCustomerWishlistApi } from "../services/WishlistService";
+import { getCustomerWishlistApi, toggleWishlistItemApi } from "../services/WishlistService";
 import { WishlistItem } from "../types/wishlist";
 import { showToast } from "../components/utils/helperFunctions";
 import { motion } from "framer-motion";
@@ -86,21 +86,66 @@ const WishlistPage = () => {
     fetchWishlist();
   }, [fetchWishlist]);
 
-  const handleRemoveItem = async (itemUuid: string) => {
-    // TODO: Implement remove from wishlist API call when endpoint is available
-    setRemovingItems((prev) => new Set(prev).add(itemUuid));
-    
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    
-    setWishlistItems((prev) => prev.filter((item) => item.uuid !== itemUuid));
-    setRemovingItems((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(itemUuid);
-      return newSet;
-    });
-    
-    showToast("Item removed from wishlist", "success");
+  // Helper to resolve storeProductUuid from wishlist item
+  const resolveStoreProductUuid = (item: WishlistItem): string | null => {
+    // Try multiple possible field names (API might use different field names)
+    return (
+      (item as any).storeProductUuid ||
+      item.productUuid ||
+      item.uuid ||
+      item.productId ||
+      item.id ||
+      null
+    );
+  };
+
+  const handleRemoveItem = async (item: WishlistItem) => {
+    const storeProductUuid = resolveStoreProductUuid(item);
+    const itemIdentifier = item.uuid || item.id || "";
+
+    if (!storeProductUuid) {
+      showToast("Unable to remove item: missing product identifier", "error");
+      return;
+    }
+
+    // Optimistic update: remove from UI immediately
+    const previousItems = [...wishlistItems];
+    setWishlistItems((prev) =>
+      prev.filter(
+        (i) => (i.uuid || i.id) !== (item.uuid || item.id)
+      )
+    );
+    setRemovingItems((prev) => new Set(prev).add(itemIdentifier));
+
+    try {
+      // Call API to toggle (remove) item from wishlist
+      const response = await toggleWishlistItemApi(storeProductUuid);
+
+      if (response.success) {
+        showToast(
+          response.message || "Item removed from wishlist",
+          "success"
+        );
+        // Optionally refresh the list to ensure consistency
+        // For now, we'll keep the optimistic update
+      } else {
+        throw new Error(response.message || "Failed to remove item");
+      }
+    } catch (err: any) {
+      // Rollback optimistic update on error
+      setWishlistItems(previousItems);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to remove item from wishlist. Please try again.";
+      showToast(errorMessage, "error");
+    } finally {
+      setRemovingItems((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(itemIdentifier);
+        return newSet;
+      });
+    }
   };
 
   const handleAddToCart = (item: WishlistItem) => {
@@ -300,7 +345,7 @@ const WishlistPage = () => {
               >
                 {/* Remove button */}
                 <motion.button
-                  onClick={() => handleRemoveItem(item.uuid || item.id || "")}
+                  onClick={() => handleRemoveItem(item)}
                   disabled={removingItems.has(item.uuid || item.id || "")}
                   className="absolute top-2 right-2 z-10 p-2 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   whileHover={{ scale: 1.1 }}
