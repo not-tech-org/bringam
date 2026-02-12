@@ -221,7 +221,7 @@ const StorePage = () => {
                 Store not found
               </h2>
               <p className="text-gray-600 mb-8">
-                The store you're looking for doesn't exist or has been removed.
+                The store you&apos;re looking for doesn&apos;t exist or has been removed.
               </p>
               <Button type="button" primary onClick={() => router.push('/all')}>
                 Back to Stores

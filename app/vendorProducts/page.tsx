@@ -55,14 +55,6 @@ const Products = () => {
   const [productsData, setProductsData] = useState<ProductsResponse['data'] | null>(null);
   const [loading, setLoading] = useState(true);
 
-  if (!token) {
-    return redirect("/");
-  }
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -85,6 +77,17 @@ const Products = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (token) {
+      fetchProducts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  if (!token) {
+    return redirect("/");
+  }
 
   const formatCurrency = (amount: number) => {
     return `N ${amount.toLocaleString()}`;
