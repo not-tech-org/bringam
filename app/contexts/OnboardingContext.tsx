@@ -305,6 +305,10 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
   const onResetPassword = async (e: React.FormEvent): Promise<any> => {
     e.preventDefault();
 
+    if (!forgotPasswordOTP) {
+      return Promise.reject(new Error("OTP is required. Please verify your code first."));
+    }
+
     if (!newPassword || !confirmNewPassword) {
       return Promise.reject(new Error("Password fields cannot be empty"));
     }
@@ -320,8 +324,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const res = await resetPasswordApi({
-        newPassword,
-        confirmNewPassword,
+        otp: forgotPasswordOTP,
+        password: newPassword,
+        confirmPassword: confirmNewPassword,
       });
 
       // Navigate to signin on success

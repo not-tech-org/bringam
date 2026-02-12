@@ -148,6 +148,13 @@ const StorePage = () => {
   }) => {
     setAddProductLoading(true);
     try {
+      console.log("Adding product to store with data:", data);
+      console.log("Request body:", {
+        productUuid: data.productUuid,
+        storeUuid: data.storeUuid,
+        quantity: data.quantity,
+        price: data.price,
+      });
       const response = await addProductToStore(data);
       console.log("Product added to store successfully:", response.data);
       

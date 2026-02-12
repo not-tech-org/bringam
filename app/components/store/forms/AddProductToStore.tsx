@@ -52,12 +52,31 @@ const AddProductToStore: React.FC<AddProductToStoreProps> = ({
       const response = await getAllProducts();
       console.log("Products API response:", response.data);
       
-      // Safely extract products array with multiple fallbacks
-      const productData = response?.data?.data || response?.data || [];
-      const productsArray = Array.isArray(productData) ? productData : [];
+      // Extract products from paginated response structure
+      // Response structure: { success: true, data: { products: { content: Product[] } } }
+      let productsArray: Product[] = [];
+      
+      if (response?.data?.success && response?.data?.data) {
+        // Check for paginated structure (products.content)
+        if (response.data.data.products?.content && Array.isArray(response.data.data.products.content)) {
+          productsArray = response.data.data.products.content;
+        }
+        // Check for direct array in data
+        else if (Array.isArray(response.data.data)) {
+          productsArray = response.data.data;
+        }
+        // Check for content array directly
+        else if (response.data.data.content && Array.isArray(response.data.data.content)) {
+          productsArray = response.data.data.content;
+        }
+      }
       
       console.log("Processed products array:", productsArray);
       setProducts(productsArray);
+      
+      if (productsArray.length === 0) {
+        showToast("No products available. Please create a product first.", "info");
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
       setProducts([]); // Ensure products is always an array
