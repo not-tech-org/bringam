@@ -15,21 +15,8 @@ import { showToast } from "../../components/utils/helperFunctions";
 import { motion } from "framer-motion";
 import { useCart } from "../../contexts/CartContext";
 import { toggleWishlistItemApi } from "../../services/WishlistService";
-
-// Mock product data - will be replaced with API integration later
-const mockProductData = {
-  id: "1",
-  uuid: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  name: "Designer Dress",
-  description: "Premium quality designer dress with elegant design and comfortable fit.",
-  price: 25000,
-  image: "/images/products/dress1.jpg",
-  category: "Dresses",
-  storeId: "1",
-  storeName: "Fashion Hub",
-  rating: 4.5,
-  totalReviews: 12,
-};
+import { getProductById } from "../../services/CustomerService";
+import { SkeletonCard } from "../../components/common/Skeleton";
 
 // Animation variants
 const pageVariants = {
@@ -57,9 +44,10 @@ const ProductDetailPage = () => {
   const productId = params.id as string;
   const { addToCart } = useCart();
   
-  const [product, setProduct] = useState<any>(mockProductData);
+  const [product, setProduct] = useState<any>(null);
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingToWishlist, setAddingToWishlist] = useState(false);
@@ -102,7 +90,6 @@ const ProductDetailPage = () => {
         throw new Error(response.message || "Failed to fetch reviews");
       }
     } catch (err: any) {
-      console.error("Error fetching reviews:", err);
       const errorMessage =
         err.response?.data?.message ||
         err.message ||
@@ -117,24 +104,27 @@ const ProductDetailPage = () => {
   useEffect(() => {
     const loadProductData = async () => {
       setLoading(true);
+      setError(null);
       try {
-        // TODO: Replace with actual product API call
-        // const productResponse = await getProductById(productId);
-        // setProduct(productResponse.data);
-        
-        // For now, use mock data
-        setProduct(mockProductData);
+        const productResponse = await getProductById(productId);
+        const productData = productResponse.data.data || productResponse.data;
+        setProduct(productData);
         
         // Fetch reviews after product is loaded
-        const productUuid = resolveProductUuid(mockProductData);
+        const productUuid = resolveProductUuid(productData);
         if (productUuid) {
           await fetchReviews(productUuid);
         }
       } catch (err: any) {
-        console.error("Error fetching product:", err);
-        setError(err.message || "Failed to load product");
+        const errorMessage =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to load product. Please try again.";
+        setError(errorMessage);
+        setProduct(null);
       } finally {
         setLoading(false);
+        setHasFetched(true);
       }
     };
 
@@ -150,17 +140,17 @@ const ProductDetailPage = () => {
   const handleAddToCart = () => {
     try {
       addToCart({
-        productId: product.id,
-        storeId: product.storeId,
-        storeName: product.storeName,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        category: product.category,
+        productId: product.id || product.uuid,
+        storeProductUuid: product.storeProductUuid || product.uuid,
+        storeId: product.storeId || product.store?.id || product.store?.uuid,
+        storeName: product.storeName || product.store?.name,
+        name: product.name || product.productName,
+        price: product.price || 0,
+        image: product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
+        category: product.category || product.productCategory,
       });
       showToast("Item added to cart", "success");
     } catch (error) {
-      console.error("Error adding item to cart:", error);
       showToast("Failed to add item to cart", "error");
     }
   };
@@ -261,15 +251,26 @@ const ProductDetailPage = () => {
   if (loading) {
     return (
       <Wrapper>
-        <div className="bg-white min-h-screen flex items-center justify-center">
-          <Preloader height={60} />
+        <div className="bg-white min-h-screen px-4 py-8 max-w-6xl mx-auto">
+          <div className="mb-6">
+            <div className="h-8 bg-gray-200 rounded-md w-24 mb-4 animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="aspect-square bg-gray-200 rounded-lg animate-pulse" />
+            <div className="space-y-6">
+              <div className="h-8 bg-gray-200 rounded-md w-3/4 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded-md w-1/2 animate-pulse" />
+              <div className="h-6 bg-gray-200 rounded-md w-1/4 animate-pulse" />
+              <div className="h-20 bg-gray-200 rounded-md animate-pulse" />
+            </div>
+          </div>
         </div>
       </Wrapper>
     );
   }
 
   // Error state
-  if (error && !product) {
+  if (error && !product && hasFetched) {
     return (
       <Wrapper>
         <div className="bg-white min-h-screen px-4 py-8">
@@ -296,6 +297,8 @@ const ProductDetailPage = () => {
       </Wrapper>
     );
   }
+
+  if (!product) return null;
 
   const productUuid = resolveProductUuid(product);
 
@@ -326,8 +329,8 @@ const ProductDetailPage = () => {
             <motion.div variants={itemVariants} className="relative">
               <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
                 <Image
-                  src={product.image || "/images/placeholder.png"}
-                  alt={product.name}
+                  src={product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png"}
+                  alt={product.name || product.productName || "Product"}
                   fill
                   className="object-cover"
                 />
@@ -338,17 +341,17 @@ const ProductDetailPage = () => {
             <motion.div variants={itemVariants} className="space-y-6">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  {product.name}
+                  {product.name || product.productName || "Product"}
                 </h1>
-                <p className="text-sm text-gray-500 mb-4">{product.category}</p>
+                <p className="text-sm text-gray-500 mb-4">{product.category || product.productCategory || "Uncategorized"}</p>
                 {product.rating && (
                   <div className="mb-4">{renderStars(product.rating)}</div>
                 )}
                 <p className="text-3xl font-bold text-[#3c4948] mb-4">
-                  {formatPrice(product.price)}
+                  {product.price ? formatPrice(product.price) : "Price not available"}
                 </p>
                 <p className="text-gray-600 leading-relaxed">
-                  {product.description}
+                  {product.description || product.productDescription || "No description available."}
                 </p>
               </div>
 
