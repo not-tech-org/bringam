@@ -197,7 +197,6 @@ const VendorStore = () => {
 
     try {
       const response = await createVendorStore(reqBody);
-      console.log("Store created successfully:", response.data);
 
       // Reset form
       setState((prevState) => ({
@@ -258,7 +257,6 @@ const VendorStore = () => {
     try {
       setEditLoading(true);
       const response = await updateVendorStore(editingStoreId, reqBody);
-      console.log("Store updated successfully:", response.data);
 
       // Refresh stores list after updating
       if (vendorUuid) {
@@ -328,7 +326,6 @@ const VendorStore = () => {
 
   const handleAddMember = (storeId: string) => {
     // TODO: Implement add member functionality
-    console.log("Add member", storeId);
   };
 
   const handleDeactivateStore = (storeId: string) => {
@@ -363,7 +360,6 @@ const VendorStore = () => {
     try {
       setDeactivateLoading(true);
       const response = await deactivateVendorStore(deactivatingStoreId);
-      console.log("Store deactivated successfully:", response.data);
 
       // Show success feedback to user
       const { showToast } = await import("../components/utils/helperFunctions");
@@ -400,12 +396,10 @@ const VendorStore = () => {
   const fetchUserProfile = async () => {
     try {
       const response = await getUserProfile();
-      console.log(response);
 
       // Extract vendorUuid from the response
       if (response.data.data.vendorResp && response.data.data.vendorResp.uuid) {
         const uuid = response.data.data.vendorResp.uuid;
-        console.log("UUID", uuid);
         setVendorUuid(uuid);
         // Fetch stores for this vendor
         await fetchVendorStores(uuid);
@@ -419,7 +413,6 @@ const VendorStore = () => {
     try {
       setLoading(true);
       const response = await getAllStores(uuid);
-      console.log("Vendor stores:", response.data.data);
       setStores(response.data.data || []);
     } catch (error) {
       console.error("Error fetching vendor stores:", error);
@@ -432,7 +425,6 @@ const VendorStore = () => {
   const fetchCountries = async () => {
     try {
       const response = await getAllCountries();
-      console.log("Countries:", response.data);
       setCountries(response.data.data || []);
     } catch (error) {
       console.error("Error fetching countries:", error);
@@ -443,7 +435,6 @@ const VendorStore = () => {
   const fetchStates = async (countryId: string | number) => {
     try {
       const response = await getStatesByCountryId(countryId);
-      console.log("States:", response.data);
       setStates(response.data.data || []);
     } catch (error) {
       console.error("Error fetching states:", error);
@@ -454,7 +445,6 @@ const VendorStore = () => {
   const fetchCities = async (stateId: string | number) => {
     try {
       const response = await getCitiesByStateId(stateId);
-      console.log("Cities:", response.data);
       setCities(response.data.data || []);
     } catch (error) {
       console.error("Error fetching cities:", error);

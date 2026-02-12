@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { MdWebStories } from "react-icons/md";
 import { IoCheckmarkDoneSharp } from "react-icons/io5";
 import { IoGiftOutline } from "react-icons/io5";
@@ -12,102 +12,163 @@ import AppLayout from "../components/AppLayout";
 import Header from "../components/Header";
 import { ProductCardUp, ProductCardDown } from "./components/ProductCard";
 import { productTableHead } from "./components/productData";
-import img1 from "../image/product-cover-1.png";
-import img2 from "../image/product-cover-2.png";
-import img3 from "../image/product-cover-3.png";
 import { useCookies } from "../components/utils/helperFunctions";
 import { redirect } from "next/navigation";
+import { getAllProducts } from "../services/AuthService";
+import { showToast } from "../components/utils/helperFunctions";
+import Preloader from "../components/common/Preloader";
+
+interface Product {
+  uuid: string;
+  productName: string;
+  vendorUuid: string;
+  productImageUrl: string;
+  price?: number;
+  quantity?: number;
+  isAvailable?: boolean;
+}
+
+interface ProductsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    salesOverview: number;
+    productsInStock: number;
+    activeProducts: number;
+    productViews: number;
+    totalProductsSold: number;
+    products: {
+      content: Product[];
+      pageable: {
+        pageNumber: number;
+        pageSize: number;
+      };
+      totalPages: number;
+      totalElements: number;
+    };
+  };
+}
 
 const Products = () => {
-  
   const { getCookie } = useCookies();
-
   const token: any = getCookie("bringAmToken");
-  console.log("loo",token);
+  const [productsData, setProductsData] = useState<ProductsResponse['data'] | null>(null);
+  const [loading, setLoading] = useState(true);
 
   if (!token) {
     return redirect("/");
   }
 
-  const productCardUpData = [
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllProducts();
+      if (response.data.success) {
+        setProductsData(response.data.data);
+      } else {
+        showToast(response.data.message || "Failed to load products", "error");
+        setProductsData(null);
+      }
+    } catch (error: any) {
+      console.error("Error fetching products:", error);
+      let errorMessage = "Failed to load products. Please try again.";
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      showToast(errorMessage, "error");
+      setProductsData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `N ${amount.toLocaleString()}`;
+  };
+
+  const productCardUpData = productsData ? [
     {
       text: "Sales overview",
-      amount: "N 175,650",
+      amount: formatCurrency(productsData.salesOverview),
       timeFrame: "All time",
     },
     {
       text: "Products in stock",
-      amount: "58",
+      amount: productsData.productsInStock.toString(),
     },
     {
       text: "Active Products",
-      amount: "58",
+      amount: productsData.activeProducts.toString(),
     },
-  ];
-  const productCardDownData = [
+  ] : [];
+
+  const productCardDownData = productsData ? [
     {
       text: "Product views",
-      amount: "24",
+      amount: productsData.productViews.toString(),
       timeFrame: "All time",
     },
     {
       text: "Total products sold",
-      amount: "58",
+      amount: productsData.totalProductsSold.toString(),
     },
     {
       text: "Active Products",
-      amount: "58",
+      amount: productsData.activeProducts.toString(),
     },
-  ];
+  ] : [];
 
-  const tableData = [
-    {
-      image: img1,
-      text: "Women’s Turtle neck",
-      price: "N2500",
-      availability: "In Stock",
-      qtyInStock: "14",
-    },
-    {
-      image: img2,
-      text: "Men’s Jacket",
-      price: "N4000",
-      availability: "Out of stock",
-      qtyInStock: "10",
-    },
-    {
-      image: img3,
-      text: "Men’s Vintage Shirt",
-      price: "N1000",
-      availability: "In Stock",
-      qtyInStock: "12",
-    },
-  ];
+  const tableData = productsData?.products?.content?.map((product) => ({
+    image: product.productImageUrl || "/images/placeholder.png",
+    text: product.productName,
+    price: product.price ? formatCurrency(product.price) : "N0",
+    availability: product.isAvailable !== false ? "In Stock" : "Out of stock",
+    qtyInStock: product.quantity?.toString() || "0",
+  })) || [];
+  if (loading) {
+    return (
+      <AppLayout>
+        <Header />
+        <div className="flex justify-center items-center min-h-[400px]">
+          <Preloader height={45} />
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <Header />
-      <div className="flex items-center flex-wrap justify-between mt-[1rem] w-full gap-[1.5rem]">
-        {productCardUpData.map((item, index) => (
-          <div key={index}>
-            <ProductCardUp
-              text={item.text}
-              amount={item.amount}
-              timeFrame={item.timeFrame}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center flex-wrap justify-between mt-[1rem] w-full gap-[1.5rem]">
-        {productCardDownData.map((item, index) => (
-          <div key={index}>
-            <ProductCardDown
-              text={item.text}
-              amount={item.amount}
-              timeFrame={item.timeFrame}
-            />
-          </div>
-        ))}
-      </div>
+      {productCardUpData.length > 0 && (
+        <div className="flex items-center flex-wrap justify-between mt-[1rem] w-full gap-[1.5rem]">
+          {productCardUpData.map((item, index) => (
+            <div key={index}>
+              <ProductCardUp
+                text={item.text}
+                amount={item.amount}
+                timeFrame={item.timeFrame}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      {productCardDownData.length > 0 && (
+        <div className="flex items-center flex-wrap justify-between mt-[1rem] w-full gap-[1.5rem]">
+          {productCardDownData.map((item, index) => (
+            <div key={index}>
+              <ProductCardDown
+                text={item.text}
+                amount={item.amount}
+                timeFrame={item.timeFrame}
+              />
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex items-start flex-wrap md:items-center flex-col md:flex-row justify-between mt-[3rem] gap-[1rem]">
         <button className="rounded-[4px] py-[10px] px-[15px] bg-grayPrimary text-medium text-black2 text-sm">
           All Products
@@ -145,8 +206,9 @@ const Products = () => {
             </tr>
           </thead>
           <tbody>
-            {tableData.map((item, index) => (
-              <tr className="h-[40px]" key={index}>
+            {tableData.length > 0 ? (
+              tableData.map((item, index) => (
+                <tr className="h-[40px]" key={index}>
                 <td className="flex items-center gap-[1rem] py-[1rem] ">
                   <Image
                     src={item.image}
@@ -186,7 +248,14 @@ const Products = () => {
                   </div>
                 </td>
               </tr>
-            ))}
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="text-center py-8">
+                  <p className="text-gray-500">No products found. Add your first product to get started!</p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

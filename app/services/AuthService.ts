@@ -184,17 +184,6 @@ export const createProduct = async (reqBody: object) => {
 };
 
 export const addProductToStore = async (reqBody: object) => {
-  console.log("addProductToStore - Request body:", reqBody);
-  console.log("addProductToStore - Endpoint: PUT /store-products/add-product-to-store");
-  try {
-    const response = await vendorApi.put("/store-products/add-product-to-store", reqBody);
-    console.log("addProductToStore - Success response:", response.data);
-    return response;
-  } catch (error: any) {
-    console.error("addProductToStore - Error:", error);
-    console.error("addProductToStore - Error response:", error?.response?.data);
-    console.error("addProductToStore - Error status:", error?.response?.status);
-    console.error("addProductToStore - Error URL:", error?.config?.url);
-    throw error;
-  }
+  const response = await vendorApi.put("/store-products/add-product-to-store", reqBody);
+  return response;
 };

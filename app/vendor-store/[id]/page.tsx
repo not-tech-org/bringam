@@ -24,45 +24,6 @@ interface Product {
   code: string;
 }
 
-const dummyProducts: Product[] = [
-  {
-    id: "1",
-    image: "/images/choc.png",
-    name: "Chocolate bar",
-    price: 2500,
-    quantity: 20,
-    isAvailable: true,
-    code: "#12568",
-  },
-  {
-    id: "2",
-    image: "/images/head.png",
-    name: "Beats Headset",
-    price: 80000,
-    quantity: 8,
-    isAvailable: true,
-    code: "#46892",
-  },
-  {
-    id: "3",
-    image: "/images/choc.png",
-    name: "iPhone 8",
-    price: 90000,
-    quantity: 16,
-    isAvailable: false,
-    code: "#12568",
-  },
-  {
-    id: "4",
-    image: "/images/head.png",
-    name: "Beats Headset",
-    price: 80000,
-    quantity: 8,
-    isAvailable: true,
-    code: "#46892",
-  },
-];
-
 interface OverviewCardProps {
   title: string;
   value: string | number;
@@ -125,7 +86,6 @@ const StorePage = () => {
     try {
       setLoading(true);
       const response = await getStoreById(storeId);
-      console.log("Store data:", response.data);
       setStore(response.data.data || response.data);
     } catch (error) {
       console.error("Error fetching store data:", error);
@@ -148,15 +108,7 @@ const StorePage = () => {
   }) => {
     setAddProductLoading(true);
     try {
-      console.log("Adding product to store with data:", data);
-      console.log("Request body:", {
-        productUuid: data.productUuid,
-        storeUuid: data.storeUuid,
-        quantity: data.quantity,
-        price: data.price,
-      });
       const response = await addProductToStore(data);
-      console.log("Product added to store successfully:", response.data);
       
       showToast("Product added to store successfully!", "success");
       
@@ -326,8 +278,13 @@ const StorePage = () => {
           </div>
           <Table
             columns={columns}
-            data={store.products || dummyProducts}
-            onRowClick={(product) => console.log("Clicked product:", product)}
+            data={store.products || []}
+            emptyState={
+              <div className="text-center py-8">
+                <p className="text-gray-500">No products in this store yet.</p>
+                <p className="text-sm text-gray-400 mt-2">Add products to get started.</p>
+              </div>
+            }
           />
         </div>
       </div>
