@@ -297,6 +297,85 @@ const validateForm = () => {
 
 ## Loading States
 
+### Skeleton Loading (Preferred for Page Loads)
+**Use skeleton loading for initial page loads to prevent layout shift and improve perceived performance.**
+
+**Components Available:**
+- `Skeleton` - Base skeleton component
+- `SkeletonCard` - For store/product cards
+- `SkeletonOverviewCard` - For metric/overview cards
+- `SkeletonTable` - For table structures
+- `SkeletonTableRow` - For individual table rows
+
+**Usage:**
+```tsx
+import { SkeletonCard, SkeletonOverviewCard, SkeletonTable } from "@/app/components/common/Skeleton";
+
+// For card grids
+{loading ? (
+  <>
+    {Array.from({ length: 6 }).map((_, index) => (
+      <SkeletonCard key={index} />
+    ))}
+  </>
+) : (
+  items.map((item) => <Card key={item.id} {...item} />)
+)}
+
+// For overview cards
+{loading ? (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {Array.from({ length: 3 }).map((_, index) => (
+      <SkeletonOverviewCard key={index} />
+    ))}
+  </div>
+) : (
+  overviewData.map((data) => <OverviewCard {...data} />)
+)}
+
+// For tables
+{loading ? (
+  <SkeletonTable rows={5} columns={4} />
+) : (
+  <Table columns={columns} data={data} />
+)}
+```
+
+**Best Practices:**
+1. **Always use `hasFetched` flag** to distinguish between "loading" and "actually empty"
+2. Show skeletons during initial load, not empty state
+3. Match skeleton count to expected content (e.g., 6 cards, 5 table rows)
+4. Use skeleton components that match the final layout structure
+
+**Pattern:**
+```tsx
+const [loading, setLoading] = useState(true); // Start as true
+const [hasFetched, setHasFetched] = useState(false);
+
+const fetchData = async () => {
+  try {
+    setLoading(true);
+    const response = await apiCall();
+    setData(response.data);
+  } catch (error) {
+    console.error("Error:", error);
+    setData([]);
+  } finally {
+    setLoading(false);
+    setHasFetched(true); // Mark as fetched
+  }
+};
+
+// In render:
+{loading ? (
+  <Skeletons />
+) : data.length > 0 ? (
+  <Content />
+) : hasFetched ? (
+  <EmptyState />
+) : null}
+```
+
 ### Button Loading
 Use `isLoading` prop on `Button` component:
 ```tsx
@@ -305,8 +384,8 @@ Use `isLoading` prop on `Button` component:
 </Button>
 ```
 
-### Page/Component Loading
-Use `Preloader` component:
+### Page/Component Loading (Simple cases)
+Use `Preloader` component for simple loading states:
 ```tsx
 {loading ? (
   <Preloader height={45} />

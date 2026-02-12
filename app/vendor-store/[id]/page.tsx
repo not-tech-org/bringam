@@ -13,6 +13,7 @@ import Modal from "@/app/components/common/Modal";
 import AddProductToStore from "@/app/components/store/forms/AddProductToStore";
 import { getStoreById, addProductToStore } from "@/app/services/AuthService";
 import { showToast } from "@/app/components/utils/helperFunctions";
+import { SkeletonOverviewCard, SkeletonTable } from "@/app/components/common/Skeleton";
 
 interface Product {
   id: string;
@@ -215,8 +216,22 @@ const StorePage = () => {
   if (loading) {
     return (
       <Wrapper>
-        <div className="p-8 flex justify-center items-center">
-          <p className="text-gray-500">Loading store data...</p>
+        <div className="p-8 space-y-8">
+          {/* Header Skeleton */}
+          <div>
+            <div className="h-8 bg-gray-200 rounded-md w-64 mb-2 animate-pulse" />
+            <div className="h-5 bg-gray-200 rounded-md w-96 animate-pulse" />
+          </div>
+
+          {/* Overview Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <SkeletonOverviewCard key={index} />
+            ))}
+          </div>
+
+          {/* Table Skeleton */}
+          <SkeletonTable rows={5} columns={5} />
         </div>
       </Wrapper>
     );

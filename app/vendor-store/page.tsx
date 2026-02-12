@@ -23,6 +23,7 @@ import Image from "next/image";
 import Link from "next/link";
 import StoreCardMenu from "../components/common/StoreCardMenu";
 import { StoreFormData, StoreData, Country, State, City } from "../types";
+import { SkeletonCard } from "../components/common/Skeleton";
 
 const VendorStore = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -37,7 +38,8 @@ const VendorStore = () => {
   const [countries, setCountries] = useState<Country[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
@@ -419,6 +421,7 @@ const VendorStore = () => {
       setStores([]);
     } finally {
       setLoading(false);
+      setHasFetched(true);
     }
   };
 
@@ -599,9 +602,11 @@ const VendorStore = () => {
           {/* Store Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
-              <div className="col-span-full flex justify-center items-center py-8">
-                <p className="text-[#666668]">Loading stores...</p>
-              </div>
+              <>
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <SkeletonCard key={index} />
+                ))}
+              </>
             ) : stores.length > 0 ? (
               stores.map((store) => (
                 <div key={store.id || store.uuid} className="relative">
@@ -686,7 +691,7 @@ const VendorStore = () => {
                   </div>
                 </div>
               ))
-            ) : (
+            ) : hasFetched ? (
               <div className="col-span-full flex flex-col justify-center items-center py-12">
                 <Image
                   src="/icons/store.svg"
@@ -699,7 +704,7 @@ const VendorStore = () => {
                   No stores found. Create your first store to get started!
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </Wrapper>
