@@ -87,10 +87,11 @@ export const forgotPasswordOtpVerifyApi = async (otp: string) => {
 };
 
 export const resetPasswordApi = async (data: {
-  newPassword: string;
-  confirmNewPassword: string;
+  otp: string;
+  password: string;
+  confirmPassword: string;
 }) => {
-  const response = await authApi.post("/forgot-password/reset-password", data);
+  const response = await authApi.post("/forgot-password/reset-password-with-otp", data);
   return response;
 };
 
@@ -179,5 +180,10 @@ export const getAllProductCategories = async () => {
 
 export const createProduct = async (reqBody: object) => {
   const response = await vendorApi.post("/products/create-product", reqBody);
+  return response;
+};
+
+export const addProductToStore = async (reqBody: object) => {
+  const response = await vendorApi.put("/store-products/add-product-to-store", reqBody);
   return response;
 };

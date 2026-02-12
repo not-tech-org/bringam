@@ -45,3 +45,17 @@ export interface Product {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// Store-Product linking types
+export interface AddProductToStoreRequest {
+  productUuid: string;
+  storeUuid: string;
+  quantity: number;
+  price: number;
+}
+
+export interface AddProductToStoreResponse {
+  success: boolean;
+  message: string;
+  data: any;
+}

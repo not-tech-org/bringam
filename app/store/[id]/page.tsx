@@ -1,67 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import Wrapper from "../../components/wrapper/Wrapper";
 import Image from "next/image";
 import Button from "../../components/common/Button";
 import { FaArrowLeft, FaPhone, FaMapMarkerAlt, FaClock, FaStar, FaHeart, FaShare, FaShoppingCart } from "react-icons/fa";
 import { useCart } from "../../contexts/CartContext";
+import { toggleWishlistItemApi } from "../../services/WishlistService";
+import { showToast } from "../../components/utils/helperFunctions";
 import { motion } from "framer-motion";
-
-// Mock data - will be replaced with API integration later
-const mockStoreData = {
-  id: "1",
-  name: "Fashion Hub",
-  description: "Premium Fashion Store offering the latest trends and styles",
-  category: "Fashion",
-  rating: 4.8,
-  totalRatings: 128,
-  isOpen: true,
-  openTime: "9:00 AM - 9:00 PM",
-  phoneNumber: "+234 801 234 5678",
-  email: "info@fashionhub.com",
-  website: "www.fashionhub.com",
-  address: {
-    street: "123 Fashion Street",
-    city: "Lagos",
-    state: "Lagos State",
-    landmark: "Near Victoria Island Mall"
-  },
-  coverPhotoUrl: "/images/stores/fashion-store-cover.jpg",
-  profilePhotoUrl: "/images/stores/fashion-store.jpg",
-  active: true,
-  products: [
-    {
-      id: "1",
-      name: "Designer Dress",
-      price: "N25,000",
-      image: "/images/products/dress1.jpg",
-      category: "Dresses"
-    },
-    {
-      id: "2", 
-      name: "Casual Shirt",
-      price: "N8,500",
-      image: "/images/products/shirt1.jpg",
-      category: "Shirts"
-    },
-    {
-      id: "3",
-      name: "Formal Pants",
-      price: "N15,000", 
-      image: "/images/products/pants1.jpg",
-      category: "Pants"
-    },
-    {
-      id: "4",
-      name: "Summer Dress",
-      price: "N12,000",
-      image: "/images/products/dress2.jpg", 
-      category: "Dresses"
-    }
-  ]
-};
+import { getStoreById } from "../../services/CustomerService";
+import { SkeletonCard } from "../../components/common/Skeleton";
 
 // Animation variants
 const pageVariants = {
@@ -118,9 +69,34 @@ const StorePage = () => {
   const router = useRouter();
   const { addToCart } = useCart();
   const storeId = params.id as string;
-  
-  // For now, we'll use mock data. Later this will be replaced with API call
-  const store = mockStoreData;
+  const [store, setStore] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
+  const [addingToWishlist, setAddingToWishlist] = useState<Set<string>>(new Set());
+
+  const fetchStoreData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getStoreById(storeId);
+      setStore(response.data.data || response.data);
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to load store. Please try again.";
+      showToast(errorMessage, "error");
+      setStore(null);
+    } finally {
+      setLoading(false);
+      setHasFetched(true);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    if (storeId) {
+      fetchStoreData();
+    }
+  }, [storeId, fetchStoreData]);
 
   const handleBackToStores = () => {
     router.push('/all');
@@ -133,23 +109,131 @@ const StorePage = () => {
       const numericPrice = parseFloat(priceString.replace(/[^\d.]/g, ''));
       
       if (isNaN(numericPrice) || numericPrice <= 0) {
-        console.error('Invalid price format:', product.price);
+        showToast("Invalid product price", "error");
         return;
       }
 
       addToCart({
-        productId: product.id,
-        storeId: store.id,
+        productId: product.id || product.uuid,
+        storeProductUuid: product.storeProductUuid || product.uuid,
+        storeId: store.id || store.uuid,
         storeName: store.name,
-        name: product.name,
+        name: product.name || product.productName,
         price: numericPrice,
-        image: product.image,
-        category: product.category,
+        image: product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
+        category: product.category || product.productCategory,
       });
     } catch (error) {
-      console.error('Error adding item to cart:', error);
+      showToast("Failed to add item to cart", "error");
     }
   };
+
+  // Helper to resolve storeProductUuid from product
+  const resolveStoreProductUuid = (product: any): string | null => {
+    // Try multiple possible field names (API might use different field names)
+    return (
+      product.storeProductUuid ||
+      product.uuid ||
+      product.productUuid ||
+      product.id ||
+      null
+    );
+  };
+
+  const handleToggleWishlist = async (product: any) => {
+    const storeProductUuid = resolveStoreProductUuid(product);
+    const productId = product.id || product.uuid || "";
+
+    if (!storeProductUuid) {
+      showToast("Unable to add to wishlist: missing product identifier", "error");
+      return;
+    }
+
+    setAddingToWishlist((prev) => new Set(prev).add(productId));
+
+    try {
+      const response = await toggleWishlistItemApi(storeProductUuid);
+
+      if (response.success) {
+        // Determine if item was added or removed based on message or API response
+        // For now, we'll show a generic success message
+        const message = response.message || "Item added to wishlist";
+        const isAdded = message.toLowerCase().includes("add") || 
+                       message.toLowerCase().includes("success");
+        
+        showToast(
+          isAdded ? "Item added to wishlist" : "Item removed from wishlist",
+          "success"
+        );
+      } else {
+        throw new Error(response.message || "Failed to update wishlist");
+      }
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to update wishlist. Please try again.";
+      showToast(errorMessage, "error");
+    } finally {
+      setAddingToWishlist((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <Wrapper>
+        <div className="bg-white min-h-screen p-6">
+          <div className="mb-6">
+            <div className="h-8 bg-gray-200 rounded-md w-32 mb-4 animate-pulse" />
+          </div>
+          <div className="relative h-64 w-full bg-gray-200 rounded-lg mb-6 animate-pulse" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <SkeletonCard key={index} />
+            ))}
+          </div>
+        </div>
+      </Wrapper>
+    );
+  }
+
+  // Error state
+  if (!store && hasFetched) {
+    return (
+      <Wrapper>
+        <div className="bg-white min-h-screen px-4 py-8">
+          <Button
+            type="button"
+            style="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4"
+            onClick={() => router.push('/all')}
+          >
+            <FaArrowLeft className="h-4 w-4" />
+            Back to Stores
+          </Button>
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="text-center max-w-md">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                Store not found
+              </h2>
+              <p className="text-gray-600 mb-8">
+                The store you&apos;re looking for doesn&apos;t exist or has been removed.
+              </p>
+              <Button type="button" primary onClick={() => router.push('/all')}>
+                Back to Stores
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Wrapper>
+    );
+  }
+
+  if (!store) return null;
 
   return (
     <Wrapper>
@@ -182,7 +266,7 @@ const StorePage = () => {
           {/* Cover Photo */}
           <div className="relative h-64 w-full">
             <Image
-              src={store.coverPhotoUrl || "/images/placeholder-cover.jpg"}
+              src={store.coverPhotoUrl || store.coverImageUrl || "/images/placeholder-cover.jpg"}
               alt={`${store.name} cover`}
               fill
               className="object-cover"
@@ -198,7 +282,7 @@ const StorePage = () => {
                 {/* Store Logo */}
                 <div className="relative w-20 h-20 rounded-lg overflow-hidden border-4 border-white shadow-xl">
                   <Image
-                    src={store.profilePhotoUrl || "/images/placeholder.png"}
+                    src={store.profilePhotoUrl || store.profileImageUrl || "/images/placeholder.png"}
                     alt={`${store.name} logo`}
                     fill
                     className="object-cover"
@@ -331,25 +415,56 @@ const StorePage = () => {
               animate="animate"
               transition={{ type: "spring", duration: 0.5 }}
             >
-              {store.products.map((product) => (
+              {store.products && store.products.length > 0 ? (
+                store.products.map((product: any) => (
                 <motion.div 
                   key={product.id} 
-                  className="bg-white rounded-lg border hover:shadow-md transition-shadow"
+                  className="bg-white rounded-lg border hover:shadow-md transition-shadow relative"
                   variants={productVariants}
                   whileHover="hover"
                 >
-                  <div className="relative h-32 w-full">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className=" rounded-t-lg"
+                  {/* Wishlist button */}
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleWishlist(product);
+                    }}
+                    disabled={addingToWishlist.has(product.id || "")}
+                    className="absolute top-2 right-2 z-10 p-2 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <FaHeart
+                      className={`h-4 w-4 ${
+                        addingToWishlist.has(product.id || "")
+                          ? "text-gray-400"
+                          : "text-red-500"
+                      }`}
                     />
-                  </div>
-                  <div className="p-3">
-                    <h4 className="font-medium text-sm text-gray-900 truncate">{product.name}</h4>
-                    <p className="text-sm text-gray-600">{product.category}</p>
-                    <p className="font-semibold text-blue-600 mt-1">{product.price}</p>
+                  </motion.button>
+
+                  <Link href={`/product/${product.id || product.uuid || product.storeProductUuid}`}>
+                    <div className="cursor-pointer">
+                      <div className="relative h-32 w-full">
+                        <Image
+                          src={product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png"}
+                          alt={product.name}
+                          fill
+                          className=" rounded-t-lg"
+                        />
+                      </div>
+                      <div className="p-3">
+                        <h4 className="font-medium text-sm text-gray-900 truncate hover:text-[#3c4948] transition-colors">
+                          {product.name || product.productName}
+                        </h4>
+                        <p className="text-sm text-gray-600">{product.category || product.productCategory || "Product"}</p>
+                        <p className="font-semibold text-blue-600 mt-1">
+                          {product.price ? (typeof product.price === 'string' ? product.price : `₦${product.price.toLocaleString()}`) : "Price not available"}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                  <div className="p-3 pt-0">
                     <motion.div
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -367,7 +482,12 @@ const StorePage = () => {
                     </motion.div>
                   </div>
                 </motion.div>
-              ))}
+                ))
+              ) : (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-gray-500">No products available in this store yet.</p>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         </motion.div>

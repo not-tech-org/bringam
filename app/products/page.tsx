@@ -10,7 +10,9 @@ import Button from "../components/common/Button";
 import Link from "next/link";
 import { getAllProducts } from "../services/AuthService";
 import { showToast } from "@/app/components/utils/helperFunctions";
-import ProductOverviewCard, { getOverviewCards } from "../components/products/ProductOverviewCard";
+import OverviewCard from "../components/common/OverviewCard";
+import { getOverviewCards } from "../components/products/ProductOverviewCard";
+import { SkeletonOverviewCard } from "../components/common/Skeleton";
 
 interface Product {
   uuid: string;
@@ -123,10 +125,16 @@ export default function ProductsPage() {
     <Wrapper>
       <div className="p-6 space-y-6">
         {/* Overview Cards */}
-        {productsData && (
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <SkeletonOverviewCard key={index} />
+            ))}
+          </div>
+        ) : productsData ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             {getOverviewCards(productsData).map((card, index) => (
-              <ProductOverviewCard
+              <OverviewCard
                 key={index}
                 title={card.title}
                 value={card.value}
@@ -134,7 +142,7 @@ export default function ProductsPage() {
               />
             ))}
           </div>
-        )}
+        ) : null}
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <Link href={"/products/add-product"}>

@@ -23,6 +23,9 @@ type InputProps = {
   prefix?: string;
   suffix?: string;
   helperText?: string;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
 };
 
 const Input: React.FC<InputProps> = ({
@@ -42,6 +45,9 @@ const Input: React.FC<InputProps> = ({
   prefix,
   suffix,
   helperText,
+  min,
+  max,
+  step,
 }) => {
   // Add state for password visibility
   const [showPassword, setShowPassword] = useState(false);
@@ -98,6 +104,9 @@ const Input: React.FC<InputProps> = ({
           disabled={disabled}
           onKeyUp={onKeyUp}
           onKeyDown={onKeyDown}
+          min={min}
+          max={max}
+          step={step}
           style={{
             backgroundColor: disabled ? "#E5E5E5" : "#F7F7F7",
             height: 64,

@@ -23,6 +23,7 @@ import Image from "next/image";
 import Link from "next/link";
 import StoreCardMenu from "../components/common/StoreCardMenu";
 import { StoreFormData, StoreData, Country, State, City } from "../types";
+import { SkeletonCard } from "../components/common/Skeleton";
 
 const VendorStore = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -37,7 +38,8 @@ const VendorStore = () => {
   const [countries, setCountries] = useState<Country[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
@@ -197,7 +199,6 @@ const VendorStore = () => {
 
     try {
       const response = await createVendorStore(reqBody);
-      console.log("Store created successfully:", response.data);
 
       // Reset form
       setState((prevState) => ({
@@ -258,7 +259,6 @@ const VendorStore = () => {
     try {
       setEditLoading(true);
       const response = await updateVendorStore(editingStoreId, reqBody);
-      console.log("Store updated successfully:", response.data);
 
       // Refresh stores list after updating
       if (vendorUuid) {
@@ -328,7 +328,6 @@ const VendorStore = () => {
 
   const handleAddMember = (storeId: string) => {
     // TODO: Implement add member functionality
-    console.log("Add member", storeId);
   };
 
   const handleDeactivateStore = (storeId: string) => {
@@ -363,7 +362,6 @@ const VendorStore = () => {
     try {
       setDeactivateLoading(true);
       const response = await deactivateVendorStore(deactivatingStoreId);
-      console.log("Store deactivated successfully:", response.data);
 
       // Show success feedback to user
       const { showToast } = await import("../components/utils/helperFunctions");
@@ -400,12 +398,10 @@ const VendorStore = () => {
   const fetchUserProfile = async () => {
     try {
       const response = await getUserProfile();
-      console.log(response);
 
       // Extract vendorUuid from the response
       if (response.data.data.vendorResp && response.data.data.vendorResp.uuid) {
         const uuid = response.data.data.vendorResp.uuid;
-        console.log("UUID", uuid);
         setVendorUuid(uuid);
         // Fetch stores for this vendor
         await fetchVendorStores(uuid);
@@ -419,20 +415,19 @@ const VendorStore = () => {
     try {
       setLoading(true);
       const response = await getAllStores(uuid);
-      console.log("Vendor stores:", response.data.data);
       setStores(response.data.data || []);
     } catch (error) {
       console.error("Error fetching vendor stores:", error);
       setStores([]);
     } finally {
       setLoading(false);
+      setHasFetched(true);
     }
   };
 
   const fetchCountries = async () => {
     try {
       const response = await getAllCountries();
-      console.log("Countries:", response.data);
       setCountries(response.data.data || []);
     } catch (error) {
       console.error("Error fetching countries:", error);
@@ -443,7 +438,6 @@ const VendorStore = () => {
   const fetchStates = async (countryId: string | number) => {
     try {
       const response = await getStatesByCountryId(countryId);
-      console.log("States:", response.data);
       setStates(response.data.data || []);
     } catch (error) {
       console.error("Error fetching states:", error);
@@ -454,7 +448,6 @@ const VendorStore = () => {
   const fetchCities = async (stateId: string | number) => {
     try {
       const response = await getCitiesByStateId(stateId);
-      console.log("Cities:", response.data);
       setCities(response.data.data || []);
     } catch (error) {
       console.error("Error fetching cities:", error);
@@ -543,6 +536,7 @@ const VendorStore = () => {
   useEffect(() => {
     fetchUserProfile();
     fetchCountries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -608,9 +602,11 @@ const VendorStore = () => {
           {/* Store Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
-              <div className="col-span-full flex justify-center items-center py-8">
-                <p className="text-[#666668]">Loading stores...</p>
-              </div>
+              <>
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <SkeletonCard key={index} />
+                ))}
+              </>
             ) : stores.length > 0 ? (
               stores.map((store) => (
                 <div key={store.id || store.uuid} className="relative">
@@ -695,7 +691,7 @@ const VendorStore = () => {
                   </div>
                 </div>
               ))
-            ) : (
+            ) : hasFetched ? (
               <div className="col-span-full flex flex-col justify-center items-center py-12">
                 <Image
                   src="/icons/store.svg"
@@ -708,7 +704,7 @@ const VendorStore = () => {
                   No stores found. Create your first store to get started!
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </Wrapper>
