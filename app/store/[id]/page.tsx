@@ -12,6 +12,8 @@ import { toggleWishlistItemApi } from "../../services/WishlistService";
 import { showToast } from "../../components/utils/helperFunctions";
 import { motion } from "framer-motion";
 import { getStoreById } from "../../services/CustomerService";
+import { getStoreProductsByStore } from "../../services/AuthService";
+import type { StoreProductResp } from "../../types/storeProduct";
 import { SkeletonCard } from "../../components/common/Skeleton";
 
 // Animation variants
@@ -73,12 +75,22 @@ const StorePage = () => {
   const [loading, setLoading] = useState(true);
   const [hasFetched, setHasFetched] = useState(false);
   const [addingToWishlist, setAddingToWishlist] = useState<Set<string>>(new Set());
+  const [storeProducts, setStoreProducts] = useState<StoreProductResp[]>([]);
 
   const fetchStoreData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getStoreById(storeId);
       setStore(response.data.data || response.data);
+
+      // Fetch store products from vendor-service
+      const productsResp = await getStoreProductsByStore({
+        storeUuid: storeId,
+        pageNo: 0,
+        pageSize: 50,
+      });
+      const content = productsResp?.data?.content || [];
+      setStoreProducts(content);
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.message ||
@@ -86,6 +98,7 @@ const StorePage = () => {
         "Failed to load store. Please try again.";
       showToast(errorMessage, "error");
       setStore(null);
+      setStoreProducts([]);
     } finally {
       setLoading(false);
       setHasFetched(true);
@@ -105,7 +118,7 @@ const StorePage = () => {
   const handleAddToCart = (product: any) => {
     try {
       // Improved price parsing with error handling
-      const priceString = product.price.toString();
+      const priceString = (product.price ?? "").toString();
       const numericPrice = parseFloat(priceString.replace(/[^\d.]/g, ''));
       
       if (isNaN(numericPrice) || numericPrice <= 0) {
@@ -114,14 +127,14 @@ const StorePage = () => {
       }
 
       addToCart({
-        productId: product.id || product.uuid,
-        storeProductUuid: product.storeProductUuid || product.uuid,
-        storeId: store.id || store.uuid,
+        productId: product.productUuid || product.id || product.uuid,
+        storeProductUuid: product.productUuid || product.storeProductUuid || product.uuid,
+        storeId: store.id || store.uuid || product.storeId?.toString?.() || product.storeId,
         storeName: store.name,
-        name: product.name || product.productName,
+        name: product.productName || product.name,
         price: numericPrice,
-        image: product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
-        category: product.category || product.productCategory,
+        image: (product.productImages && product.productImages[0]) || product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
+        category: product.category || product.productCategory || "Product",
       });
     } catch (error) {
       showToast("Failed to add item to cart", "error");
@@ -132,9 +145,9 @@ const StorePage = () => {
   const resolveStoreProductUuid = (product: any): string | null => {
     // Try multiple possible field names (API might use different field names)
     return (
+      product.productUuid ||
       product.storeProductUuid ||
       product.uuid ||
-      product.productUuid ||
       product.id ||
       null
     );
@@ -142,7 +155,7 @@ const StorePage = () => {
 
   const handleToggleWishlist = async (product: any) => {
     const storeProductUuid = resolveStoreProductUuid(product);
-    const productId = product.id || product.uuid || "";
+    const productId = product.productUuid || product.id || product.uuid || "";
 
     if (!storeProductUuid) {
       showToast("Unable to add to wishlist: missing product identifier", "error");
@@ -415,10 +428,10 @@ const StorePage = () => {
               animate="animate"
               transition={{ type: "spring", duration: 0.5 }}
             >
-              {store.products && store.products.length > 0 ? (
-                store.products.map((product: any) => (
+              {storeProducts && storeProducts.length > 0 ? (
+                storeProducts.map((product: any) => (
                 <motion.div 
-                  key={product.id} 
+                  key={product.productUuid || product.id} 
                   className="bg-white rounded-lg border hover:shadow-md transition-shadow relative"
                   variants={productVariants}
                   whileHover="hover"
@@ -429,37 +442,37 @@ const StorePage = () => {
                       e.stopPropagation();
                       handleToggleWishlist(product);
                     }}
-                    disabled={addingToWishlist.has(product.id || "")}
+                    disabled={addingToWishlist.has(product.productUuid || product.id || "")}
                     className="absolute top-2 right-2 z-10 p-2 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
                     <FaHeart
                       className={`h-4 w-4 ${
-                        addingToWishlist.has(product.id || "")
+                        addingToWishlist.has(product.productUuid || product.id || "")
                           ? "text-gray-400"
                           : "text-red-500"
                       }`}
                     />
                   </motion.button>
 
-                  <Link href={`/product/${product.id || product.uuid || product.storeProductUuid}`}>
+                  <Link href={`/product/${product.productUuid || product.id || product.uuid || product.storeProductUuid}`}>
                     <div className="cursor-pointer">
                       <div className="relative h-32 w-full">
                         <Image
-                          src={product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png"}
-                          alt={product.name}
+                          src={(product.productImages && product.productImages[0]) || product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png"}
+                          alt={product.productName || product.name}
                           fill
                           className=" rounded-t-lg"
                         />
                       </div>
                       <div className="p-3">
                         <h4 className="font-medium text-sm text-gray-900 truncate hover:text-[#3c4948] transition-colors">
-                          {product.name || product.productName}
+                          {product.productName || product.name}
                         </h4>
                         <p className="text-sm text-gray-600">{product.category || product.productCategory || "Product"}</p>
                         <p className="font-semibold text-blue-600 mt-1">
-                          {product.price ? (typeof product.price === 'string' ? product.price : `₦${product.price.toLocaleString()}`) : "Price not available"}
+                          {product.price != null ? (typeof product.price === 'string' ? product.price : `₦${Number(product.price).toLocaleString()}`) : "Price not available"}
                         </p>
                       </div>
                     </div>
