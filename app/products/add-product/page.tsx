@@ -43,7 +43,6 @@ export default function AddProductPage() {
     const fetchCategories = async () => {
       try {
         const response = await getAllProductCategories();
-        console.log("Categories:", response.data);
         setCategories(response?.data?.data?.options || []);
       } catch (error) {
         console.error("Error fetching categories:", error);
@@ -54,7 +53,7 @@ export default function AddProductPage() {
     fetchCategories();
   }, []);
 
-  console.log("Categories:", categories);
+  // categories loaded via API
 
   // Convert file to base64 and remove the data URL prefix
   const convertToBase64 = (file: File): Promise<string> => {
@@ -93,7 +92,6 @@ export default function AddProductPage() {
         setUploadedImages(imageUrls);
 
         showToast("Images uploaded successfully", "success");
-        console.log("Images uploaded successfully");
       } catch (error) {
         console.error("Error converting image to base64:", error);
         showToast("Failed to upload images", "error");
@@ -151,10 +149,8 @@ export default function AddProductPage() {
 
     try {
       setLoading(true);
-      console.log("Form Data:", formData);
 
       const response = await createProduct(formData);
-      console.log("Product created successfully:", response.data);
 
       // Show success message
       showToast("Product created successfully!", "success");

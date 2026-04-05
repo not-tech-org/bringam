@@ -62,7 +62,6 @@ export default function ProductsPage() {
     try {
       setLoading(true);
       const response = await getAllProducts();
-      console.log("Products:", response.data);
       if (response.data.success) {
         setProductsData(response.data.data);
       } else {
@@ -176,7 +175,7 @@ export default function ProductsPage() {
                 columns={columns}
                 data={productsData.products.content}
                 onRowClick={(product) =>
-                  console.log("Clicked product:", product)
+                  // click handler
                 }
               />
               <Pagination

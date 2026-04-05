@@ -50,7 +50,6 @@ const AddProductToStore: React.FC<AddProductToStoreProps> = ({
     setLoadingProducts(true);
     try {
       const response = await getAllProducts();
-      console.log("Products API response:", response.data);
       
       // Extract products from paginated response structure
       // Response structure: { success: true, data: { products: { content: Product[] } } }
@@ -71,7 +70,6 @@ const AddProductToStore: React.FC<AddProductToStoreProps> = ({
         }
       }
       
-      console.log("Processed products array:", productsArray);
       setProducts(productsArray);
       
       if (productsArray.length === 0) {
