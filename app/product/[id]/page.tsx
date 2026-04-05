@@ -63,10 +63,10 @@ const ProductDetailPage = () => {
   const resolveStoreProductId = (product: any): string | null => {
     // Try multiple possible field names (API might use different field names)
     return (
-      product?.storeProductId ||
-      product?.storeProductUuid ||
-      product?.uuid ||
       product?.productUuid ||
+      product?.storeProductUuid ||
+      product?.storeProductId ||
+      product?.uuid ||
       product?.id ||
       null
     );
