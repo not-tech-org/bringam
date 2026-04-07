@@ -11,8 +11,7 @@ import { useCart } from "../../contexts/CartContext";
 import { toggleWishlistItemApi } from "../../services/WishlistService";
 import { showToast } from "../../components/utils/helperFunctions";
 import { motion } from "framer-motion";
-import { getStoreById } from "../../services/CustomerService";
-import { getStoreProductsByStore } from "../../services/AuthService";
+import { getStoreById, getStoreProductsByStore } from "../../services/AuthService";
 import type { StoreProductResp } from "../../types/storeProduct";
 import { SkeletonCard } from "../../components/common/Skeleton";
 
@@ -80,6 +79,8 @@ const StorePage = () => {
   const fetchStoreData = useCallback(async () => {
     try {
       setLoading(true);
+      // Temporary backend alignment: customer-facing store details are served from vendor-service.
+      // Revert to CustomerService.getStoreById once customer-service endpoint is ready.
       const response = await getStoreById(storeId);
       setStore(response.data.data || response.data);
 
@@ -373,8 +374,14 @@ const StorePage = () => {
                 <div className="flex items-center gap-3">
                   <FaMapMarkerAlt className="h-4 w-4 text-gray-500" />
                   <div>
-                    <p className="text-sm font-medium">{store.address.street}</p>
-                    <p className="text-xs text-gray-500">{store.address.city}, {store.address.state}</p>
+                    <p className="text-sm font-medium">
+                      {store.address?.street || "Address not available"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {store.address?.city && store.address?.state
+                        ? `${store.address.city}, ${store.address.state}`
+                        : store.address?.city || store.address?.state || ""}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -458,15 +465,15 @@ const StorePage = () => {
 
                   <Link href={`/product/${product.productUuid || product.id || product.uuid || product.storeProductUuid}`}>
                     <div className="cursor-pointer">
-                      <div className="relative h-32 w-full">
-                        <Image
+                  <div className="relative h-32 w-full">
+                    <Image
                           src={(product.productImages && product.productImages[0]) || product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png"}
                           alt={product.productName || product.name}
-                          fill
-                          className=" rounded-t-lg"
-                        />
-                      </div>
-                      <div className="p-3">
+                      fill
+                      className=" rounded-t-lg"
+                    />
+                  </div>
+                  <div className="p-3">
                         <h4 className="font-medium text-sm text-gray-900 truncate hover:text-[#3c4948] transition-colors">
                           {product.productName || product.name}
                         </h4>
