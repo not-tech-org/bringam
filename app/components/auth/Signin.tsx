@@ -115,11 +115,6 @@ const Signin = () => {
           JSON.stringify(response.data.data)
         );
 
-          uuid: customerData.uuid,
-          firstName: customerData.firstName,
-          picture: customerData.picture,
-        });
-
         // Trigger custom event to notify UserContext of localStorage updates
         window.dispatchEvent(new Event("userDataUpdated"));
       }
