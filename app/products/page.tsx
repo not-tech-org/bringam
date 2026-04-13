@@ -174,9 +174,7 @@ export default function ProductsPage() {
               <Table
                 columns={columns}
                 data={productsData.products.content}
-                onRowClick={(product) =>
-                  // click handler
-                }
+                onRowClick={() => {}}
               />
               <Pagination
                 currentPage={currentPage}

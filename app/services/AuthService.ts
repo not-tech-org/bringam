@@ -5,6 +5,7 @@ import type {
   StoreProductPageResponse,
   StoreProductResponse,
 } from "../types/storeProduct";
+import type { CreateProductPayload } from "../types/product";
 
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
@@ -183,7 +184,7 @@ export const getAllProductCategories = async () => {
   return response;
 };
 
-export const createProduct = async (reqBody: object) => {
+export const createProduct = async (reqBody: CreateProductPayload) => {
   const response = await vendorApi.post("/products/create-product", reqBody);
   return response;
 };

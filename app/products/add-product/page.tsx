@@ -12,7 +12,11 @@ import {
 } from "@/app/services/AuthService";
 import { showToast } from "@/app/components/utils/helperFunctions";
 import { useRouter } from "next/navigation";
-import { ProductCategory, ProductFormData } from "@/app/types";
+import {
+  ProductCategory,
+  ProductFormData,
+  CreateProductPayload,
+} from "@/app/types";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -150,7 +154,13 @@ export default function AddProductPage() {
     try {
       setLoading(true);
 
-      const response = await createProduct(formData);
+      const payload: CreateProductPayload = {
+        ...formData,
+        productImages: formData.productImage
+          ? [formData.productImage]
+          : [],
+      };
+      const response = await createProduct(payload);
 
       // Show success message
       showToast("Product created successfully!", "success");
@@ -197,7 +207,7 @@ export default function AddProductPage() {
 
   return (
     <Wrapper>
-      <div className="max-w-3xl mt-[-50px]">
+      <div className="max-w-3xl pt-2 md:pt-4">
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input
             label="Product title"

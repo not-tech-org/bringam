@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { BiPowerOff } from "react-icons/bi";
@@ -94,10 +94,44 @@ const StorePage = () => {
     }
   };
 
+  const storeProducts = useMemo<Product[]>(() => {
+    const products = store?.products;
+    const content = products?.content;
+    const source = Array.isArray(content)
+      ? content
+      : Array.isArray(products)
+      ? products
+      : [];
+
+    return source.map((item: any) => {
+      const quantity = Number(item?.quantity ?? item?.noInStock ?? 0);
+      const availability = item?.availability;
+
+      return {
+        id: String(item?.id ?? item?.uuid ?? item?.productUuid ?? item?.productId ?? ""),
+        image:
+          item?.image ||
+          item?.productImageUrl ||
+          item?.productImages?.[0] ||
+          "/images/placeholder.png",
+        name: item?.name || item?.productName || "Unnamed product",
+        price: Number(item?.price ?? 0),
+        quantity,
+        isAvailable:
+          typeof item?.isAvailable === "boolean"
+            ? item.isAvailable
+            : typeof availability === "string"
+            ? availability === "IN_STOCK"
+            : quantity > 0,
+        code: item?.code || item?.productCode || "-",
+      };
+    });
+  }, [store]);
+
   const overviewData = [
     {
       title: "Active products",
-      value: store?.products?.length || "0",
+      value: storeProducts.length || "0",
       icon: "/icons/box.svg",
     },
     {
@@ -248,7 +282,7 @@ const StorePage = () => {
           </div>
           <Table
             columns={columns}
-            data={store.products || []}
+            data={storeProducts}
             emptyState={
               <div className="text-center py-8">
                 <p className="text-gray-500">No products in this store yet.</p>
