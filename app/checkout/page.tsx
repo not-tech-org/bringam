@@ -9,6 +9,8 @@ import { useCart } from "../contexts/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { showToast } from "../components/utils/helperFunctions";
+import { checkoutApi } from "../services/CartService";
 
 // Animation variants for subtle form interactions
 const pageVariants = {
@@ -46,10 +48,18 @@ const buttonVariants = {
 };
 
 const CheckoutPage = () => {
-  const { cart, getTotalAmount } = useCart();
+  const { cart, apiCartData, fetchCartFromApi } = useCart();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCartItemIds, setSelectedCartItemIds] = useState<string[]>([]);
+  const [checkoutResult, setCheckoutResult] = useState<{
+    subtotal?: number;
+    paymentReference?: string;
+    checkoutSessionId?: string;
+    message?: string;
+  } | null>(null);
+  const CHECKOUT_SELECTION_KEY = "bringam_checkout_selected_items";
 
   // Selected payment method
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'bank' | 'mobile' | null>(null);
@@ -76,9 +86,35 @@ const CheckoutPage = () => {
   const totalSteps = 4;
   const progressPercentage = (currentStep / totalSteps) * 100;
 
+  React.useEffect(() => {
+    const raw = sessionStorage.getItem(CHECKOUT_SELECTION_KEY);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setSelectedCartItemIds(parsed);
+      }
+    } catch {
+      // ignore malformed selection
+    }
+  }, []);
+
   const formatPrice = (price: number) => {
     return `N${price.toLocaleString()}`;
   };
+
+  const selectedSubtotal = cart.stores.reduce(
+    (total, store) =>
+      total +
+      store.items.reduce((storeTotal, item) => {
+        if (selectedCartItemIds.length > 0 && !selectedCartItemIds.includes(item.id)) {
+          return storeTotal;
+        }
+        return storeTotal + item.price * item.quantity;
+      }, 0),
+    0
+  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -161,6 +197,63 @@ const CheckoutPage = () => {
     
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    const selectedSet = new Set(selectedCartItemIds);
+    const cartItemUUIDs = (apiCartData?.cartItems || [])
+      .filter((item) => selectedSet.size === 0 || selectedSet.has(item.id || ""))
+      .map((item) => item.id)
+      .filter((id): id is string => Boolean(id));
+
+    if (cartItemUUIDs.length === 0) {
+      showToast(
+        "Unable to checkout. Your cart items are not synced yet. Please refresh cart and try again.",
+        "warning"
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await checkoutApi({ cartItemUUIDs });
+
+      if (!response.success) {
+        throw new Error(response.message || "Checkout failed. Please try again.");
+      }
+
+      setCheckoutResult({
+        subtotal:
+          response.data?.subtotal ??
+          response.data?.subTotal ??
+          response.data?.amount ??
+          undefined,
+        paymentReference:
+          response.data?.paymentReference ??
+          response.data?.payment_reference ??
+          response.data?.reference ??
+          undefined,
+        checkoutSessionId:
+          response.data?.checkoutSessionId ??
+          response.data?.checkout_session_id ??
+          response.data?.sessionId ??
+          undefined,
+        message: response.message,
+      });
+
+      showToast(response.message || "Checkout successful", "success");
+      await fetchCartFromApi();
+      sessionStorage.removeItem(CHECKOUT_SELECTION_KEY);
+      setCurrentStep(4);
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Checkout failed. Please try again.";
+      showToast(errorMessage, "error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -326,9 +419,33 @@ const CheckoutPage = () => {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h2>
         <p className="text-gray-600 max-w-md">
-          Thank you for your order. We&apos;ve received your order and will begin processing it right away.
+          {checkoutResult?.message || "Thank you for your order. We've received your order and will begin processing it right away."}
         </p>
       </motion.div>
+
+      {(checkoutResult?.paymentReference || checkoutResult?.checkoutSessionId || checkoutResult?.subtotal !== undefined) && (
+        <motion.div
+          variants={itemVariants}
+          className="bg-green-50 border border-green-200 rounded-xl p-6 space-y-3"
+        >
+          <h3 className="font-semibold text-green-900">Checkout Details</h3>
+          {checkoutResult?.paymentReference && (
+            <p className="text-sm text-green-800">
+              Payment Reference: <span className="font-medium">{checkoutResult.paymentReference}</span>
+            </p>
+          )}
+          {checkoutResult?.checkoutSessionId && (
+            <p className="text-sm text-green-800">
+              Checkout Session ID: <span className="font-medium">{checkoutResult.checkoutSessionId}</span>
+            </p>
+          )}
+          {checkoutResult?.subtotal !== undefined && (
+            <p className="text-sm text-green-800">
+              Subtotal: <span className="font-medium">{formatPrice(Number(checkoutResult.subtotal) || 0)}</span>
+            </p>
+          )}
+        </motion.div>
+      )}
 
       {/* Order Information */}
       <motion.div
@@ -587,11 +704,17 @@ const CheckoutPage = () => {
         </div>
         
         <div className="space-y-4">
-          {cart.stores.map((store) => (
+          {cart.stores.map((store) => {
+            const filteredItems = store.items.filter(
+              (item) => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id)
+            );
+            if (filteredItems.length === 0) return null;
+
+            return (
             <div key={store.storeId} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
               <h4 className="font-medium text-gray-900 mb-2">{store.storeName}</h4>
               <div className="space-y-2">
-                {store.items.map((item) => (
+                {filteredItems.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-900">{item.name}</span>
@@ -602,7 +725,8 @@ const CheckoutPage = () => {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </motion.div>
 
@@ -811,11 +935,17 @@ const CheckoutPage = () => {
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
       
       <div className="space-y-3 mb-4">
-        {cart.stores.map((store) => (
+        {cart.stores.map((store) => {
+          const filteredItems = store.items.filter(
+            (item) => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id)
+          );
+          if (filteredItems.length === 0) return null;
+
+          return (
           <div key={store.storeId}>
             <h4 className="font-medium text-gray-900 text-sm">{store.storeName}</h4>
             <div className="ml-2 space-y-1">
-              {store.items.map((item) => (
+              {filteredItems.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm text-gray-600">
                   <span>{item.name} × {item.quantity}</span>
                   <span>{formatPrice(item.price * item.quantity)}</span>
@@ -823,13 +953,14 @@ const CheckoutPage = () => {
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="border-t border-gray-200 pt-4 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Subtotal</span>
-          <span className="text-gray-900">{formatPrice(cart.totalAmount)}</span>
+          <span className="text-gray-900">{formatPrice(selectedSubtotal)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Delivery Fee</span>
@@ -841,7 +972,7 @@ const CheckoutPage = () => {
         </div>
         <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
           <span className="text-gray-900">Total</span>
-          <span className="text-[#3c4948]">{formatPrice(cart.totalAmount + 2500)}</span>
+          <span className="text-[#3c4948]">{formatPrice(selectedSubtotal + 2500)}</span>
         </div>
       </div>
     </motion.div>
@@ -926,43 +1057,45 @@ const CheckoutPage = () => {
           </div>
 
           {/* Navigation Buttons */}
-          <motion.div
-            variants={itemVariants}
-            className="flex justify-between mt-8 pt-6 border-t border-gray-200"
-          >
+          {currentStep < totalSteps && (
             <motion.div
-              whileHover="hover"
-              whileTap="tap"
-              variants={buttonVariants}
+              variants={itemVariants}
+              className="flex justify-between mt-8 pt-6 border-t border-gray-200"
             >
-              <Button
-                type="button"
-                style="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                onClick={handlePrevStep}
-                disabled={currentStep === 1}
+              <motion.div
+                whileHover="hover"
+                whileTap="tap"
+                variants={buttonVariants}
               >
-                <FaArrowLeft className="h-4 w-4" />
-                Previous
-              </Button>
-            </motion.div>
+                <Button
+                  type="button"
+                  style="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                  onClick={handlePrevStep}
+                  disabled={currentStep === 1}
+                >
+                  <FaArrowLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+              </motion.div>
 
-            <motion.div
-              whileHover="hover"
-              whileTap="tap"
-              variants={buttonVariants}
-            >
-              <Button
-                type="button"
-                style="flex items-center gap-2"
-                primary
-                onClick={handleNextStep}
-                isLoading={isLoading}
+              <motion.div
+                whileHover="hover"
+                whileTap="tap"
+                variants={buttonVariants}
               >
-                {currentStep === totalSteps ? "Place Order" : "Continue"}
-                <FaCheck className="h-4 w-4" />
-              </Button>
+                <Button
+                  type="button"
+                  style="flex items-center gap-2"
+                  primary
+                  onClick={currentStep === 3 ? handlePlaceOrder : handleNextStep}
+                  isLoading={isLoading}
+                >
+                  {currentStep === 3 ? "Place Order" : "Continue"}
+                  <FaCheck className="h-4 w-4" />
+                </Button>
+              </motion.div>
             </motion.div>
-          </motion.div>
+          )}
         </div>
       </motion.div>
     </Wrapper>

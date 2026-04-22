@@ -59,6 +59,27 @@ export interface CartApiResponse {
   data: null;
 }
 
+export interface CheckoutRequest {
+  cartItemUUIDs: string[];
+}
+
+export interface CheckoutApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    subtotal?: number;
+    subTotal?: number;
+    amount?: number;
+    paymentReference?: string;
+    payment_reference?: string;
+    reference?: string;
+    checkoutSessionId?: string;
+    checkout_session_id?: string;
+    sessionId?: string;
+    [key: string]: unknown;
+  } | null;
+}
+
 // Get user cart from API
 export const getUserCartApi = async (): Promise<ApiCartResponse> => {
   const response = await cartApi.get("/carts/get-user-cart");
@@ -105,4 +126,12 @@ export const clearCartApi = async (
 ): Promise<CartApiResponse> => {
   // Placeholder - implement when endpoint is available
   throw new Error("Clear cart API endpoint not yet implemented");
+};
+
+// Checkout selected cart items
+export const checkoutApi = async (
+  request: CheckoutRequest
+): Promise<CheckoutApiResponse> => {
+  const response = await cartApi.post("/checkout", request);
+  return response.data;
 };

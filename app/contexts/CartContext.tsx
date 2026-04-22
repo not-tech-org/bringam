@@ -191,8 +191,14 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       if (response.success && response.data) {
         setApiCartData(response.data);
         setHasApiConnection(true);
-        const apiCart = transformApiCartToLocal(response.data.cartItems);
-        setCart(apiCart);
+        const apiCartItems = response.data.cartItems || [];
+        const hasLocalItems = cart.stores.some((store) => store.items.length > 0);
+        const shouldHydrateFromApi = apiCartItems.length > 0 || !hasLocalItems;
+
+        if (shouldHydrateFromApi) {
+          const apiCart = transformApiCartToLocal(apiCartItems);
+          setCart(apiCart);
+        }
         return response.data.uuid;
       }
     } catch (err: any) {
@@ -219,6 +225,8 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     const storeProductUuid = resolveStoreProductUuid(itemData);
 
+    let shouldUseLocalFallback = true;
+
     // Try to add via API first if available
     if (storeProductUuid) {
       try {
@@ -229,30 +237,34 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
             quantity: 1,
           };
           await addItemToCartApi(cartUuid, addRequest);
+          await fetchCartFromApi();
+          shouldUseLocalFallback = false;
         }
-
-        // Refresh cart from API to get updated data
-        await fetchCartFromApi();
       } catch (err: any) {
         console.error("Failed to add item via API, falling back to local:", err);
         setError(prev => ({ 
           ...prev, 
           apiError: err.message || "Failed to add item to server cart" 
         }));
-        // Don't return here - fall back to local addition
       }
     }
 
-    // Update local cart (either as fallback or in addition to API)
-    setCart(prevCart => {
+    // Update local cart only when API sync is unavailable/failed
+    if (shouldUseLocalFallback) {
+      setCart(prevCart => {
       // First, check if the exact product already exists in any store
       let existingItem: CartItem | undefined;
       let existingStoreIndex = -1;
       let existingItemIndex = -1;
 
-      // Search through all stores for the product
+      // Search through all stores for the exact product within the same store
+      // to prevent cross-store item merging.
       prevCart.stores.forEach((store, storeIdx) => {
-        const itemIdx = store.items.findIndex(item => item.productId === itemData.productId);
+        const itemIdx = store.items.findIndex(
+          item =>
+            item.productId === itemData.productId &&
+            item.storeId === itemData.storeId
+        );
         if (itemIdx !== -1) {
           existingItem = store.items[itemIdx];
           existingStoreIndex = storeIdx;
@@ -318,15 +330,12 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         totalAmount,
         lastUpdated: new Date().toISOString(),
       };
-    });
+      });
+    }
 
-    // Reset loading state and flag
+    // Reset loading state and adding guard
     setLoading(prev => ({ ...prev, isUpdating: false }));
-
-    // Reset the flag after a short delay
-    setTimeout(() => {
-      isAddingRef.current = false;
-    }, 100);
+    isAddingRef.current = false;
   };
 
   const removeFromCart = async (itemId: string) => {
@@ -334,10 +343,12 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setLoading(prev => ({ ...prev, isUpdating: true }));
     clearErrors();
 
+    let shouldUseLocalFallback = true;
+
     // Try to remove via API first if available
     if (hasApiConnection) {
       try {
-        // Find the item to get its productId for the API call
+        // Find the item to get its storeProductUuid for the API call
         let storeProductUuid = null;
         for (const store of cart.stores) {
           const item = store.items.find(item => item.id === itemId);
@@ -351,12 +362,9 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           const cartUuid = await ensureApiCartUuid();
           if (cartUuid) {
             await removeCartItemApi(cartUuid, storeProductUuid);
+            await fetchCartFromApi();
+            shouldUseLocalFallback = false;
           }
-
-          // Refresh cart from API to get updated data
-          await fetchCartFromApi();
-        } else {
-          // skip warn: local remove will proceed
         }
       } catch (err: any) {
         console.error("Failed to remove item via API, using local remove:", err);
@@ -367,8 +375,9 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       }
     }
 
-    // Remove from local cart
-    setCart(prevCart => {
+    // Remove from local cart only when API sync is unavailable/failed
+    if (shouldUseLocalFallback) {
+      setCart(prevCart => {
       const updatedStores = prevCart.stores.map(store => ({
         ...store,
         items: store.items.filter(item => item.id !== itemId),
@@ -388,7 +397,10 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         totalAmount,
         lastUpdated: new Date().toISOString(),
       };
-    });
+      });
+    }
+
+    setLoading(prev => ({ ...prev, isUpdating: false }));
   };
 
   const updateQuantity = async (itemId: string, quantity: number) => {
@@ -400,6 +412,8 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     // Set updating state
     setLoading(prev => ({ ...prev, isUpdating: true }));
     clearErrors();
+
+    let shouldUseLocalFallback = true;
 
     // Try to update via API first if available
     if (hasApiConnection) {
@@ -421,10 +435,9 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
               quantity,
             };
             await addItemToCartApi(cartUuid, updateRequest);
+            await fetchCartFromApi();
+            shouldUseLocalFallback = false;
           }
-
-          // Refresh cart from API to get updated data
-          await fetchCartFromApi();
         }
       } catch (err: any) {
         console.error("Failed to update item via API, using local update:", err);
@@ -435,8 +448,9 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       }
     }
 
-    // Update local cart
-    setCart(prevCart => {
+    // Update local cart only when API sync is unavailable/failed
+    if (shouldUseLocalFallback) {
+      setCart(prevCart => {
       const updatedStores = prevCart.stores.map(store => ({
         ...store,
         items: store.items.map(item =>
@@ -458,7 +472,8 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         totalAmount,
         lastUpdated: new Date().toISOString(),
       };
-    });
+      });
+    }
 
     // Reset loading state
     setLoading(prev => ({ ...prev, isUpdating: false }));
@@ -516,11 +531,17 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         setApiCartData(response.data);
         setHasApiConnection(true);
 
-        // Transform API data to local structure
-        const apiCart = transformApiCartToLocal(response.data.cartItems);
+        const apiCartItems = response.data.cartItems || [];
+        const hasLocalItems = cart.stores.some((store) => store.items.length > 0);
+        const shouldHydrateFromApi = apiCartItems.length > 0 || !hasLocalItems;
 
-        // Update local cart with API data
-        setCart(apiCart);
+        if (shouldHydrateFromApi) {
+          // Transform API data to local structure
+          const apiCart = transformApiCartToLocal(apiCartItems);
+
+          // Update local cart with API data
+          setCart(apiCart);
+        }
 
       } else {
         throw new Error(response.message || "Failed to fetch cart");
