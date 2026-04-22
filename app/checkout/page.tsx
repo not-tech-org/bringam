@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { showToast } from "../components/utils/helperFunctions";
-import { checkoutApi } from "../services/CartService";
+import { checkoutApi, getUserCartApi } from "../services/CartService";
+import type { ApiCartItem } from "../types/cart";
 
 // Animation variants for subtle form interactions
 const pageVariants = {
@@ -186,23 +187,85 @@ const CheckoutPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const createCheckoutSession = async (): Promise<boolean> => {
-    const selectedSet = new Set(selectedCartItemIds);
-    const cartItemUUIDs = (apiCartData?.cartItems || [])
-      .filter((item) => selectedSet.size === 0 || selectedSet.has(item.id || ""))
-      .map((item) => item.id)
-      .filter((id): id is string => Boolean(id));
+  const resolveCartItemUuid = (item: ApiCartItem & Record<string, unknown>) => {
+    const raw =
+      item.id ??
+      (item as { cartItemUuid?: string }).cartItemUuid ??
+      (item as { cart_item_uuid?: string }).cart_item_uuid ??
+      (item as { uuid?: string }).uuid;
+    return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+  };
 
-    if (cartItemUUIDs.length === 0) {
-      showToast(
-        "Unable to checkout. Your cart items are not synced yet. Please refresh cart and try again.",
-        "warning"
+  const buildCheckoutCartItemIds = (
+    apiItems: ApiCartItem[],
+    selectedIds: string[]
+  ): string[] => {
+    const selectedSet = new Set(selectedIds);
+    const items = apiItems as (ApiCartItem & Record<string, unknown>)[];
+
+    const matchesSelection = (apiItem: ApiCartItem & Record<string, unknown>) => {
+      if (selectedSet.size === 0) return true;
+
+      const serverId = resolveCartItemUuid(apiItem);
+      if (serverId && selectedSet.has(serverId)) return true;
+
+      const apiStoreProduct =
+        (apiItem as { storeProductUuid?: string }).storeProductUuid ??
+        apiItem.productId;
+
+      return cart.stores.some((store) =>
+        store.items.some((line) => {
+          if (!selectedSet.has(line.id)) return false;
+
+          const lineStoreProduct = line.storeProductUuid || line.productId;
+
+          const storeProductMatch =
+            Boolean(lineStoreProduct && apiStoreProduct) &&
+            String(lineStoreProduct) === String(apiStoreProduct);
+
+          const storeMatch =
+            Boolean(line.storeId && apiItem.storeId) &&
+            String(line.storeId) === String(apiItem.storeId);
+
+          return storeProductMatch && storeMatch;
+        })
       );
-      return false;
-    }
+    };
 
+    return items
+      .filter(matchesSelection)
+      .map((item) => resolveCartItemUuid(item))
+      .filter((id): id is string => Boolean(id));
+  };
+
+  const createCheckoutSession = async (): Promise<boolean> => {
     setIsLoading(true);
     try {
+      // Checkout requires server cart line UUIDs (`cartItemUUIDs`). Load the latest
+      // cart from the API first (GET .../carts/get-user-cart), map selected lines,
+      // then POST .../checkout. Both requests are expected in the Network tab.
+      const cartResponse = await getUserCartApi();
+      if (!cartResponse.success || !cartResponse.data?.cartItems?.length) {
+        showToast(
+          "Your cart could not be loaded from the server. Open the cart page to sync, then try again.",
+          "warning"
+        );
+        return false;
+      }
+
+      const cartItemUUIDs = buildCheckoutCartItemIds(
+        cartResponse.data.cartItems,
+        selectedCartItemIds
+      );
+
+      if (cartItemUUIDs.length === 0) {
+        showToast(
+          "Could not match your selected items to server cart lines. Return to cart and try again, or re-select items.",
+          "warning"
+        );
+        return false;
+      }
+
       const response = await checkoutApi({ cartItemUUIDs });
 
       if (!response.success) {
