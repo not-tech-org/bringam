@@ -48,7 +48,7 @@ const buttonVariants = {
 };
 
 const CheckoutPage = () => {
-  const { cart, apiCartData, fetchCartFromApi } = useCart();
+  const { cart, apiCartData } = useCart();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -186,21 +186,7 @@ const CheckoutPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNextStep = () => {
-    if (currentStep === 1 && !validateStep1()) {
-      return;
-    }
-
-    if (currentStep === 2 && !validateStep2()) {
-      return;
-    }
-    
-    if (currentStep < totalSteps) {
-      setCurrentStep(prev => prev + 1);
-    }
-  };
-
-  const handlePlaceOrder = async () => {
+  const createCheckoutSession = async (): Promise<boolean> => {
     const selectedSet = new Set(selectedCartItemIds);
     const cartItemUUIDs = (apiCartData?.cartItems || [])
       .filter((item) => selectedSet.size === 0 || selectedSet.has(item.id || ""))
@@ -212,7 +198,7 @@ const CheckoutPage = () => {
         "Unable to checkout. Your cart items are not synced yet. Please refresh cart and try again.",
         "warning"
       );
-      return;
+      return false;
     }
 
     setIsLoading(true);
@@ -242,18 +228,43 @@ const CheckoutPage = () => {
         message: response.message,
       });
 
-      showToast(response.message || "Checkout successful", "success");
-      await fetchCartFromApi();
-      sessionStorage.removeItem(CHECKOUT_SELECTION_KEY);
-      setCurrentStep(4);
+      showToast("Checkout session created. Proceed with payment.", "success");
+      return true;
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
         "Checkout failed. Please try again.";
       showToast(errorMessage, "error");
+      return false;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleNextStep = async () => {
+    if (currentStep === 1 && !validateStep1()) {
+      return;
+    }
+
+    if (currentStep === 2 && !validateStep2()) {
+      return;
+    }
+
+    // Create checkout session after information step so payment reference/session
+    // is available before user reaches payment step.
+    if (currentStep === 1 && !checkoutResult) {
+      const created = await createCheckoutSession();
+      if (!created) return;
+    }
+
+    if (currentStep === 3) {
+      setCurrentStep(4);
+      return;
+    }
+
+    if (currentStep < totalSteps) {
+      setCurrentStep(prev => prev + 1);
     }
   };
 
@@ -765,6 +776,16 @@ const CheckoutPage = () => {
       </div>
 
       <div className="space-y-4">
+        {checkoutResult?.paymentReference && (
+          <div className="p-4 bg-green-50 rounded-lg border border-green-100">
+            <p className="text-sm text-green-900 font-medium">Payment reference ready</p>
+            <p className="text-sm text-green-700 mt-1">{checkoutResult.paymentReference}</p>
+            {checkoutResult.checkoutSessionId && (
+              <p className="text-xs text-green-700 mt-1">Session: {checkoutResult.checkoutSessionId}</p>
+            )}
+          </div>
+        )}
+
         {/* Payment Method Selection */}
         <motion.div 
           className={`p-4 border rounded-xl cursor-pointer transition-all duration-200 ${
@@ -1087,10 +1108,10 @@ const CheckoutPage = () => {
                   type="button"
                   style="flex items-center gap-2"
                   primary
-                  onClick={currentStep === 3 ? handlePlaceOrder : handleNextStep}
+                  onClick={handleNextStep}
                   isLoading={isLoading}
                 >
-                  {currentStep === 3 ? "Place Order" : "Continue"}
+                  {currentStep === 3 ? "Confirm Order" : "Continue"}
                   <FaCheck className="h-4 w-4" />
                 </Button>
               </motion.div>
