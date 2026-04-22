@@ -131,6 +131,7 @@ export const getUserProfile = async () => {
   return response;
 };
 
+/** Vendor GET /stores — requires vendorUuid (lists that vendor’s stores only). */
 export const getAllStores = async (vendorUuid: string) => {
   const response = await vendorApi.get(`/stores?vendorUuid=${vendorUuid}`);
   return response;
