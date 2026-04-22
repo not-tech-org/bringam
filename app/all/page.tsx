@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 const storeList: Partial<StoreData>[] = [
   { 
     id: "cd5113d9-f883-4faa-b57c-e3063b0e440a",
-    profilePhotoUrl: "/images/stores/fashion-store.jpg",
+    profilePhotoUrl: "/images/stores/electronics-store.jpg",
     name: "Raimo",
     description: "Electronic store",
     category: "Electronics",
@@ -23,7 +23,7 @@ const storeList: Partial<StoreData>[] = [
   },
   { 
     id: "33eae786-35a6-40ab-89bc-547b6571e9dc",
-    profilePhotoUrl: "/images/stores/electronics-store.jpg",
+    profilePhotoUrl: "/images/stores/shoe-store.jpg",
     name: "Thermo",
     description: "Shoe store",
     category: "Fashion",
@@ -31,7 +31,7 @@ const storeList: Partial<StoreData>[] = [
   },
   { 
     id: "f49b1e77-268d-40d5-b4eb-5230176bb118",
-    profilePhotoUrl: "/images/stores/food-store.jpg",
+    profilePhotoUrl: "/images/stores/electronic-store-2.jpg",
     name: "Qasa",
     description: "Electronic store",
     category: "Electronics",
