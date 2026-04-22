@@ -23,6 +23,11 @@ export interface ProductFormData {
   productHeight: string;
 }
 
+/** Vendor POST /products/create-product — includes legacy `productImage` plus `productImages` (base64 strings). */
+export type CreateProductPayload = ProductFormData & {
+  productImages: string[];
+};
+
 export interface Product {
   id?: string;
   uuid?: string;

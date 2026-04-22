@@ -42,7 +42,7 @@ const ProductDetails = () => {
 
   const handleDeleteProduct = () => {
     // Handle product deletion logic here
-    console.log("Product deleted");
+    // deleted
     showToast("Product deleted successfully", "success");
     setShowDeleteModal(false);
   };
@@ -61,7 +61,7 @@ const ProductDetails = () => {
 
   const handleSaveChanges = () => {
     // Handle product update logic here
-    console.log("Product updated:", editFormData);
+    // updated
     showToast("Product updated successfully", "success");
     setShowEditModal(false);
   };

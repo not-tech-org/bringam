@@ -15,7 +15,7 @@ import { showToast } from "../../components/utils/helperFunctions";
 import { motion } from "framer-motion";
 import { useCart } from "../../contexts/CartContext";
 import { toggleWishlistItemApi } from "../../services/WishlistService";
-import { getProductById } from "../../services/CustomerService";
+import { getSingleStoreProduct } from "../../services/AuthService";
 import { SkeletonCard } from "../../components/common/Skeleton";
 
 // Animation variants
@@ -54,19 +54,19 @@ const ProductDetailPage = () => {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  // Resolve product UUID for API calls
+  // Resolve product UUID for API calls (storeProduct.productUuid)
   const resolveProductUuid = (product: any): string | null => {
-    return product?.uuid || product?.productUuid || product?.id || null;
+    return product?.productUuid || product?.uuid || product?.id || null;
   };
 
   // Resolve storeProductId for review API calls
   const resolveStoreProductId = (product: any): string | null => {
     // Try multiple possible field names (API might use different field names)
     return (
-      product?.storeProductId ||
-      product?.storeProductUuid ||
-      product?.uuid ||
       product?.productUuid ||
+      product?.storeProductUuid ||
+      product?.storeProductId ||
+      product?.uuid ||
       product?.id ||
       null
     );
@@ -106,8 +106,8 @@ const ProductDetailPage = () => {
       setLoading(true);
       setError(null);
       try {
-        const productResponse = await getProductById(productId);
-        const productData = productResponse.data.data || productResponse.data;
+        const productResponse = await getSingleStoreProduct(productId);
+        const productData = productResponse.data;
         setProduct(productData);
         
         // Fetch reviews after product is loaded
@@ -140,13 +140,13 @@ const ProductDetailPage = () => {
   const handleAddToCart = () => {
     try {
       addToCart({
-        productId: product.id || product.uuid,
-        storeProductUuid: product.storeProductUuid || product.uuid,
+        productId: product.productUuid || product.id || product.uuid,
+        storeProductUuid: product.productUuid || product.storeProductUuid || product.uuid,
         storeId: product.storeId || product.store?.id || product.store?.uuid,
-        storeName: product.storeName || product.store?.name,
-        name: product.name || product.productName,
+        storeName: product.storeName || product.store?.name || "",
+        name: product.productName || product.name,
         price: product.price || 0,
-        image: product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
+        image: (product.productImages && product.productImages[0]) || product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
         category: product.category || product.productCategory,
       });
       showToast("Item added to cart", "success");

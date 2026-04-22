@@ -15,7 +15,6 @@ interface WrapperProps {
 
 const Wrapper: React.FC<WrapperProps> = ({ children, title }) => {
   // const router = useRouter()
-  // console.log("Wrapper: ", router)
   return (
     <div className="flex min-h-screen">
       <Sidebar />

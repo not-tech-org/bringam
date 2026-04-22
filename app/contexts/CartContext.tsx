@@ -86,7 +86,6 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       // Try to fetch cart from API, but don't block if it fails
       fetchCartFromApi().catch(() => {
         // Silent fail - user can still use local cart
-        console.log("API cart fetch failed, using local cart");
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -231,7 +230,6 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           };
           await addItemToCartApi(cartUuid, addRequest);
         }
-        console.log("Item successfully added to cart via API");
 
         // Refresh cart from API to get updated data
         await fetchCartFromApi();
@@ -324,7 +322,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     // Reset loading state and flag
     setLoading(prev => ({ ...prev, isUpdating: false }));
-    
+
     // Reset the flag after a short delay
     setTimeout(() => {
       isAddingRef.current = false;
@@ -354,12 +352,11 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           if (cartUuid) {
             await removeCartItemApi(cartUuid, storeProductUuid);
           }
-          console.log("Item successfully removed from cart via API");
 
           // Refresh cart from API to get updated data
           await fetchCartFromApi();
         } else {
-          console.warn("Could not find item to remove via API, using local remove only");
+          // skip warn: local remove will proceed
         }
       } catch (err: any) {
         console.error("Failed to remove item via API, using local remove:", err);
@@ -425,7 +422,6 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
             };
             await addItemToCartApi(cartUuid, updateRequest);
           }
-          console.log("Item quantity updated via API");
 
           // Refresh cart from API to get updated data
           await fetchCartFromApi();
@@ -478,7 +474,6 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       try {
         // TODO: Implement when clear endpoint is available
         // await clearCartApi(apiCartData.uuid);
-        console.log("API clear not yet implemented, using local clear only");
         
         // After API success, refresh cart from API
         // await fetchCartFromApi();
@@ -527,7 +522,6 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         // Update local cart with API data
         setCart(apiCart);
 
-        console.log("Cart successfully fetched from API");
       } else {
         throw new Error(response.message || "Failed to fetch cart");
       }
@@ -553,7 +547,6 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       // For now, just fetch from API
       // In future phases, we'll add push/merge functionality
       await fetchCartFromApi();
-      console.log("Cart synchronized with API");
     } catch (err: any) {
       console.error("Error syncing cart with API:", err);
       setError(prev => ({ 
@@ -570,23 +563,20 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     switch (resolution) {
       case 'use_local':
         // Keep current local cart, don't change anything
-        console.log("Resolved conflict: Using local cart");
         break;
         
       case 'use_api':
         // This would be handled by fetchCartFromApi
         fetchCartFromApi();
-        console.log("Resolved conflict: Using API cart");
         break;
         
       case 'merge':
         // Simple merge strategy for now (more complex logic in future phases)
-        console.log("Resolved conflict: Merging carts (basic implementation)");
         // This is a placeholder - more sophisticated merging in future phases
         break;
         
       default:
-        console.warn("Unknown conflict resolution strategy:", resolution);
+        // unknown strategy; noop
     }
   };
 

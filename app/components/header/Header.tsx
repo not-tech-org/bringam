@@ -18,7 +18,7 @@ const Header = () => {
           name="search"
           placeholder="Search"
           value={""}
-          onChange={() => console.log("Search")}
+          onChange={() => {}}
         />
       </div>
 

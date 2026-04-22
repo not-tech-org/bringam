@@ -14,39 +14,51 @@ import { motion } from "framer-motion";
 
 const storeList: Partial<StoreData>[] = [
   { 
-    profilePhotoUrl: "/images/stores/fashion-store.jpg",
-    name: "Fashion Hub",
-    description: "Premium Fashion",
-    category: "Fashion",
-    active: true
-  },
-  { 
+    id: "cd5113d9-f883-4faa-b57c-e3063b0e440a",
     profilePhotoUrl: "/images/stores/electronics-store.jpg",
-    name: "Tech World",
-    description: "Latest Electronics",
+    name: "Raimo",
+    description: "Electronic store",
     category: "Electronics",
     active: true
   },
   { 
-    profilePhotoUrl: "/images/stores/food-store.jpg",
-    name: "Gourmet Delights",
-    description: "Fine Dining",
-    category: "Food & Dining",
+    id: "33eae786-35a6-40ab-89bc-547b6571e9dc",
+    profilePhotoUrl: "/images/stores/shoe-store.jpg",
+    name: "Thermo",
+    description: "Shoe store",
+    category: "Fashion",
     active: true
   },
   { 
+    id: "f49b1e77-268d-40d5-b4eb-5230176bb118",
+    profilePhotoUrl: "/images/stores/electronic-store-2.jpg",
+    name: "Qasa",
+    description: "Electronic store",
+    category: "Electronics",
+    active: true
+  },
+  { 
+    id: "1ca813f3-8375-405e-8096-564eb2c22a09",
     profilePhotoUrl: "/images/stores/beauty-store.jpg",
-    name: "Beauty Zone",
-    description: "Health & Beauty",
+    name: "Ox",
+    description: "Cosmetic store",
     category: "Health & Beauty",
     active: false
+  },
+  { 
+    id: "15e82195-1f66-4d47-8157-6d7f36ffb42c",
+    profilePhotoUrl: "/images/stores/fashion-store.jpg",
+    name: "Pulpy",
+    description: "Popping Fashion",
+    category: "Fashion",
+    active: true
   },
 ];
 
 function repeatElements<T>(array: T[], times: number): T[] {
   return Array(times).fill(null).map((_, i) => ({
     ...array[i % array.length],
-    id: i + 1,
+    id: (array[i % array.length] as any)?.id ?? i + 1,
   }));
 }
 

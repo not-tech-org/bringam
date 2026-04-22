@@ -12,7 +12,11 @@ import {
 } from "@/app/services/AuthService";
 import { showToast } from "@/app/components/utils/helperFunctions";
 import { useRouter } from "next/navigation";
-import { ProductCategory, ProductFormData } from "@/app/types";
+import {
+  ProductCategory,
+  ProductFormData,
+  CreateProductPayload,
+} from "@/app/types";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -43,7 +47,6 @@ export default function AddProductPage() {
     const fetchCategories = async () => {
       try {
         const response = await getAllProductCategories();
-        console.log("Categories:", response.data);
         setCategories(response?.data?.data?.options || []);
       } catch (error) {
         console.error("Error fetching categories:", error);
@@ -54,7 +57,7 @@ export default function AddProductPage() {
     fetchCategories();
   }, []);
 
-  console.log("Categories:", categories);
+  // categories loaded via API
 
   // Convert file to base64 and remove the data URL prefix
   const convertToBase64 = (file: File): Promise<string> => {
@@ -93,7 +96,6 @@ export default function AddProductPage() {
         setUploadedImages(imageUrls);
 
         showToast("Images uploaded successfully", "success");
-        console.log("Images uploaded successfully");
       } catch (error) {
         console.error("Error converting image to base64:", error);
         showToast("Failed to upload images", "error");
@@ -151,10 +153,14 @@ export default function AddProductPage() {
 
     try {
       setLoading(true);
-      console.log("Form Data:", formData);
 
-      const response = await createProduct(formData);
-      console.log("Product created successfully:", response.data);
+      const payload: CreateProductPayload = {
+        ...formData,
+        productImages: formData.productImage
+          ? [formData.productImage]
+          : [],
+      };
+      const response = await createProduct(payload);
 
       // Show success message
       showToast("Product created successfully!", "success");
@@ -201,7 +207,7 @@ export default function AddProductPage() {
 
   return (
     <Wrapper>
-      <div className="max-w-3xl mt-[-50px]">
+      <div className="max-w-3xl pt-2 md:pt-4">
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input
             label="Product title"

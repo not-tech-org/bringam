@@ -1,5 +1,11 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import type {
+  GetStoreProductsByStoreParams,
+  StoreProductPageResponse,
+  StoreProductResponse,
+} from "../types/storeProduct";
+import type { CreateProductPayload } from "../types/product";
 
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
@@ -125,6 +131,7 @@ export const getUserProfile = async () => {
   return response;
 };
 
+/** Vendor GET /stores — requires vendorUuid (lists that vendor’s stores only). */
 export const getAllStores = async (vendorUuid: string) => {
   const response = await vendorApi.get(`/stores?vendorUuid=${vendorUuid}`);
   return response;
@@ -178,7 +185,7 @@ export const getAllProductCategories = async () => {
   return response;
 };
 
-export const createProduct = async (reqBody: object) => {
+export const createProduct = async (reqBody: CreateProductPayload) => {
   const response = await vendorApi.post("/products/create-product", reqBody);
   return response;
 };
@@ -186,4 +193,33 @@ export const createProduct = async (reqBody: object) => {
 export const addProductToStore = async (reqBody: object) => {
   const response = await vendorApi.put("/store-products/add-product-to-store", reqBody);
   return response;
+};
+
+/**
+ * Store Products (Vendor Service)
+ * Swagger tag: store-product-controller
+ *
+ * - GET `/store-products/get-all-by-store?storeUuid=...&pageNo=0&pageSize=50`
+ * - GET `/store-products/get-one?uuid=...`
+ */
+export const getStoreProductsByStore = async (
+  params: GetStoreProductsByStoreParams
+): Promise<StoreProductPageResponse> => {
+  const response = await vendorApi.get("/store-products/get-all-by-store", {
+    params: {
+      storeUuid: params.storeUuid,
+      pageNo: params.pageNo ?? 0,
+      pageSize: params.pageSize ?? 50,
+    },
+  });
+  return response.data;
+};
+
+export const getSingleStoreProduct = async (
+  uuid: string
+): Promise<StoreProductResponse> => {
+  const response = await vendorApi.get("/store-products/get-one", {
+    params: { uuid },
+  });
+  return response.data;
 };

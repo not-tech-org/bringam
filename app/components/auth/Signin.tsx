@@ -101,12 +101,10 @@ const Signin = () => {
   const fetchUserProfile = async () => {
     try {
       const response = await getUserProfile();
-      console.log("User profile response:", response.data);
 
       // Extract customerResp from the response
       if (response.data.data.customerResp) {
         const customerData = response.data.data.customerResp;
-        console.log("Customer data:", customerData);
 
         // Save customer data to localStorage
         safeLocalStorage.setItem("customerData", JSON.stringify(customerData));
@@ -116,12 +114,6 @@ const Signin = () => {
           "profileDetails",
           JSON.stringify(response.data.data)
         );
-
-        console.log("Customer data saved to localStorage:", {
-          uuid: customerData.uuid,
-          firstName: customerData.firstName,
-          picture: customerData.picture,
-        });
 
         // Trigger custom event to notify UserContext of localStorage updates
         window.dispatchEvent(new Event("userDataUpdated"));

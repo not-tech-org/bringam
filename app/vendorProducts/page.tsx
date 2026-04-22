@@ -147,30 +147,30 @@ const Products = () => {
     <AppLayout>
       <Header />
       {productCardUpData.length > 0 && (
-        <div className="flex items-center flex-wrap justify-between mt-[1rem] w-full gap-[1.5rem]">
-          {productCardUpData.map((item, index) => (
-            <div key={index}>
-              <ProductCardUp
-                text={item.text}
-                amount={item.amount}
-                timeFrame={item.timeFrame}
-              />
-            </div>
-          ))}
-        </div>
+      <div className="flex items-center flex-wrap justify-between mt-[1rem] w-full gap-[1.5rem]">
+        {productCardUpData.map((item, index) => (
+          <div key={index}>
+            <ProductCardUp
+              text={item.text}
+              amount={item.amount}
+              timeFrame={item.timeFrame}
+            />
+          </div>
+        ))}
+      </div>
       )}
       {productCardDownData.length > 0 && (
-        <div className="flex items-center flex-wrap justify-between mt-[1rem] w-full gap-[1.5rem]">
-          {productCardDownData.map((item, index) => (
-            <div key={index}>
-              <ProductCardDown
-                text={item.text}
-                amount={item.amount}
-                timeFrame={item.timeFrame}
-              />
-            </div>
-          ))}
-        </div>
+      <div className="flex items-center flex-wrap justify-between mt-[1rem] w-full gap-[1.5rem]">
+        {productCardDownData.map((item, index) => (
+          <div key={index}>
+            <ProductCardDown
+              text={item.text}
+              amount={item.amount}
+              timeFrame={item.timeFrame}
+            />
+          </div>
+        ))}
+      </div>
       )}
       <div className="flex items-start flex-wrap md:items-center flex-col md:flex-row justify-between mt-[3rem] gap-[1rem]">
         <button className="rounded-[4px] py-[10px] px-[15px] bg-grayPrimary text-medium text-black2 text-sm">
@@ -211,7 +211,7 @@ const Products = () => {
           <tbody>
             {tableData.length > 0 ? (
               tableData.map((item, index) => (
-                <tr className="h-[40px]" key={index}>
+              <tr className="h-[40px]" key={index}>
                 <td className="flex items-center gap-[1rem] py-[1rem] ">
                   <Image
                     src={item.image}
