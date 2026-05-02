@@ -340,7 +340,9 @@ const CartPage = () => {
 
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-medium text-gray-500">
-                    {store.items.filter((item) => selectedItemIds.has(item.id)).length} selected
+                    <span className="px-2 py-1 rounded-full bg-[#3c4948]/10 text-[#3c4948]">
+                      {store.items.filter((item) => selectedItemIds.has(item.id)).length} selected
+                    </span>
                   </p>
                   <button
                     type="button"
@@ -358,17 +360,21 @@ const CartPage = () => {
                   {store.items.map((item, itemIndex) => (
                     <motion.div 
                       key={item.id} 
-                      className="bg-white rounded-lg p-4 flex items-center gap-4 hover:shadow-md transition-shadow duration-200"
+                      className={`rounded-lg p-4 flex items-center gap-4 hover:shadow-md transition-all duration-200 border ${
+                        selectedItemIds.has(item.id)
+                          ? "bg-[#f8fbfa] border-[#3c4948]/25"
+                          : "bg-white border-transparent"
+                      }`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: (storeIndex * 0.1) + (itemIndex * 0.05) }}
                       whileHover={{ y: -2 }}
                     >
                       <label
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer select-none transition-colors min-w-[98px] ${
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer select-none transition-all w-fit ${
                           selectedItemIds.has(item.id)
-                            ? "bg-[#3c4948]/8 border-[#3c4948]/25"
-                            : "bg-white border-gray-200 hover:bg-gray-50"
+                            ? "bg-[#3c4948]/12 border-[#3c4948]/40 shadow-sm"
+                            : "bg-gray-50 border-gray-200 hover:bg-gray-100"
                         }`}
                         aria-label={`Select ${item.name} for checkout`}
                       >
@@ -379,10 +385,15 @@ const CartPage = () => {
                           className="h-4 w-4 accent-[#3c4948] cursor-pointer"
                         />
                         <span
-                          className={`text-xs font-medium ${
-                            selectedItemIds.has(item.id) ? "text-[#3c4948]" : "text-gray-500"
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-full transition-all inline-flex items-center gap-1 ${
+                            selectedItemIds.has(item.id)
+                              ? "text-[#2a3a39] bg-[#3c4948]/18 border border-[#3c4948]/25"
+                              : "text-gray-600 bg-white border border-gray-200"
                           }`}
                         >
+                          {selectedItemIds.has(item.id) && (
+                            <FaCheck className="h-2.5 w-2.5" />
+                          )}
                           {selectedItemIds.has(item.id) ? "Selected" : "Select"}
                         </span>
                       </label>
@@ -453,7 +464,11 @@ const CartPage = () => {
           </motion.div>
 
           <motion.div 
-            className="mt-8 bg-gray-50 rounded-lg p-6"
+            className={`mt-8 rounded-lg p-6 border transition-colors ${
+              selectedTotalItems > 0
+                ? "bg-[#f8fbfa] border-[#3c4948]/20"
+                : "bg-gray-50 border-transparent"
+            }`}
             variants={itemVariants}
           >
             <div className="flex justify-between items-center mb-4">
