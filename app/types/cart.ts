@@ -105,7 +105,7 @@ export interface CartContextType {
   error: CartErrorState;
   
   // Cart Operations (Existing - now with API integration)
-  addToCart: (item: Omit<CartItem, 'id' | 'addedAt' | 'quantity'>) => Promise<void>;
+  addToCart: (item: Omit<CartItem, 'id' | 'addedAt' | 'quantity'>) => Promise<CartOperationResult>;
   removeFromCart: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;

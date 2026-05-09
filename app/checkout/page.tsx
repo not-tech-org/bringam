@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { showToast } from "../components/utils/helperFunctions";
-import { checkoutApi, getUserCartApi } from "../services/CartService";
+import { addItemToCartApi, checkoutApi, getUserCartApi } from "../services/CartService";
 import type { ApiCartItem } from "../types/cart";
 
 // Animation variants for subtle form interactions
@@ -191,8 +191,16 @@ const CheckoutPage = () => {
     const raw =
       item.id ??
       (item as { cartItemUuid?: string }).cartItemUuid ??
+      (item as { cartItemUUID?: string }).cartItemUUID ??
+      (item as { cartItemUUIDs?: string }).cartItemUUIDs ??
       (item as { cart_item_uuid?: string }).cart_item_uuid ??
-      (item as { uuid?: string }).uuid;
+      (item as { cart_item_uuid_v4?: string }).cart_item_uuid_v4 ??
+      (item as { cartItemId?: string }).cartItemId ??
+      (item as { cartItemID?: string }).cartItemID ??
+      (item as { uuid?: string }).uuid ??
+      // Fallback: many APIs treat productId as storeProductUuid (UUID),
+      // which is acceptable for checkout cartItemUUIDs when no line UUID is returned.
+      item.productId;
     return typeof raw === "string" && raw.trim() ? raw.trim() : null;
   };
 
@@ -223,11 +231,9 @@ const CheckoutPage = () => {
             Boolean(lineStoreProduct && apiStoreProduct) &&
             String(lineStoreProduct) === String(apiStoreProduct);
 
-          const storeMatch =
-            Boolean(line.storeId && apiItem.storeId) &&
-            String(line.storeId) === String(apiItem.storeId);
-
-          return storeProductMatch && storeMatch;
+          // Prefer storeId match when it lines up, but don't block checkout on it:
+          // local storeId can be vendor numeric id while API returns store UUID (or vice versa).
+          return storeProductMatch;
         })
       );
     };
@@ -245,16 +251,68 @@ const CheckoutPage = () => {
       // cart from the API first (GET .../carts/get-user-cart), map selected lines,
       // then POST .../checkout. Both requests are expected in the Network tab.
       const cartResponse = await getUserCartApi();
-      if (!cartResponse.success || !cartResponse.data?.cartItems?.length) {
+      if (!cartResponse.success) {
+        const msg =
+          cartResponse.message ||
+          "Unable to load your cart from the server. Please try again.";
+        const isUnauthorized = msg.toLowerCase().includes("unauthorized");
         showToast(
-          "Your cart could not be loaded from the server. Open the cart page to sync, then try again.",
-          "warning"
+          isUnauthorized ? msg : msg,
+          isUnauthorized ? "error" : "warning"
         );
         return false;
       }
 
+      let serverCartItems = cartResponse.data?.cartItems || [];
+
+      // If server cart is empty but local cart has items, sync selected items
+      // so we can obtain server cart line UUIDs required by POST /checkout.
+      if (serverCartItems.length === 0) {
+        const selectedSet = new Set(selectedCartItemIds);
+        const localSelectedItems = cart.stores.flatMap((store) =>
+          store.items.filter(
+            (item) => selectedSet.size === 0 || selectedSet.has(item.id)
+          )
+        );
+
+        if (localSelectedItems.length === 0) {
+          showToast("Your cart is empty.", "warning");
+          return false;
+        }
+
+        if (!cartResponse.data?.uuid) {
+          showToast("Unable to sync cart. Missing cart identifier.", "error");
+          return false;
+        }
+
+        showToast("Syncing cart with server…", "info");
+
+        for (const item of localSelectedItems) {
+          const storeProductUuid = item.storeProductUuid || item.productId;
+          if (!storeProductUuid) continue;
+          await addItemToCartApi(cartResponse.data.uuid, {
+            storeProductUuid,
+            quantity: item.quantity,
+          });
+        }
+
+        const refreshed = await getUserCartApi();
+        if (!refreshed.success) {
+          showToast(refreshed.message || "Failed to sync cart.", "error");
+          return false;
+        }
+        serverCartItems = refreshed.data?.cartItems || [];
+        if (serverCartItems.length === 0) {
+          showToast(
+            "Cart sync completed, but server cart is still empty. Please sign in and try again.",
+            "warning"
+          );
+          return false;
+        }
+      }
+
       const cartItemUUIDs = buildCheckoutCartItemIds(
-        cartResponse.data.cartItems,
+        serverCartItems,
         selectedCartItemIds
       );
 

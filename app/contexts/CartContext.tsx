@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { 
   Cart, 
   CartItem, 
@@ -13,7 +13,15 @@ import {
   CartSyncConflict,
   CartOperationResult
 } from "../types/cart";
-import { getUserCartApi, addItemToCartApi, removeCartItemApi, AddToCartRequest } from "../services/CartService";
+import {
+  getUserCartApi,
+  addItemToCartApi,
+  removeCartItemApi,
+  AddToCartRequest,
+  extractAxiosMessage,
+  getBringAmToken,
+  normalizeClientStringId,
+} from "../services/CartService";
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -32,7 +40,6 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     lastUpdated: new Date().toISOString(),
   });
   const [isLoaded, setIsLoaded] = useState(false);
-  const isAddingRef = useRef(false);
 
   // ===== NEW API STATE =====
   const [apiCartData, setApiCartData] = useState<ApiCartData | null>(null);
@@ -177,48 +184,55 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     });
   };
 
-  const resolveStoreProductUuid = (item: { productId?: string; storeProductUuid?: string }) => {
-    return item.storeProductUuid || item.productId || null;
+  const resolveStoreProductUuid = (item: unknown): string | null => {
+    if (!item || typeof item !== "object") return null;
+    const row = item as Record<string, unknown>;
+    return (
+      normalizeClientStringId(row.storeProductUuid) ||
+      normalizeClientStringId(row.storeProductUUID) ||
+      normalizeClientStringId(row.storeProductId) ||
+      normalizeClientStringId(row.uuid) ||
+      normalizeClientStringId(row.productId) ||
+      null
+    );
   };
 
-  const ensureApiCartUuid = async (): Promise<string | null> => {
+  const ensureApiCartUuid = async (): Promise<string> => {
     if (apiCartData?.uuid) {
       return apiCartData.uuid;
     }
 
     try {
       const response = await getUserCartApi();
-      if (response.success && response.data) {
-        setApiCartData(response.data);
-        setHasApiConnection(true);
-        const apiCartItems = response.data.cartItems || [];
-        const hasLocalItems = cart.stores.some((store) => store.items.length > 0);
-        const shouldHydrateFromApi = apiCartItems.length > 0 || !hasLocalItems;
-
-        if (shouldHydrateFromApi) {
-          const apiCart = transformApiCartToLocal(apiCartItems);
-          setCart(apiCart);
-        }
-        return response.data.uuid;
+      if (!response.success) {
+        throw new Error(response.message || "Failed to fetch cart from server");
       }
+      if (!response.data?.uuid) {
+        throw new Error("Server cart has no uuid");
+      }
+      setApiCartData(response.data);
+      setHasApiConnection(true);
+      const apiCartItems = response.data.cartItems || [];
+      const hasLocalItems = cart.stores.some((store) => store.items.length > 0);
+      const shouldHydrateFromApi = apiCartItems.length > 0 || !hasLocalItems;
+
+      if (shouldHydrateFromApi) {
+        const apiCart = transformApiCartToLocal(apiCartItems);
+        setCart(apiCart);
+      }
+      return response.data.uuid;
     } catch (err: any) {
+      const msg = extractAxiosMessage(err);
       setError(prev => ({
         ...prev,
-        apiError: err.message || "Failed to fetch cart from server",
+        apiError: msg,
       }));
       setHasApiConnection(false);
+      throw new Error(msg);
     }
-
-    return null;
   };
 
   const addToCart = async (itemData: Omit<CartItem, 'id' | 'addedAt' | 'quantity'>) => {
-    // Prevent double execution in React StrictMode
-    if (isAddingRef.current) {
-      return;
-    }
-    isAddingRef.current = true;
-
     // Set updating state
     setLoading(prev => ({ ...prev, isUpdating: true }));
     clearErrors();
@@ -226,25 +240,32 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     const storeProductUuid = resolveStoreProductUuid(itemData);
 
     let shouldUseLocalFallback = true;
+    let apiError: string | null = null;
+    let localOnlyReason: "missing_store_product_uuid" | null = null;
+
+    const token = getBringAmToken();
+    const canSyncToServer = Boolean(token);
+    if (canSyncToServer && !storeProductUuid) {
+      localOnlyReason = "missing_store_product_uuid";
+    }
 
     // Try to add via API first if available
-    if (storeProductUuid) {
+    if (storeProductUuid && canSyncToServer) {
       try {
         const cartUuid = await ensureApiCartUuid();
-        if (cartUuid) {
-          const addRequest: AddToCartRequest = {
-            storeProductUuid,
-            quantity: 1,
-          };
-          await addItemToCartApi(cartUuid, addRequest);
-          await fetchCartFromApi();
-          shouldUseLocalFallback = false;
-        }
+        const addRequest: AddToCartRequest = {
+          storeProductUuid,
+          quantity: 1,
+        };
+        await addItemToCartApi(cartUuid, addRequest);
+        await fetchCartFromApi();
+        shouldUseLocalFallback = false;
       } catch (err: any) {
         console.error("Failed to add item via API, falling back to local:", err);
+        apiError = extractAxiosMessage(err) || "Failed to add item to server cart";
         setError(prev => ({ 
           ...prev, 
-          apiError: err.message || "Failed to add item to server cart" 
+          apiError: apiError
         }));
       }
     }
@@ -333,9 +354,33 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       });
     }
 
-    // Reset loading state and adding guard
+    // Reset loading state
     setLoading(prev => ({ ...prev, isUpdating: false }));
-    isAddingRef.current = false;
+
+    if (!canSyncToServer) {
+      return {
+        success: true,
+        data: { synced: false, reason: "unauthenticated" },
+      };
+    }
+
+    if (shouldUseLocalFallback) {
+      const reason =
+        localOnlyReason ?? (apiError ? ("api_error" as const) : undefined);
+      return {
+        success: true,
+        data: {
+          synced: false,
+          ...(reason ? { reason } : {}),
+        },
+        ...(apiError ? { error: apiError } : {}),
+      };
+    }
+
+    return {
+      success: true,
+      data: { synced: true },
+    };
   };
 
   const removeFromCart = async (itemId: string) => {
@@ -344,9 +389,10 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     clearErrors();
 
     let shouldUseLocalFallback = true;
+    const token = getBringAmToken();
 
-    // Try to remove via API first if available
-    if (hasApiConnection) {
+    // Try to remove via API first if logged in (same rule as add-to-cart)
+    if (token) {
       try {
         // Find the item to get its storeProductUuid for the API call
         let storeProductUuid = null;
@@ -360,17 +406,15 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
         if (storeProductUuid) {
           const cartUuid = await ensureApiCartUuid();
-          if (cartUuid) {
-            await removeCartItemApi(cartUuid, storeProductUuid);
-            await fetchCartFromApi();
-            shouldUseLocalFallback = false;
-          }
+          await removeCartItemApi(cartUuid, storeProductUuid);
+          await fetchCartFromApi();
+          shouldUseLocalFallback = false;
         }
       } catch (err: any) {
         console.error("Failed to remove item via API, using local remove:", err);
         setError(prev => ({ 
           ...prev, 
-          apiError: err.message || "Failed to remove item from server" 
+          apiError: extractAxiosMessage(err) || "Failed to remove item from server" 
         }));
       }
     }
@@ -414,9 +458,10 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     clearErrors();
 
     let shouldUseLocalFallback = true;
+    const token = getBringAmToken();
 
-    // Try to update via API first if available
-    if (hasApiConnection) {
+    // Try to update via API first if logged in (same rule as add-to-cart)
+    if (token) {
       try {
         let storeProductUuid = null;
         for (const store of cart.stores) {
@@ -429,21 +474,19 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
         if (storeProductUuid) {
           const cartUuid = await ensureApiCartUuid();
-          if (cartUuid) {
-            const updateRequest: AddToCartRequest = {
-              storeProductUuid,
-              quantity,
-            };
-            await addItemToCartApi(cartUuid, updateRequest);
-            await fetchCartFromApi();
-            shouldUseLocalFallback = false;
-          }
+          const updateRequest: AddToCartRequest = {
+            storeProductUuid,
+            quantity,
+          };
+          await addItemToCartApi(cartUuid, updateRequest);
+          await fetchCartFromApi();
+          shouldUseLocalFallback = false;
         }
       } catch (err: any) {
         console.error("Failed to update item via API, using local update:", err);
         setError(prev => ({ 
           ...prev, 
-          apiError: err.message || "Failed to update item on server" 
+          apiError: extractAxiosMessage(err) || "Failed to update item on server" 
         }));
       }
     }
@@ -550,7 +593,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       console.error("Error fetching cart from API:", err);
       setError(prev => ({ 
         ...prev, 
-        apiError: err.message || "Failed to fetch cart from server" 
+        apiError: extractAxiosMessage(err) || "Failed to fetch cart from server" 
       }));
       setHasApiConnection(false);
     } finally {

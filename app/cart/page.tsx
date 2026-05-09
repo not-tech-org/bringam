@@ -370,33 +370,23 @@ const CartPage = () => {
                       transition={{ delay: (storeIndex * 0.1) + (itemIndex * 0.05) }}
                       whileHover={{ y: -2 }}
                     >
-                      <label
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer select-none transition-all w-fit ${
+                      <button
+                        type="button"
+                        onClick={() => toggleItemSelection(item.id)}
+                        aria-pressed={selectedItemIds.has(item.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
                           selectedItemIds.has(item.id)
-                            ? "bg-[#3c4948]/12 border-[#3c4948]/40 shadow-sm"
-                            : "bg-gray-50 border-gray-200 hover:bg-gray-100"
+                            ? "bg-[#3c4948] border-[#3c4948] text-white shadow-sm"
+                            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                         }`}
-                        aria-label={`Select ${item.name} for checkout`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={selectedItemIds.has(item.id)}
-                          onChange={() => toggleItemSelection(item.id)}
-                          className="h-4 w-4 accent-[#3c4948] cursor-pointer"
-                        />
-                        <span
-                          className={`text-xs font-semibold px-2 py-0.5 rounded-full transition-all inline-flex items-center gap-1 ${
-                            selectedItemIds.has(item.id)
-                              ? "text-[#2a3a39] bg-[#3c4948]/18 border border-[#3c4948]/25"
-                              : "text-gray-600 bg-white border border-gray-200"
-                          }`}
-                        >
-                          {selectedItemIds.has(item.id) && (
-                            <FaCheck className="h-2.5 w-2.5" />
-                          )}
-                          {selectedItemIds.has(item.id) ? "Selected" : "Select"}
-                        </span>
-                      </label>
+                        {selectedItemIds.has(item.id) ? (
+                          <FaCheck className="h-3 w-3" />
+                        ) : (
+                          <span className="h-2 w-2 rounded-full bg-gray-300" />
+                        )}
+                        {selectedItemIds.has(item.id) ? "Selected" : "Select"}
+                      </button>
                       <div className="relative w-16 h-16 rounded-lg overflow-hidden">
                         <Image
                           src={item.image}

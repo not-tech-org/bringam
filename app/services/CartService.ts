@@ -1,6 +1,31 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 
+/** Same token source for axios interceptors and cart “should sync?” checks (non-httpOnly cookie). */
+export const getBringAmToken = (): string | undefined => {
+  const fromCookie = Cookies.get("bringAmToken");
+  if (fromCookie) return fromCookie;
+  if (typeof document === "undefined") return undefined;
+  const match = document.cookie.match(/(?:^|;\s*)bringAmToken=([^;]+)/);
+  if (!match?.[1]) return undefined;
+  try {
+    return decodeURIComponent(match[1].trim());
+  } catch {
+    return match[1].trim();
+  }
+};
+
+/** Normalize API ids for cart payloads (trim strings; stringify finite numbers). */
+export const normalizeClientStringId = (value: unknown): string | null => {
+  if (value == null) return null;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string") {
+    const t = value.trim();
+    return t.length > 0 ? t : null;
+  }
+  return null;
+};
+
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
 };
@@ -25,7 +50,7 @@ const cartApi = axios.create({
 const addAuthInterceptor = (apiInstance: any) => {
   apiInstance.interceptors.request.use(
     (config: any) => {
-      const token = Cookies.get("bringAmToken");
+      const token = getBringAmToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -42,6 +67,15 @@ addAuthInterceptor(cartApi);
 
 // Import types from cart types file to avoid duplication
 import { ApiCartResponse } from "../types/cart";
+
+export const extractAxiosMessage = (err: any): string => {
+  return (
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message ||
+    "Request failed"
+  );
+};
 
 // Cart API Request Types
 export interface AddToCartRequest {
@@ -91,8 +125,16 @@ export const addItemToCartApi = async (
   cartUuid: string, 
   request: AddToCartRequest
 ): Promise<CartApiResponse> => {
-  const response = await cartApi.post(`/carts/add-item-to-cart/${cartUuid}`, request);
-  return response.data;
+  try {
+    const response = await cartApi.put(`/carts/add-item-to-cart/${cartUuid}`, request);
+    const data: CartApiResponse = response.data;
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to update cart");
+    }
+    return data;
+  } catch (err: any) {
+    throw new Error(extractAxiosMessage(err));
+  }
 };
 
 // TODO: Add additional cart operations when endpoints are provided

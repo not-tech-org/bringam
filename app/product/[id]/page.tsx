@@ -137,11 +137,22 @@ const ProductDetailPage = () => {
     router.back();
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     try {
-      addToCart({
+      const result = await addToCart({
         productId: product.productUuid || product.id || product.uuid,
-        storeProductUuid: product.productUuid || product.storeProductUuid || product.uuid,
+        // Prefer explicit store-product fields, then the route param `productId` (get-one query uuid),
+        // then catalog ids. Customer cart API expects the store-product identifier from vendor-service.
+        storeProductUuid:
+          product.storeProductUuid ||
+          product.storeProductUUID ||
+          (product.storeProductId != null && product.storeProductId !== ""
+            ? String(product.storeProductId)
+            : undefined) ||
+          product.uuid ||
+          productId ||
+          product.productUuid ||
+          product.id,
         storeId: product.storeId || product.store?.id || product.store?.uuid,
         storeName: product.storeName || product.store?.name || "",
         name: product.productName || product.name,
@@ -149,6 +160,26 @@ const ProductDetailPage = () => {
         image: (product.productImages && product.productImages[0]) || product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
         category: product.category || product.productCategory,
       });
+
+      if (result?.data?.synced === false && result?.data?.reason === "unauthenticated") {
+        showToast("Item added locally. Sign in to save your cart.", "warning");
+        return;
+      }
+
+      if (result?.data?.synced === false && result?.data?.reason === "missing_store_product_uuid") {
+        showToast("Item added locally. Couldn’t sync: missing store product id from the server.", "warning");
+        return;
+      }
+
+      if (result?.data?.synced === false) {
+        const detail = result.error ? ` (${result.error})` : "";
+        showToast(
+          `Item added locally. Server sync failed — will retry later.${detail}`,
+          "warning"
+        );
+        return;
+      }
+
       showToast("Item added to cart", "success");
     } catch (error) {
       showToast("Failed to add item to cart", "error");
