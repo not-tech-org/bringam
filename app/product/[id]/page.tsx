@@ -167,11 +167,6 @@ const ProductDetailPage = () => {
         return;
       }
 
-      if (result?.data?.synced === false && result?.data?.reason === "missing_store_product_uuid") {
-        showToast("Item added locally. Couldn’t sync: missing store product id from the server.", "warning");
-        return;
-      }
-
       if (result?.data?.synced === false) {
         const detail = result.error ? ` (${result.error})` : "";
         showToast(

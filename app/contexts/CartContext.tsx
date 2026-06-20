@@ -120,39 +120,92 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     return { totalItems, totalAmount };
   };
 
-  // Transform API cart items to local cart structure
-  const transformApiCartToLocal = (apiItems: ServerCartItem[]): Cart => {
+  /**
+   * Transform API cart items to local cart structure.
+   * Handles both nested (ServerCartItem with storeProduct sub-object) and
+   * flat (ApiCartItem) response formats to be resilient to API changes.
+   */
+  const transformApiCartToLocal = (apiItems: any[]): Cart => {
+    if (!apiItems || apiItems.length === 0) {
+      return {
+        stores: [],
+        totalItems: 0,
+        totalAmount: 0,
+        lastUpdated: new Date().toISOString(),
+      };
+    }
+
+    // Detect format: nested format has storeProduct object, flat format has direct fields
+    const first = apiItems[0];
+    const isNested = first.storeProduct != null && typeof first.storeProduct === "object";
+
     const storeMap = new Map<string, CartStore>();
 
-    apiItems.forEach(apiItem => {
-      const sp = apiItem.storeProduct;
-      const storeIdKey = sp.storeId?.toString() || apiItem.cartUuid || "unknown";
-      const storeName = sp.vendorUuid ? `Store ${sp.vendorUuid.slice(0, 6)}` : "Store";
+    apiItems.forEach((apiItem: any) => {
+      let productId: string;
+      let storeProductUuid: string;
+      let storeId: string;
+      let storeName: string;
+      let name: string;
+      let price: number;
+      let image: string;
+      let quantity: number;
+      let category: string;
+      let itemId: string;
+
+      if (isNested) {
+        // Nested CartItemResp format
+        const sp = apiItem.storeProduct || {};
+        productId = sp.productUuid || sp.productId?.toString() || "";
+        storeProductUuid = sp.productUuid || "";
+        storeId = sp.storeId?.toString() || apiItem.cartUuid || "";
+        storeName = sp.productName || "Store";
+        name = sp.productName || "";
+        price = typeof sp.price === "number" ? sp.price : Number(sp.price) || 0;
+        image = sp.productImages?.[0] || "";
+        quantity = typeof apiItem.quantity === "number" ? apiItem.quantity : Number(apiItem.quantity) || 1;
+        category = "";
+        itemId = apiItem.uuid || `${productId}-${Date.now()}`;
+      } else {
+        // Flat ApiCartItem format
+        productId = apiItem.productId || apiItem.id || "";
+        storeProductUuid = apiItem.storeProductUuid || apiItem.productId || apiItem.id || "";
+        storeId = apiItem.storeId?.toString() || "";
+        storeName = apiItem.storeName || "Store";
+        name = apiItem.name || "";
+        price = typeof apiItem.price === "number" ? apiItem.price : Number(apiItem.price) || 0;
+        image = apiItem.image || "";
+        quantity = typeof apiItem.quantity === "number" ? apiItem.quantity : Number(apiItem.quantity) || 1;
+        category = apiItem.category || "";
+        itemId = apiItem.id || apiItem.uuid || `${productId}-${Date.now()}`;
+      }
 
       const localItem: CartItem = {
-        id: apiItem.uuid,
-        productId: sp.productUuid,
-        storeProductUuid: sp.productUuid,
-        storeId: storeIdKey,
+        id: itemId,
+        productId,
+        storeProductUuid,
+        storeId,
         storeName,
-        name: sp.productName,
-        price: sp.price,
-        image: sp.productImages?.[0] || "",
-        quantity: apiItem.quantity,
-        category: "",
+        name,
+        price,
+        image,
+        quantity,
+        category,
         addedAt: new Date().toISOString(),
       };
 
-      if (storeMap.has(storeIdKey)) {
-        const store = storeMap.get(storeIdKey)!;
+      const storeKey = storeId || `store-${storeProductUuid.slice(0, 8)}`;
+
+      if (storeMap.has(storeKey)) {
+        const store = storeMap.get(storeKey)!;
         store.items.push(localItem);
-        store.total += sp.price * apiItem.quantity;
+        store.total += price * quantity;
       } else {
-        storeMap.set(storeIdKey, {
-          storeId: storeIdKey,
+        storeMap.set(storeKey, {
+          storeId: storeKey,
           storeName,
           items: [localItem],
-          total: sp.price * apiItem.quantity,
+          total: price * quantity,
         });
       }
     });
@@ -218,11 +271,24 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       setHasApiConnection(true);
       const apiCartItems = response.data.cartItems || [];
       const hasLocalItems = cart.stores.some((store) => store.items.length > 0);
-      const shouldHydrateFromApi = apiCartItems.length > 0 || !hasLocalItems;
 
-      if (shouldHydrateFromApi) {
+      if (apiCartItems.length > 0) {
         const apiCart = transformApiCartToLocal(apiCartItems);
-        setCart(apiCart);
+        // Only replace local cart if the transformed items have valid IDs
+        const hasValidItems = apiCart.stores.some((s) =>
+          s.items.some((i) => Boolean(i.productId))
+        );
+        if (hasValidItems) {
+          setCart(apiCart);
+        }
+      } else if (!hasLocalItems) {
+        // No local items either — set empty cart
+        setCart({
+          stores: [],
+          totalItems: 0,
+          totalAmount: 0,
+          lastUpdated: new Date().toISOString(),
+        });
       }
       return response.data.uuid;
     } catch (err: any) {
@@ -237,124 +303,132 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   };
 
   const addToCart = async (itemData: Omit<CartItem, 'id' | 'addedAt' | 'quantity'>) => {
-    // Set updating state
     setLoading(prev => ({ ...prev, isUpdating: true }));
     clearErrors();
 
+    // Resolve store product UUID from item data — this is the key identifier the API needs
     const storeProductUuid = resolveStoreProductUuidFromPayload(itemData);
 
     let shouldUseLocalFallback = true;
     let apiError: string | null = null;
-    let localOnlyReason: "missing_store_product_uuid" | null = null;
 
     const token = getBringAmToken();
     const canSyncToServer = Boolean(token);
-    if (canSyncToServer && !storeProductUuid) {
-      localOnlyReason = "missing_store_product_uuid";
-    }
 
-    // Try to add via API first if available
-    if (storeProductUuid && canSyncToServer) {
+    // Always try the API call when the user is authenticated, regardless of whether
+    // we have a resolved storeProductUuid. The API is the source of truth.
+    if (canSyncToServer) {
       try {
+        // Ensure we have a server cart UUID before attempting to add items
         const cartUuid = await ensureApiCartUuid();
-        const addRequest: AddToCartRequest = {
-          storeProductUuid,
-          quantity: 1,
-        };
-        await addItemToCartApi(cartUuid, addRequest);
-        await fetchCartFromApi();
-        shouldUseLocalFallback = false;
+
+        if (storeProductUuid) {
+          // Have the product identifier — make the API call
+          const addRequest: AddToCartRequest = {
+            storeProductUuid,
+            quantity: 1,
+          };
+          await addItemToCartApi(cartUuid, addRequest);
+          // Refresh the cart from the API to stay in sync
+          await fetchCartFromApi();
+          shouldUseLocalFallback = false;
+        } else {
+          // No storeProductUuid resolved — log it but don't fail, local cart still works
+          console.warn(
+            "[addToCart] Could not resolve storeProductUuid from itemData:",
+            itemData
+          );
+          apiError = "Could not resolve product ID from the server data.";
+        }
       } catch (err: any) {
-        console.error("Failed to add item via API, falling back to local:", err);
-        apiError = extractAxiosMessage(err) || "Failed to add item to server cart";
-        setError(prev => ({ 
-          ...prev, 
-          apiError: apiError
-        }));
+        const msg = extractAxiosMessage(err);
+        console.error("[addToCart] API call failed, falling back to local:", msg);
+        apiError = msg;
+        setError(prev => ({ ...prev, apiError: msg }));
       }
     }
 
     // Update local cart only when API sync is unavailable/failed
     if (shouldUseLocalFallback) {
       setCart(prevCart => {
-      // First, check if the exact product already exists in any store
-      let existingItem: CartItem | undefined;
-      let existingStoreIndex = -1;
-      let existingItemIndex = -1;
+        // First, check if the exact product already exists in any store
+        let existingItem: CartItem | undefined;
+        let existingStoreIndex = -1;
+        let existingItemIndex = -1;
 
-      // Search through all stores for the exact product within the same store
-      // to prevent cross-store item merging.
-      prevCart.stores.forEach((store, storeIdx) => {
-        const itemIdx = store.items.findIndex(
-          item =>
-            item.productId === itemData.productId &&
-            item.storeId === itemData.storeId
-        );
-        if (itemIdx !== -1) {
-          existingItem = store.items[itemIdx];
-          existingStoreIndex = storeIdx;
-          existingItemIndex = itemIdx;
-        }
-      });
+        // Search through all stores for the exact product within the same store
+        // to prevent cross-store item merging.
+        prevCart.stores.forEach((store, storeIdx) => {
+          const itemIdx = store.items.findIndex(
+            item =>
+              item.productId === itemData.productId &&
+              item.storeId === itemData.storeId
+          );
+          if (itemIdx !== -1) {
+            existingItem = store.items[itemIdx];
+            existingStoreIndex = storeIdx;
+            existingItemIndex = itemIdx;
+          }
+        });
 
-      let updatedStores: CartStore[];
+        let updatedStores: CartStore[];
 
-      if (existingItem) {
-        // Product exists, increment its quantity
-        updatedStores = [...prevCart.stores];
-        updatedStores[existingStoreIndex] = {
-          ...updatedStores[existingStoreIndex],
-          items: updatedStores[existingStoreIndex].items.map((item, idx) =>
-            idx === existingItemIndex
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          ),
-        };
-
-        // Update store total
-        updatedStores[existingStoreIndex].total = updatedStores[existingStoreIndex].items.reduce(
-          (sum, item) => sum + (item.price * item.quantity), 0
-        );
-      } else {
-        // Product doesn't exist, find or create store
-        const storeIndex = prevCart.stores.findIndex(store => store.storeId === itemData.storeId);
-
-        const newItem: CartItem = {
-          ...itemData,
-          id: `${itemData.productId}-${Date.now()}`,
-          storeProductUuid: storeProductUuid ?? itemData.storeProductUuid,
-          quantity: 1,
-          addedAt: new Date().toISOString(),
-        };
-
-        if (storeIndex >= 0) {
-          // Store exists, add new item
+        if (existingItem) {
+          // Product exists, increment its quantity
           updatedStores = [...prevCart.stores];
-          updatedStores[storeIndex] = {
-            ...updatedStores[storeIndex],
-            items: [...updatedStores[storeIndex].items, newItem],
-            total: updatedStores[storeIndex].total + itemData.price,
+          updatedStores[existingStoreIndex] = {
+            ...updatedStores[existingStoreIndex],
+            items: updatedStores[existingStoreIndex].items.map((item, idx) =>
+              idx === existingItemIndex
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
+            ),
           };
+
+          // Update store total
+          updatedStores[existingStoreIndex].total = updatedStores[existingStoreIndex].items.reduce(
+            (sum, item) => sum + (item.price * item.quantity), 0
+          );
         } else {
-          // Create new store with item
-          const newStore: CartStore = {
-            storeId: itemData.storeId,
-            storeName: itemData.storeName,
-            items: [newItem],
-            total: itemData.price,
+          // Product doesn't exist, find or create store
+          const storeIndex = prevCart.stores.findIndex(store => store.storeId === itemData.storeId);
+
+          const newItem: CartItem = {
+            ...itemData,
+            id: `${itemData.productId}-${Date.now()}`,
+            storeProductUuid: storeProductUuid ?? itemData.storeProductUuid,
+            quantity: 1,
+            addedAt: new Date().toISOString(),
           };
-          updatedStores = [...prevCart.stores, newStore];
+
+          if (storeIndex >= 0) {
+            // Store exists, add new item
+            updatedStores = [...prevCart.stores];
+            updatedStores[storeIndex] = {
+              ...updatedStores[storeIndex],
+              items: [...updatedStores[storeIndex].items, newItem],
+              total: updatedStores[storeIndex].total + itemData.price,
+            };
+          } else {
+            // Create new store with item
+            const newStore: CartStore = {
+              storeId: itemData.storeId,
+              storeName: itemData.storeName,
+              items: [newItem],
+              total: itemData.price,
+            };
+            updatedStores = [...prevCart.stores, newStore];
+          }
         }
-      }
 
-      const { totalItems, totalAmount } = calculateTotals(updatedStores);
+        const { totalItems, totalAmount } = calculateTotals(updatedStores);
 
-      return {
-        stores: updatedStores,
-        totalItems,
-        totalAmount,
-        lastUpdated: new Date().toISOString(),
-      };
+        return {
+          stores: updatedStores,
+          totalItems,
+          totalAmount,
+          lastUpdated: new Date().toISOString(),
+        };
       });
     }
 
@@ -369,13 +443,11 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
 
     if (shouldUseLocalFallback) {
-      const reason =
-        localOnlyReason ?? (apiError ? ("api_error" as const) : undefined);
       return {
         success: true,
         data: {
           synced: false,
-          ...(reason ? { reason } : {}),
+          ...(apiError ? { reason: "api_error" as const } : {}),
         },
         ...(apiError ? { error: apiError } : {}),
       };
@@ -580,14 +652,26 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
         const apiCartItems = response.data.cartItems || [];
         const hasLocalItems = cart.stores.some((store) => store.items.length > 0);
-        const shouldHydrateFromApi = apiCartItems.length > 0 || !hasLocalItems;
 
-        if (shouldHydrateFromApi) {
+        if (apiCartItems.length > 0) {
           // Transform API data to local structure
           const apiCart = transformApiCartToLocal(apiCartItems);
 
-          // Update local cart with API data
-          setCart(apiCart);
+          // Only replace local cart if the transformed items have valid IDs
+          const hasValidItems = apiCart.stores.some((s) =>
+            s.items.some((i) => Boolean(i.productId))
+          );
+          if (hasValidItems) {
+            setCart(apiCart);
+          }
+        } else if (!hasLocalItems) {
+          // No local items either — set empty cart
+          setCart({
+            stores: [],
+            totalItems: 0,
+            totalAmount: 0,
+            lastUpdated: new Date().toISOString(),
+          });
         }
 
       } else {

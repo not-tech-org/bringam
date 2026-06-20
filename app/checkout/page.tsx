@@ -19,7 +19,6 @@ import {
   type CheckoutApiResponse,
   type PlaceOrderApiResponse,
 } from "../services/CartService";
-import type { ServerCartItem } from "../types/cart";
 
 // Animation variants for subtle form interactions
 const pageVariants = {
@@ -57,7 +56,7 @@ const buttonVariants = {
 };
 
 const CheckoutPage = () => {
-  const { cart, apiCartData } = useCart();
+  const { cart } = useCart();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -74,22 +73,6 @@ const CheckoutPage = () => {
     message?: string;
   } | null>(null);
   const CHECKOUT_SELECTION_KEY = "bringam_checkout_selected_items";
-
-  /** Env + sessionStorage `bringam_checkout_skip_get_user_cart` = "1" (no rebuild needed). */
-  const shouldSkipGetUserCartCheckout = React.useCallback((): boolean => {
-    try {
-      if (typeof window !== "undefined") {
-        const v = sessionStorage.getItem("bringam_checkout_skip_get_user_cart");
-        if (v === "1" || v === "true") return true;
-      }
-    } catch {
-      /* ignore */
-    }
-    return (
-      process.env.NEXT_PUBLIC_CHECKOUT_SKIP_GET_USER_CART === "true" ||
-      process.env.NEXT_PUBLIC_CHECKOUT_SKIP_GET_USER_CART === "1"
-    );
-  }, []);
 
   // Selected payment method
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'bank' | 'mobile' | null>(null);
@@ -217,89 +200,158 @@ const CheckoutPage = () => {
   };
 
   /**
-   * Extract the cart item UUID from a ServerCartItem.
-   * The API's CartItemResp always has a `uuid` field for the cart line item.
+   * Extract a string value from an unknown data object by trying multiple field names.
+   * Handles variations in API response field naming (camelCase, snake_case, etc.).
    */
-  const resolveCartItemUuid = (item: ServerCartItem): string | null => {
-    if (item.uuid && typeof item.uuid === "string" && item.uuid.trim()) {
-      return item.uuid.trim();
+  const getStringField = (obj: Record<string, unknown> | null | undefined, ...keys: string[]): string | undefined => {
+    if (!obj) return undefined;
+    for (const key of keys) {
+      const val = obj[key];
+      if (typeof val === "string" && val.trim()) return val.trim();
     }
+    return undefined;
+  };
+
+  const getNumberField = (obj: Record<string, unknown> | null | undefined, ...keys: string[]): number | undefined => {
+    if (!obj) return undefined;
+    for (const key of keys) {
+      const val = obj[key];
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      if (typeof val === "string") {
+        const n = Number(val);
+        if (Number.isFinite(n)) return n;
+      }
+    }
+    return undefined;
+  };
+
+  /**
+   * Try to extract a UUID from a server cart item, supporting both the nested
+   * CartItemResp format (item.uuid) and the flat ApiCartItem format (item.id / item.cartItemUuid).
+   */
+  const extractCartItemUuid = (item: Record<string, unknown>): string | null => {
+    // Nested format: CartItemResp with storeProduct sub-object
+    const nestedUuid = getStringField(item, "uuid");
+    if (nestedUuid) return nestedUuid;
+
+    // Flat format: ApiCartItem with direct UUID/id fields
+    const flatUuid = getStringField(item, "id", "cartItemUuid", "cartItemUUID", "cartItemId", "productId");
+    if (flatUuid) return flatUuid;
+
     return null;
   };
 
   /**
-   * Build cartItemUUIDs for the checkout request from server cart items.
-   * Matches user-selected local cart items to server cart items by comparing
-   * the store-product UUID (productUuid in storeProduct).
+   * Try to extract a store-product UUID from a server cart item for matching purposes.
    */
-  const buildCheckoutCartItemIds = (
-    serverItems: ServerCartItem[],
-    selectedLocalIds: string[]
-  ): string[] => {
-    if (selectedLocalIds.length === 0) {
-      // No selection — include all server cart items
-      return serverItems
-        .map((item) => resolveCartItemUuid(item))
-        .filter((id): id is string => Boolean(id));
+  const extractStoreProductUuid = (item: Record<string, unknown>): string | null => {
+    // Nested format: storeProduct.productUuid
+    const sp = item.storeProduct as Record<string, unknown> | undefined;
+    if (sp) {
+      const spUuid = getStringField(sp, "productUuid", "productId");
+      if (spUuid) return spUuid;
+    }
+    // Flat format: direct field
+    return resolveStoreProductUuidFromPayload(item);
+  };
+
+  /**
+   * Fetch the server cart, sync if empty, then build cartItemUUIDs for checkout.
+   */
+  const buildCartItemUUIDsForCheckout = async (): Promise<string[] | { error: string }> => {
+    const cartResponse = await getUserCartApi();
+    if (!cartResponse.success) {
+      return { error: cartResponse.message || "Unable to load your cart from the server." };
     }
 
-    const selectedSet = new Set(selectedLocalIds);
+    let serverItems: Record<string, unknown>[] = (cartResponse.data?.cartItems ?? []) as unknown as Record<string, unknown>[];
+
+    // If server cart is empty but local has items, sync them
+    if (serverItems.length === 0 && cart.stores.length > 0) {
+      const cartApiUuid = cartResponse.data?.uuid;
+      if (!cartApiUuid) {
+        return { error: "Missing cart identifier." };
+      }
+
+      // Collect all items to sync
+      const itemsToSync = selectedCartItemIds.length > 0
+        ? cart.stores.flatMap(s => s.items.filter(i => selectedCartItemIds.includes(i.id)))
+        : cart.stores.flatMap(s => s.items);
+
+      if (itemsToSync.length === 0) {
+        return { error: "Your cart is empty." };
+      }
+
+      showToast("Syncing cart with server…", "info");
+
+      let synced = 0;
+      for (const item of itemsToSync) {
+        // Try storeProductUuid first, fall back to productId which is always set on local items
+        let id: string | null = resolveStoreProductUuidFromPayload(item);
+        if (!id) id = item.productId || null;
+        if (!id) continue;
+        await addItemToCartApi(cartApiUuid, { storeProductUuid: id, quantity: item.quantity });
+        synced++;
+      }
+
+      if (synced === 0) {
+        return { error: "Cart items are missing product IDs. Open each product and add to cart again." };
+      }
+
+      // Re-fetch server cart after sync
+      const refreshed = await getUserCartApi();
+      if (!refreshed.success || !refreshed.data?.cartItems?.length) {
+        return { error: "Cart sync completed but server cart is still empty." };
+      }
+      serverItems = refreshed.data.cartItems as unknown as Record<string, unknown>[];
+    }
+
+    if (serverItems.length === 0) {
+      return { error: "Your cart is empty." };
+    }
+
+    // Build UUID list: if items are selected, match by store-product UUID; else take all
+    const selectedSet = new Set(selectedCartItemIds);
     const uuids: string[] = [];
 
     for (const serverItem of serverItems) {
-      const serverProductUuid = serverItem.storeProduct?.productUuid;
-      if (!serverProductUuid) continue;
+      if (selectedCartItemIds.length > 0) {
+        // Match selected local items by store product UUID
+        const serverSpUuid = extractStoreProductUuid(serverItem);
+        if (!serverSpUuid) continue;
 
-      // Check if any selected local item matches by store product UUID
-      const isSelected = cart.stores.some((store) =>
-        store.items.some(
-          (line) =>
-            selectedSet.has(line.id) &&
-            (line.storeProductUuid === serverProductUuid ||
-              line.productId === serverProductUuid)
-        )
-      );
-
-      if (isSelected) {
-        const id = resolveCartItemUuid(serverItem);
-        if (id) uuids.push(id);
+        const isSelected = cart.stores.some(store =>
+          store.items.some(
+            line => selectedSet.has(line.id) &&
+              (line.storeProductUuid === serverSpUuid || line.productId === serverSpUuid)
+          )
+        );
+        if (!isSelected) continue;
       }
+
+      const uuid = extractCartItemUuid(serverItem);
+      if (uuid) uuids.push(uuid);
     }
 
     return uuids;
   };
 
-  /**
-   * Fallback: build cartItemUUIDs from local cart when server cart is unavailable.
-   * Each selected item pushes its store-product UUID once (the API handles qty internally).
-   */
-  const buildCheckoutCartItemIdsFromLocalCart = (selectedIds: string[]): string[] => {
-    const selectedSet = new Set(selectedIds);
-    const ids: string[] = [];
-
-    for (const store of cart.stores) {
-      for (const line of store.items) {
-        if (selectedSet.size > 0 && !selectedSet.has(line.id)) continue;
-
-        const storeProductUuid = resolveStoreProductUuidFromPayload(line);
-        if (!storeProductUuid) continue;
-
-        // Push once — the API endpoint knows the quantity from the cart item
-        ids.push(storeProductUuid);
-      }
-    }
-
-    return ids;
-  };
-
   const applyCheckoutSuccess = (response: CheckoutApiResponse): boolean => {
-    // The spec says CustomerCheckoutSessionResp has { uuid, subTotal }.
-    // uuid is the checkout session UUID needed for the place-order step.
+    // Try multiple field name variations for the checkout session UUID
+    const d = response.data;
+    const sessionUuid = getStringField(d, "uuid", "checkoutSessionUuid", "sessionUuid", "checkoutSessionId", "sessionId") ?? "";
+    const amount = getNumberField(d, "subTotal", "subtotal", "sub_total", "amount", "total");
+
     setCheckoutResult({
-      uuid: response.data?.uuid ?? undefined,
-      subTotal: response.data?.subTotal ?? undefined,
+      uuid: sessionUuid || undefined,
+      subTotal: amount,
       message: response.message,
     });
+
+    if (!sessionUuid) {
+      showToast("Checkout failed: no session ID returned by server.", "error");
+      return false;
+    }
     showToast("Checkout session created. Proceed with payment.", "success");
     return true;
   };
@@ -307,133 +359,25 @@ const CheckoutPage = () => {
   const createCheckoutSession = async (): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const localCartItemUUIDs = buildCheckoutCartItemIdsFromLocalCart(selectedCartItemIds);
+      const result = await buildCartItemUUIDsForCheckout();
 
-      // Skip GET /carts/get-user-cart when env or sessionStorage requests local-only checkout.
-      if (shouldSkipGetUserCartCheckout()) {
-        if (localCartItemUUIDs.length === 0) {
-          showToast(
-            "Skip mode is on but no store-product UUIDs were found on cart lines. Re-add items from a product page while signed in.",
-            "error"
-          );
+      if (Array.isArray(result)) {
+        // Successfully got cart item UUIDs
+        if (result.length === 0) {
+          showToast("No items to checkout.", "warning");
           return false;
         }
-        showToast("Checkout using local cart only (GET skipped, temporary)…", "warning");
-        const response = await checkoutApi({ cartItemUUIDs: localCartItemUUIDs });
+
+        const response = await checkoutApi({ cartItemUUIDs: result });
         if (!response.success) {
           throw new Error(response.message || "Checkout failed. Please try again.");
         }
         return applyCheckoutSuccess(response);
-      }
-
-      // Default: load server cart first (GET .../carts/get-user-cart), map lines, then POST /checkout.
-      const cartResponse = await getUserCartApi();
-      if (!cartResponse.success) {
-        // Temporary fallback: attempt checkout with local cart data.
-        if (localCartItemUUIDs.length > 0) {
-          showToast("Using local cart for checkout (temporary)…", "warning");
-          const response = await checkoutApi({ cartItemUUIDs: localCartItemUUIDs });
-          if (!response.success) {
-            throw new Error(response.message || "Checkout failed. Please try again.");
-          }
-          return applyCheckoutSuccess(response);
-        }
-
-        const msg =
-          cartResponse.message ||
-          "Unable to load your cart from the server. Please try again.";
-        showToast(msg, "warning");
+      } else {
+        // Error occurred
+        showToast(result.error || "Checkout failed. Please try again.", "error");
         return false;
       }
-
-      let serverCartItems: ServerCartItem[] = cartResponse.data?.cartItems || [];
-
-      // If server cart is empty but local cart has items, sync selected items
-      // so we can obtain server cart line UUIDs required by POST /checkout.
-      if (serverCartItems.length === 0) {
-        const selectedSet = new Set(selectedCartItemIds);
-        const localSelectedItems = cart.stores.flatMap((store) =>
-          store.items.filter(
-            (item) => selectedSet.size === 0 || selectedSet.has(item.id)
-          )
-        );
-
-        if (localSelectedItems.length === 0) {
-          showToast("Your cart is empty.", "warning");
-          return false;
-        }
-
-        if (!cartResponse.data?.uuid) {
-          showToast("Unable to sync cart. Missing cart identifier.", "error");
-          return false;
-        }
-
-        showToast("Syncing cart with server…", "info");
-
-        let syncedLineCount = 0;
-        for (const item of localSelectedItems) {
-          const storeProductUuid = resolveStoreProductUuidFromPayload(item);
-          if (!storeProductUuid) continue;
-          await addItemToCartApi(cartResponse.data.uuid, {
-            storeProductUuid,
-            quantity: item.quantity,
-          });
-          syncedLineCount += 1;
-        }
-
-        if (syncedLineCount === 0) {
-          showToast(
-            "Cannot sync cart: cart lines are missing store-product IDs. Open each product and add to cart again while signed in.",
-            "error"
-          );
-          return false;
-        }
-
-        const refreshed = await getUserCartApi();
-        if (!refreshed.success) {
-          showToast(refreshed.message || "Failed to sync cart.", "error");
-          return false;
-        }
-        serverCartItems = refreshed.data?.cartItems || [];
-        if (serverCartItems.length === 0) {
-          showToast(
-            "Cart sync completed, but server cart is still empty. Please sign in and try again.",
-            "warning"
-          );
-          return false;
-        }
-      }
-
-      const cartItemUUIDs = buildCheckoutCartItemIds(
-        serverCartItems,
-        selectedCartItemIds
-      );
-
-      if (cartItemUUIDs.length === 0) {
-        // Temporary fallback: attempt checkout with local cart data.
-        if (localCartItemUUIDs.length > 0) {
-          showToast("Using local cart for checkout (temporary)…", "warning");
-          const response = await checkoutApi({ cartItemUUIDs: localCartItemUUIDs });
-          if (!response.success) {
-            throw new Error(response.message || "Checkout failed. Please try again.");
-          }
-          return applyCheckoutSuccess(response);
-        }
-
-        showToast(
-          "Could not match your selected items to server cart lines. Return to cart and try again, or re-select items.",
-          "warning"
-        );
-        return false;
-      }
-
-      const response = await checkoutApi({ cartItemUUIDs });
-
-      if (!response.success) {
-        throw new Error(response.message || "Checkout failed. Please try again.");
-      }
-
-      return applyCheckoutSuccess(response);
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.message ||

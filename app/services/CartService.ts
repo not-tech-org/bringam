@@ -30,6 +30,19 @@ export const normalizeClientStringId = (value: unknown): string | null => {
  * Vendor-service store-product payloads often use `productUuid` for the row id.
  * Cart lines may expose `storeProductUuid`, `productId`, or `uuid` — honor all.
  */
+/**
+ * Resolve a store-product UUID from an API payload (either the raw product object
+ * or a cart item), handling all known field-name variations the backend returns.
+ *
+ * Priority order:
+ * 1. storeProductUuid / storeProductUUID  (used in cart-related payloads)
+ * 2. productUuid / productUUID            (StoreProductResp from vendor-service)
+ * 3. uuid                                 (ProductResp from vendor-service)
+ * 4. storeProductId                       (legacy numeric id)
+ * 5. productId (number)                   (numeric id on StoreProductResp/ProductResp)
+ *
+ * Returns null when no valid identifier is found.
+ */
 export const resolveStoreProductUuidFromPayload = (
   item: unknown
 ): string | null => {
@@ -39,9 +52,9 @@ export const resolveStoreProductUuidFromPayload = (
     normalizeClientStringId(row.storeProductUuid) ||
     normalizeClientStringId(row.storeProductUUID) ||
     normalizeClientStringId(row.productUuid) ||
-    normalizeClientStringId(row.storeProductId) ||
-    normalizeClientStringId(row.uuid) ||
     normalizeClientStringId(row.productUUID) ||
+    normalizeClientStringId(row.uuid) ||
+    normalizeClientStringId(row.storeProductId) ||
     normalizeClientStringId(row.productId) ||
     null
   );
@@ -118,15 +131,11 @@ export interface CheckoutRequest {
   cartItemUUIDs: string[];
 }
 
-/** Matches CustomerCheckoutSessionResp — server returns uuid (session id) + subTotal. */
+/** Matches CustomerCheckoutSessionResp — server may return various field name formats. */
 export interface CheckoutApiResponse {
   success: boolean;
   message: string;
-  data: {
-    uuid: string;
-    subTotal: number;
-    [key: string]: unknown;
-  } | null;
+  data: Record<string, unknown> | null;
 }
 
 export interface PlaceOrderRequest {

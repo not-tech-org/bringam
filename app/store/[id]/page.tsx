@@ -9,6 +9,7 @@ import Button from "../../components/common/Button";
 import { FaArrowLeft, FaPhone, FaMapMarkerAlt, FaClock, FaStar, FaHeart, FaShare, FaShoppingCart } from "react-icons/fa";
 import { useCart } from "../../contexts/CartContext";
 import { toggleWishlistItemApi } from "../../services/WishlistService";
+import { resolveStoreProductUuidFromPayload } from "../../services/CartService";
 import { showToast } from "../../components/utils/helperFunctions";
 import { motion } from "framer-motion";
 import { getStoreById, getStoreProductsByStore } from "../../services/AuthService";
@@ -118,6 +119,11 @@ const StorePage = () => {
 
   const handleAddToCart = async (product: any) => {
     try {
+      // Resolve the store-product UUID from the raw API response data.
+      // The actual field name varies between endpoints (productUuid, uuid, etc.)
+      // so we use the comprehensive resolver from CartService.
+      const resolvedUuid = resolveStoreProductUuidFromPayload(product);
+
       // Improved price parsing with error handling
       const priceString = (product.price ?? "").toString();
       const numericPrice = parseFloat(priceString.replace(/[^\d.]/g, ''));
@@ -128,10 +134,11 @@ const StorePage = () => {
       }
 
       const result = await addToCart({
-        productId: product.productUuid || product.id || product.uuid,
-        productUuid: product.productUuid,
-        // Prefer store-product row id (uuid) from list payload, then other vendor fields.
+        productId: resolvedUuid || product.productId?.toString() || product.id || product.uuid,
+        productUuid: resolvedUuid || product.productUuid,
+        // Use the resolved UUID as the primary value, with direct product fields as fallback
         storeProductUuid:
+          resolvedUuid ||
           product.storeProductUuid ||
           product.storeProductUUID ||
           (product.storeProductId != null && product.storeProductId !== ""
@@ -150,11 +157,6 @@ const StorePage = () => {
 
       if (result?.data?.synced === false && result?.data?.reason === "unauthenticated") {
         showToast("Item added locally. Sign in to save your cart.", "warning");
-        return;
-      }
-
-      if (result?.data?.synced === false && result?.data?.reason === "missing_store_product_uuid") {
-        showToast("Item added locally. Couldn’t sync: missing store product id from the server.", "warning");
         return;
       }
 
