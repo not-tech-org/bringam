@@ -26,6 +26,27 @@ export const normalizeClientStringId = (value: unknown): string | null => {
   return null;
 };
 
+/**
+ * Vendor-service store-product payloads often use `productUuid` for the row id.
+ * Cart lines may expose `storeProductUuid`, `productId`, or `uuid` — honor all.
+ */
+export const resolveStoreProductUuidFromPayload = (
+  item: unknown
+): string | null => {
+  if (!item || typeof item !== "object") return null;
+  const row = item as Record<string, unknown>;
+  return (
+    normalizeClientStringId(row.storeProductUuid) ||
+    normalizeClientStringId(row.storeProductUUID) ||
+    normalizeClientStringId(row.productUuid) ||
+    normalizeClientStringId(row.storeProductId) ||
+    normalizeClientStringId(row.uuid) ||
+    normalizeClientStringId(row.productUUID) ||
+    normalizeClientStringId(row.productId) ||
+    null
+  );
+};
+
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
 };
@@ -66,7 +87,7 @@ const addAuthInterceptor = (apiInstance: any) => {
 addAuthInterceptor(cartApi);
 
 // Import types from cart types file to avoid duplication
-import { ApiCartResponse } from "../types/cart";
+import type { ApiCartResponse } from "../types/cart";
 
 export const extractAxiosMessage = (err: any): string => {
   return (
@@ -97,22 +118,38 @@ export interface CheckoutRequest {
   cartItemUUIDs: string[];
 }
 
+/** Matches CustomerCheckoutSessionResp — server returns uuid (session id) + subTotal. */
 export interface CheckoutApiResponse {
   success: boolean;
   message: string;
   data: {
-    subtotal?: number;
-    subTotal?: number;
-    amount?: number;
-    paymentReference?: string;
-    payment_reference?: string;
-    reference?: string;
-    checkoutSessionId?: string;
-    checkout_session_id?: string;
-    sessionId?: string;
+    uuid: string;
+    subTotal: number;
     [key: string]: unknown;
   } | null;
 }
+
+export interface PlaceOrderRequest {
+  checkoutSessionUuid: string;
+  addressUuid?: string;
+  deliveryOption?: string;
+  deliveryAddressUuid?: string;
+}
+
+/** Matches CustomerPlaceOrderResp — real order id and payment reference. */
+export interface PlaceOrderResponse {
+  orderUuid: string;
+  paymentReference: string;
+  amount: number;
+}
+
+export interface PlaceOrderApiResponse {
+  success: boolean;
+  message: string;
+  data: PlaceOrderResponse | null;
+}
+
+
 
 // Get user cart from API
 export const getUserCartApi = async (): Promise<ApiCartResponse> => {
@@ -174,6 +211,24 @@ export const clearCartApi = async (
 export const checkoutApi = async (
   request: CheckoutRequest
 ): Promise<CheckoutApiResponse> => {
-  const response = await cartApi.post("/checkout", request);
-  return response.data;
+  try {
+    const response = await cartApi.post("/checkout", request);
+    return response.data;
+  } catch (err: unknown) {
+    throw new Error(extractAxiosMessage(err));
+  }
 };
+
+// Finalize order after payment (POST /place-order)
+export const placeOrderApi = async (
+  request: PlaceOrderRequest
+): Promise<PlaceOrderApiResponse> => {
+  try {
+    const response = await cartApi.post("/place-order", request);
+    return response.data;
+  } catch (err: unknown) {
+    throw new Error(extractAxiosMessage(err));
+  }
+};
+
+

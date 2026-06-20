@@ -10,8 +10,16 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { showToast } from "../components/utils/helperFunctions";
-import { addItemToCartApi, checkoutApi, getUserCartApi } from "../services/CartService";
-import type { ApiCartItem } from "../types/cart";
+import {
+  addItemToCartApi,
+  checkoutApi,
+  getUserCartApi,
+  placeOrderApi,
+  resolveStoreProductUuidFromPayload,
+  type CheckoutApiResponse,
+  type PlaceOrderApiResponse,
+} from "../services/CartService";
+import type { ServerCartItem } from "../types/cart";
 
 // Animation variants for subtle form interactions
 const pageVariants = {
@@ -55,12 +63,33 @@ const CheckoutPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCartItemIds, setSelectedCartItemIds] = useState<string[]>([]);
   const [checkoutResult, setCheckoutResult] = useState<{
-    subtotal?: number;
+    uuid?: string;
+    subTotal?: number;
+    message?: string;
+  } | null>(null);
+  const [orderResult, setOrderResult] = useState<{
+    orderUuid?: string;
     paymentReference?: string;
-    checkoutSessionId?: string;
+    amount?: number;
     message?: string;
   } | null>(null);
   const CHECKOUT_SELECTION_KEY = "bringam_checkout_selected_items";
+
+  /** Env + sessionStorage `bringam_checkout_skip_get_user_cart` = "1" (no rebuild needed). */
+  const shouldSkipGetUserCartCheckout = React.useCallback((): boolean => {
+    try {
+      if (typeof window !== "undefined") {
+        const v = sessionStorage.getItem("bringam_checkout_skip_get_user_cart");
+        if (v === "1" || v === "true") return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    return (
+      process.env.NEXT_PUBLIC_CHECKOUT_SKIP_GET_USER_CART === "true" ||
+      process.env.NEXT_PUBLIC_CHECKOUT_SKIP_GET_USER_CART === "1"
+    );
+  }, []);
 
   // Selected payment method
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'bank' | 'mobile' | null>(null);
@@ -187,83 +216,137 @@ const CheckoutPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const resolveCartItemUuid = (item: ApiCartItem & Record<string, unknown>) => {
-    const raw =
-      item.id ??
-      (item as { cartItemUuid?: string }).cartItemUuid ??
-      (item as { cartItemUUID?: string }).cartItemUUID ??
-      (item as { cartItemUUIDs?: string }).cartItemUUIDs ??
-      (item as { cart_item_uuid?: string }).cart_item_uuid ??
-      (item as { cart_item_uuid_v4?: string }).cart_item_uuid_v4 ??
-      (item as { cartItemId?: string }).cartItemId ??
-      (item as { cartItemID?: string }).cartItemID ??
-      (item as { uuid?: string }).uuid ??
-      // Fallback: many APIs treat productId as storeProductUuid (UUID),
-      // which is acceptable for checkout cartItemUUIDs when no line UUID is returned.
-      item.productId;
-    return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+  /**
+   * Extract the cart item UUID from a ServerCartItem.
+   * The API's CartItemResp always has a `uuid` field for the cart line item.
+   */
+  const resolveCartItemUuid = (item: ServerCartItem): string | null => {
+    if (item.uuid && typeof item.uuid === "string" && item.uuid.trim()) {
+      return item.uuid.trim();
+    }
+    return null;
   };
 
+  /**
+   * Build cartItemUUIDs for the checkout request from server cart items.
+   * Matches user-selected local cart items to server cart items by comparing
+   * the store-product UUID (productUuid in storeProduct).
+   */
   const buildCheckoutCartItemIds = (
-    apiItems: ApiCartItem[],
-    selectedIds: string[]
+    serverItems: ServerCartItem[],
+    selectedLocalIds: string[]
   ): string[] => {
-    const selectedSet = new Set(selectedIds);
-    const items = apiItems as (ApiCartItem & Record<string, unknown>)[];
+    if (selectedLocalIds.length === 0) {
+      // No selection — include all server cart items
+      return serverItems
+        .map((item) => resolveCartItemUuid(item))
+        .filter((id): id is string => Boolean(id));
+    }
 
-    const matchesSelection = (apiItem: ApiCartItem & Record<string, unknown>) => {
-      if (selectedSet.size === 0) return true;
+    const selectedSet = new Set(selectedLocalIds);
+    const uuids: string[] = [];
 
-      const serverId = resolveCartItemUuid(apiItem);
-      if (serverId && selectedSet.has(serverId)) return true;
+    for (const serverItem of serverItems) {
+      const serverProductUuid = serverItem.storeProduct?.productUuid;
+      if (!serverProductUuid) continue;
 
-      const apiStoreProduct =
-        (apiItem as { storeProductUuid?: string }).storeProductUuid ??
-        apiItem.productId;
-
-      return cart.stores.some((store) =>
-        store.items.some((line) => {
-          if (!selectedSet.has(line.id)) return false;
-
-          const lineStoreProduct = line.storeProductUuid || line.productId;
-
-          const storeProductMatch =
-            Boolean(lineStoreProduct && apiStoreProduct) &&
-            String(lineStoreProduct) === String(apiStoreProduct);
-
-          // Prefer storeId match when it lines up, but don't block checkout on it:
-          // local storeId can be vendor numeric id while API returns store UUID (or vice versa).
-          return storeProductMatch;
-        })
+      // Check if any selected local item matches by store product UUID
+      const isSelected = cart.stores.some((store) =>
+        store.items.some(
+          (line) =>
+            selectedSet.has(line.id) &&
+            (line.storeProductUuid === serverProductUuid ||
+              line.productId === serverProductUuid)
+        )
       );
-    };
 
-    return items
-      .filter(matchesSelection)
-      .map((item) => resolveCartItemUuid(item))
-      .filter((id): id is string => Boolean(id));
+      if (isSelected) {
+        const id = resolveCartItemUuid(serverItem);
+        if (id) uuids.push(id);
+      }
+    }
+
+    return uuids;
+  };
+
+  /**
+   * Fallback: build cartItemUUIDs from local cart when server cart is unavailable.
+   * Each selected item pushes its store-product UUID once (the API handles qty internally).
+   */
+  const buildCheckoutCartItemIdsFromLocalCart = (selectedIds: string[]): string[] => {
+    const selectedSet = new Set(selectedIds);
+    const ids: string[] = [];
+
+    for (const store of cart.stores) {
+      for (const line of store.items) {
+        if (selectedSet.size > 0 && !selectedSet.has(line.id)) continue;
+
+        const storeProductUuid = resolveStoreProductUuidFromPayload(line);
+        if (!storeProductUuid) continue;
+
+        // Push once — the API endpoint knows the quantity from the cart item
+        ids.push(storeProductUuid);
+      }
+    }
+
+    return ids;
+  };
+
+  const applyCheckoutSuccess = (response: CheckoutApiResponse): boolean => {
+    // The spec says CustomerCheckoutSessionResp has { uuid, subTotal }.
+    // uuid is the checkout session UUID needed for the place-order step.
+    setCheckoutResult({
+      uuid: response.data?.uuid ?? undefined,
+      subTotal: response.data?.subTotal ?? undefined,
+      message: response.message,
+    });
+    showToast("Checkout session created. Proceed with payment.", "success");
+    return true;
   };
 
   const createCheckoutSession = async (): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Checkout requires server cart line UUIDs (`cartItemUUIDs`). Load the latest
-      // cart from the API first (GET .../carts/get-user-cart), map selected lines,
-      // then POST .../checkout. Both requests are expected in the Network tab.
+      const localCartItemUUIDs = buildCheckoutCartItemIdsFromLocalCart(selectedCartItemIds);
+
+      // Skip GET /carts/get-user-cart when env or sessionStorage requests local-only checkout.
+      if (shouldSkipGetUserCartCheckout()) {
+        if (localCartItemUUIDs.length === 0) {
+          showToast(
+            "Skip mode is on but no store-product UUIDs were found on cart lines. Re-add items from a product page while signed in.",
+            "error"
+          );
+          return false;
+        }
+        showToast("Checkout using local cart only (GET skipped, temporary)…", "warning");
+        const response = await checkoutApi({ cartItemUUIDs: localCartItemUUIDs });
+        if (!response.success) {
+          throw new Error(response.message || "Checkout failed. Please try again.");
+        }
+        return applyCheckoutSuccess(response);
+      }
+
+      // Default: load server cart first (GET .../carts/get-user-cart), map lines, then POST /checkout.
       const cartResponse = await getUserCartApi();
       if (!cartResponse.success) {
+        // Temporary fallback: attempt checkout with local cart data.
+        if (localCartItemUUIDs.length > 0) {
+          showToast("Using local cart for checkout (temporary)…", "warning");
+          const response = await checkoutApi({ cartItemUUIDs: localCartItemUUIDs });
+          if (!response.success) {
+            throw new Error(response.message || "Checkout failed. Please try again.");
+          }
+          return applyCheckoutSuccess(response);
+        }
+
         const msg =
           cartResponse.message ||
           "Unable to load your cart from the server. Please try again.";
-        const isUnauthorized = msg.toLowerCase().includes("unauthorized");
-        showToast(
-          isUnauthorized ? msg : msg,
-          isUnauthorized ? "error" : "warning"
-        );
+        showToast(msg, "warning");
         return false;
       }
 
-      let serverCartItems = cartResponse.data?.cartItems || [];
+      let serverCartItems: ServerCartItem[] = cartResponse.data?.cartItems || [];
 
       // If server cart is empty but local cart has items, sync selected items
       // so we can obtain server cart line UUIDs required by POST /checkout.
@@ -287,13 +370,23 @@ const CheckoutPage = () => {
 
         showToast("Syncing cart with server…", "info");
 
+        let syncedLineCount = 0;
         for (const item of localSelectedItems) {
-          const storeProductUuid = item.storeProductUuid || item.productId;
+          const storeProductUuid = resolveStoreProductUuidFromPayload(item);
           if (!storeProductUuid) continue;
           await addItemToCartApi(cartResponse.data.uuid, {
             storeProductUuid,
             quantity: item.quantity,
           });
+          syncedLineCount += 1;
+        }
+
+        if (syncedLineCount === 0) {
+          showToast(
+            "Cannot sync cart: cart lines are missing store-product IDs. Open each product and add to cart again while signed in.",
+            "error"
+          );
+          return false;
         }
 
         const refreshed = await getUserCartApi();
@@ -317,6 +410,16 @@ const CheckoutPage = () => {
       );
 
       if (cartItemUUIDs.length === 0) {
+        // Temporary fallback: attempt checkout with local cart data.
+        if (localCartItemUUIDs.length > 0) {
+          showToast("Using local cart for checkout (temporary)…", "warning");
+          const response = await checkoutApi({ cartItemUUIDs: localCartItemUUIDs });
+          if (!response.success) {
+            throw new Error(response.message || "Checkout failed. Please try again.");
+          }
+          return applyCheckoutSuccess(response);
+        }
+
         showToast(
           "Could not match your selected items to server cart lines. Return to cart and try again, or re-select items.",
           "warning"
@@ -330,32 +433,53 @@ const CheckoutPage = () => {
         throw new Error(response.message || "Checkout failed. Please try again.");
       }
 
-      setCheckoutResult({
-        subtotal:
-          response.data?.subtotal ??
-          response.data?.subTotal ??
-          response.data?.amount ??
-          undefined,
-        paymentReference:
-          response.data?.paymentReference ??
-          response.data?.payment_reference ??
-          response.data?.reference ??
-          undefined,
-        checkoutSessionId:
-          response.data?.checkoutSessionId ??
-          response.data?.checkout_session_id ??
-          response.data?.sessionId ??
-          undefined,
-        message: response.message,
-      });
-
-      showToast("Checkout session created. Proceed with payment.", "success");
-      return true;
+      return applyCheckoutSuccess(response);
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
         "Checkout failed. Please try again.";
+      showToast(errorMessage, "error");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Finalize the order after payment by calling POST /place-order.
+   * Requires a successful checkout session (checkoutResult.uuid).
+   */
+  const handlePlaceOrder = async (): Promise<boolean> => {
+    if (!checkoutResult?.uuid) {
+      showToast("No checkout session. Please start checkout again.", "error");
+      return false;
+    }
+
+    setIsLoading(true);
+    try {
+      const response: PlaceOrderApiResponse = await placeOrderApi({
+        checkoutSessionUuid: checkoutResult.uuid,
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || "Failed to place order. Please try again.");
+      }
+
+      setOrderResult({
+        orderUuid: response.data?.orderUuid ?? undefined,
+        paymentReference: response.data?.paymentReference ?? undefined,
+        amount: response.data?.amount ?? undefined,
+        message: response.message,
+      });
+
+      showToast("Order placed successfully!", "success");
+      return true;
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to place order. Please try again.";
       showToast(errorMessage, "error");
       return false;
     } finally {
@@ -372,14 +496,17 @@ const CheckoutPage = () => {
       return;
     }
 
-    // Create checkout session after information step so payment reference/session
+    // Create checkout session after information step so checkout session UUID
     // is available before user reaches payment step.
     if (currentStep === 1 && !checkoutResult) {
       const created = await createCheckoutSession();
       if (!created) return;
     }
 
+    // Confirm order — call POST /place-order to finalize
     if (currentStep === 3) {
+      const placed = await handlePlaceOrder();
+      if (!placed) return;
       setCurrentStep(4);
       return;
     }
@@ -551,29 +678,30 @@ const CheckoutPage = () => {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h2>
         <p className="text-gray-600 max-w-md">
-          {checkoutResult?.message || "Thank you for your order. We've received your order and will begin processing it right away."}
+          {orderResult?.message || checkoutResult?.message || "Thank you for your order. We've received your order and will begin processing it right away."}
         </p>
       </motion.div>
 
-      {(checkoutResult?.paymentReference || checkoutResult?.checkoutSessionId || checkoutResult?.subtotal !== undefined) && (
+      {/* Order Details from API */}
+      {orderResult && (
         <motion.div
           variants={itemVariants}
           className="bg-green-50 border border-green-200 rounded-xl p-6 space-y-3"
         >
-          <h3 className="font-semibold text-green-900">Checkout Details</h3>
-          {checkoutResult?.paymentReference && (
+          <h3 className="font-semibold text-green-900">Order Details</h3>
+          {orderResult.orderUuid && (
             <p className="text-sm text-green-800">
-              Payment Reference: <span className="font-medium">{checkoutResult.paymentReference}</span>
+              Order ID: <span className="font-mono font-medium">{orderResult.orderUuid}</span>
             </p>
           )}
-          {checkoutResult?.checkoutSessionId && (
+          {orderResult.paymentReference && (
             <p className="text-sm text-green-800">
-              Checkout Session ID: <span className="font-medium">{checkoutResult.checkoutSessionId}</span>
+              Payment Reference: <span className="font-mono font-medium">{orderResult.paymentReference}</span>
             </p>
           )}
-          {checkoutResult?.subtotal !== undefined && (
+          {orderResult.amount !== undefined && (
             <p className="text-sm text-green-800">
-              Subtotal: <span className="font-medium">{formatPrice(Number(checkoutResult.subtotal) || 0)}</span>
+              Total: <span className="font-medium">{formatPrice(Number(orderResult.amount) || 0)}</span>
             </p>
           )}
         </motion.div>
@@ -589,7 +717,7 @@ const CheckoutPage = () => {
             <FaFileAlt className="text-[#3c4948] text-xl" />
           </div>
           <div>
-            <h3 className="font-medium text-gray-900">Order #BRG-{Math.floor(Math.random() * 10000).toString().padStart(4, '0')}</h3>
+            <h3 className="font-medium text-gray-900">Order #{orderResult?.orderUuid?.slice(0, 8)?.toUpperCase() || `BRG-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`}</h3>
             <p className="text-sm text-gray-600">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
         </div>
@@ -654,7 +782,7 @@ const CheckoutPage = () => {
 
       {/* Next Steps */}
       <div className="flex flex-col md:flex-row gap-4 pt-6">
-        <Link href="/cart" className="flex-1">
+        <Link href="/my-orders" className="flex-1">
           <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -664,7 +792,7 @@ const CheckoutPage = () => {
               style="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-[#3c4948] hover:bg-[#3c4948] hover:text-white hover:border-[#3c4948] hover:shadow-lg transition-all duration-300 ease-out font-medium shadow-sm"
             >
               <FaReceipt className="text-base" />
-              Back to Cart
+              View My Orders
             </Button>
           </motion.div>
         </Link>
@@ -897,12 +1025,12 @@ const CheckoutPage = () => {
       </div>
 
       <div className="space-y-4">
-        {checkoutResult?.paymentReference && (
+        {checkoutResult?.uuid && (
           <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-            <p className="text-sm text-green-900 font-medium">Payment reference ready</p>
-            <p className="text-sm text-green-700 mt-1">{checkoutResult.paymentReference}</p>
-            {checkoutResult.checkoutSessionId && (
-              <p className="text-xs text-green-700 mt-1">Session: {checkoutResult.checkoutSessionId}</p>
+            <p className="text-sm text-green-900 font-medium">Checkout session created</p>
+            <p className="text-sm text-green-700 mt-1">Session: {checkoutResult.uuid}</p>
+            {checkoutResult.subTotal !== undefined && (
+              <p className="text-xs text-green-700 mt-1">Amount: {formatPrice(checkoutResult.subTotal)}</p>
             )}
           </div>
         )}

@@ -141,6 +141,7 @@ const ProductDetailPage = () => {
     try {
       const result = await addToCart({
         productId: product.productUuid || product.id || product.uuid,
+        productUuid: product.productUuid,
         // Prefer explicit store-product fields, then the route param `productId` (get-one query uuid),
         // then catalog ids. Customer cart API expects the store-product identifier from vendor-service.
         storeProductUuid:

@@ -7,6 +7,7 @@ import {
   CartStore, 
   CartContextType, 
   ApiCartData,
+  ServerCartItem,
   ApiCartItem,
   CartLoadingState,
   CartErrorState,
@@ -20,7 +21,7 @@ import {
   AddToCartRequest,
   extractAxiosMessage,
   getBringAmToken,
-  normalizeClientStringId,
+  resolveStoreProductUuidFromPayload,
 } from "../services/CartService";
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -30,6 +31,9 @@ interface CartProviderProps {
 }
 
 const CART_STORAGE_KEY = "bringam_cart";
+
+/** Survives StrictMode double-mount so bootstrap GET runs at most once per page load. */
+let cartBootstrapFetchIssued = false;
 
 const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   // ===== EXISTING STATE =====
@@ -55,7 +59,6 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     syncError: null,
   });
   const [hasApiConnection, setHasApiConnection] = useState(false);
-
   // Load cart from localStorage on mount
   useEffect(() => {
     const loadCart = () => {
@@ -87,16 +90,26 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   }, [cart, isLoaded]);
 
   // ===== NEW API EFFECTS =====
-  // Fetch cart from API after local cart is loaded
+  // One optional bootstrap fetch: GET /carts/get-user-cart (same host as checkout).
+  // Without a token the call cannot succeed — skip to avoid noisy failed requests.
+  // Set NEXT_PUBLIC_DISABLE_BOOTSTRAP_CART_FETCH=true to turn off entirely (local-only debugging).
   useEffect(() => {
-    if (isLoaded && !hasApiConnection) {
-      // Try to fetch cart from API, but don't block if it fails
-      fetchCartFromApi().catch(() => {
-        // Silent fail - user can still use local cart
-      });
-    }
+    if (!isLoaded || cartBootstrapFetchIssued) return;
+
+    const disableBootstrap =
+      process.env.NEXT_PUBLIC_DISABLE_BOOTSTRAP_CART_FETCH === "true" ||
+      process.env.NEXT_PUBLIC_DISABLE_BOOTSTRAP_CART_FETCH === "1";
+
+    if (disableBootstrap) return;
+    if (!getBringAmToken()) return;
+
+    cartBootstrapFetchIssued = true;
+
+    fetchCartFromApi().catch(() => {
+      // Silent fail - user can still use local cart
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, hasApiConnection]);
+  }, [isLoaded]);
 
   // ===== UTILITY FUNCTIONS =====
   const calculateTotals = (stores: CartStore[]) => {
@@ -108,34 +121,38 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   };
 
   // Transform API cart items to local cart structure
-  const transformApiCartToLocal = (apiItems: ApiCartItem[]): Cart => {
+  const transformApiCartToLocal = (apiItems: ServerCartItem[]): Cart => {
     const storeMap = new Map<string, CartStore>();
 
     apiItems.forEach(apiItem => {
+      const sp = apiItem.storeProduct;
+      const storeIdKey = sp.storeId?.toString() || apiItem.cartUuid || "unknown";
+      const storeName = sp.vendorUuid ? `Store ${sp.vendorUuid.slice(0, 6)}` : "Store";
+
       const localItem: CartItem = {
-        id: apiItem.id || `${apiItem.productId}-${Date.now()}`,
-        productId: apiItem.productId,
-        storeProductUuid: apiItem.productId,
-        storeId: apiItem.storeId,
-        storeName: apiItem.storeName,
-        name: apiItem.name,
-        price: apiItem.price,
-        image: apiItem.image,
+        id: apiItem.uuid,
+        productId: sp.productUuid,
+        storeProductUuid: sp.productUuid,
+        storeId: storeIdKey,
+        storeName,
+        name: sp.productName,
+        price: sp.price,
+        image: sp.productImages?.[0] || "",
         quantity: apiItem.quantity,
-        category: apiItem.category,
-        addedAt: apiItem.addedAt || new Date().toISOString(),
+        category: "",
+        addedAt: new Date().toISOString(),
       };
 
-      if (storeMap.has(apiItem.storeId)) {
-        const store = storeMap.get(apiItem.storeId)!;
+      if (storeMap.has(storeIdKey)) {
+        const store = storeMap.get(storeIdKey)!;
         store.items.push(localItem);
-        store.total += apiItem.price * apiItem.quantity;
+        store.total += sp.price * apiItem.quantity;
       } else {
-        storeMap.set(apiItem.storeId, {
-          storeId: apiItem.storeId,
-          storeName: apiItem.storeName,
+        storeMap.set(storeIdKey, {
+          storeId: storeIdKey,
+          storeName,
           items: [localItem],
-          total: apiItem.price * apiItem.quantity,
+          total: sp.price * apiItem.quantity,
         });
       }
     });
@@ -184,19 +201,6 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     });
   };
 
-  const resolveStoreProductUuid = (item: unknown): string | null => {
-    if (!item || typeof item !== "object") return null;
-    const row = item as Record<string, unknown>;
-    return (
-      normalizeClientStringId(row.storeProductUuid) ||
-      normalizeClientStringId(row.storeProductUUID) ||
-      normalizeClientStringId(row.storeProductId) ||
-      normalizeClientStringId(row.uuid) ||
-      normalizeClientStringId(row.productId) ||
-      null
-    );
-  };
-
   const ensureApiCartUuid = async (): Promise<string> => {
     if (apiCartData?.uuid) {
       return apiCartData.uuid;
@@ -237,7 +241,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setLoading(prev => ({ ...prev, isUpdating: true }));
     clearErrors();
 
-    const storeProductUuid = resolveStoreProductUuid(itemData);
+    const storeProductUuid = resolveStoreProductUuidFromPayload(itemData);
 
     let shouldUseLocalFallback = true;
     let apiError: string | null = null;
@@ -318,7 +322,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         const newItem: CartItem = {
           ...itemData,
           id: `${itemData.productId}-${Date.now()}`,
-          storeProductUuid: storeProductUuid ?? undefined,
+          storeProductUuid: storeProductUuid ?? itemData.storeProductUuid,
           quantity: 1,
           addedAt: new Date().toISOString(),
         };
@@ -399,7 +403,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         for (const store of cart.stores) {
           const item = store.items.find(item => item.id === itemId);
           if (item) {
-            storeProductUuid = resolveStoreProductUuid(item);
+            storeProductUuid = resolveStoreProductUuidFromPayload(item);
             break;
           }
         }
@@ -467,7 +471,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         for (const store of cart.stores) {
           const item = store.items.find(item => item.id === itemId);
           if (item) {
-            storeProductUuid = resolveStoreProductUuid(item);
+            storeProductUuid = resolveStoreProductUuidFromPayload(item);
             break;
           }
         }

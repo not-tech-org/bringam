@@ -129,6 +129,7 @@ const StorePage = () => {
 
       const result = await addToCart({
         productId: product.productUuid || product.id || product.uuid,
+        productUuid: product.productUuid,
         // Prefer store-product row id (uuid) from list payload, then other vendor fields.
         storeProductUuid:
           product.storeProductUuid ||
