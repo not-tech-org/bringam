@@ -24,15 +24,17 @@ const Header = () => {
 
       {/* Primary actions */}
       <div className=" text-bgArmy flex items-center w-full ml-16">
-        <div className="w-full flex items-center gap-2">
-          <Image
-            src="/icons/orderIcon.svg"
-            alt="My orders icon"
-            width={16}
-            height={16}
-          />
-          <p className="text-sm font-medium">My orders</p>
-        </div>
+        <Link href="/my-orders" className="w-full">
+          <div className="flex items-center gap-2">
+            <Image
+              src="/icons/orderIcon.svg"
+              alt="My orders icon"
+              width={16}
+              height={16}
+            />
+            <p className="text-sm font-medium">My orders</p>
+          </div>
+        </Link>
         <div className="w-full flex items-center gap-2">
           <Link href="/cart" className="flex items-center gap-2">
             <div className="relative">

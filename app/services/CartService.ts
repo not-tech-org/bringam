@@ -124,7 +124,8 @@ export interface RemoveFromCartRequest {
 export interface CartApiResponse {
   success: boolean;
   message: string;
-  data: null;
+  /** APIResponseString — `data` is a string (may contain the newly-created cart item UUID). */
+  data: string | null;
 }
 
 export interface CheckoutRequest {
@@ -186,17 +187,25 @@ export const addItemToCartApi = async (
 // TODO: Add additional cart operations when endpoints are provided
 // These are placeholder functions for future implementation:
 
-// Update item quantity in cart via API
+// Update item quantity in cart via API (PUT /add-item-to-cart with quantity)
 export const updateCartItemApi = async (
   cartUuid: string,
-  cartItemId: string,
+  storeProductUuid: string,
   quantity: number
 ): Promise<CartApiResponse> => {
-  // Placeholder - implement when endpoint is available
-  throw new Error("Update cart item API endpoint not yet implemented");
+  const request: AddToCartRequest = {
+    storeProductUuid,
+    quantity,
+  };
+  const response = await cartApi.put(`/carts/add-item-to-cart/${cartUuid}`, request);
+  const data: CartApiResponse = response.data;
+  if (!data?.success) {
+    throw new Error(data?.message || "Failed to update cart item");
+  }
+  return data;
 };
 
-// Remove item from cart via API  
+// Remove item from cart via API — uses DELETE with a JSON body (axios.delete supports it via config.data)
 export const removeCartItemApi = async (
   cartUuid: string,
   storeProductUuid: string
@@ -204,16 +213,35 @@ export const removeCartItemApi = async (
   const request: RemoveFromCartRequest = {
     storeProductUuid: storeProductUuid
   };
-  const response = await cartApi.post(`/carts/remove-item-from-cart/${cartUuid}`, request);
+  const response = await cartApi.delete(`/carts/remove-item-from-cart/${cartUuid}`, {
+    data: request,
+  });
   return response.data;
 };
 
-// Clear entire cart via API
+// Clear entire cart via API — fetch cart then remove items one by one
+// The API doesn't expose a bulk-clear endpoint, so we iterate cart items.
 export const clearCartApi = async (
   cartUuid: string
 ): Promise<CartApiResponse> => {
-  // Placeholder - implement when endpoint is available
-  throw new Error("Clear cart API endpoint not yet implemented");
+  // Fetch current cart to get items
+  const cartResp = await getUserCartApi();
+  if (!cartResp.success || !cartResp.data?.cartItems?.length) {
+    return { success: true, message: "Cart already empty", data: null };
+  }
+
+  const items = cartResp.data.cartItems;
+  for (const item of items) {
+    const spUuid =
+      item.storeProduct?.productUuid ||
+      item.storeProduct?.productId?.toString() ||
+      "";
+    if (spUuid) {
+      await removeCartItemApi(cartUuid, spUuid);
+    }
+  }
+
+  return { success: true, message: "Cart cleared", data: null };
 };
 
 // Checkout selected cart items
@@ -234,6 +262,60 @@ export const placeOrderApi = async (
 ): Promise<PlaceOrderApiResponse> => {
   try {
     const response = await cartApi.post("/place-order", request);
+    return response.data;
+  } catch (err: unknown) {
+    throw new Error(extractAxiosMessage(err));
+  }
+};
+
+// ===== ADDRESS API FUNCTIONS =====
+
+/**
+ * Create a new customer address.
+ *
+ * Per the API spec (`AddressReq`), `city`, `state`, and `country` are **integer** (int64) entity IDs.
+ * We accept optional number values and include them only when provided — this mirrors the
+ * vendor-store address pattern (see `app/vendor-store/page.tsx`).
+ */
+export const createCustomerAddressApi = async (request: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  street: string;
+  landmark?: string;
+  defaultAddress?: boolean;
+  city?: number;
+  state?: number;
+  country?: number;
+}): Promise<{ success: boolean; message: string; data: { uuid: string } | null }> => {
+  try {
+    const response = await cartApi.post("/address", {
+      firstName: request.firstName,
+      lastName: request.lastName,
+      email: request.email,
+      phoneNumber: request.phoneNumber,
+      street: request.street,
+      ...(request.landmark ? { landmark: request.landmark } : {}),
+      ...(request.defaultAddress !== undefined ? { defaultAddress: request.defaultAddress } : {}),
+      ...(request.city ? { city: request.city } : {}),
+      ...(request.state ? { state: request.state } : {}),
+      ...(request.country ? { country: request.country } : {}),
+    });
+    return response.data;
+  } catch (err: unknown) {
+    throw new Error(extractAxiosMessage(err));
+  }
+};
+
+// Get all customer addresses
+export const getCustomerAddressesApi = async (): Promise<{
+  success: boolean;
+  message: string;
+  data: Array<{ uuid: string; firstName: string; lastName: string; street: string; city: string; state: string; country: string }> | null;
+}> => {
+  try {
+    const response = await cartApi.get("/address");
     return response.data;
   } catch (err: unknown) {
     throw new Error(extractAxiosMessage(err));

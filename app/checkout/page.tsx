@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Wrapper from "../components/wrapper/Wrapper";
 import Button from "../components/common/Button";
 import Input from "../components/common/Input";
-import { FaArrowLeft, FaCheck, FaMapMarkerAlt, FaUser, FaCreditCard, FaEye, FaUniversity, FaMobile, FaShieldAlt, FaTimes, FaReceipt, FaBox, FaCheckCircle, FaEnvelope, FaFileAlt, FaTruck } from "react-icons/fa";
+import ReactSelect from "react-select";
+import { FaArrowLeft, FaCheck, FaMapMarkerAlt, FaUser, FaCreditCard, FaEye, FaUniversity, FaMobile, FaShieldAlt, FaTimes, FaReceipt, FaBox, FaCheckCircle, FaEnvelope, FaFileAlt, FaTruck, FaSignInAlt } from "react-icons/fa";
 import { useCart } from "../contexts/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -15,10 +16,18 @@ import {
   checkoutApi,
   getUserCartApi,
   placeOrderApi,
+  createCustomerAddressApi,
   resolveStoreProductUuidFromPayload,
+  getBringAmToken,
   type CheckoutApiResponse,
   type PlaceOrderApiResponse,
 } from "../services/CartService";
+import {
+  getAllCountries,
+  getStatesByCountryId,
+  getCitiesByStateId,
+} from "../services/AuthService";
+import type { Country, State, City } from "../types/store";
 
 // Animation variants for subtle form interactions
 const pageVariants = {
@@ -72,7 +81,23 @@ const CheckoutPage = () => {
     amount?: number;
     message?: string;
   } | null>(null);
+  const [addressUuid, setAddressUuid] = useState<string | null>(null);
+  // Snapshot of form data used for the last address creation — lets us detect
+  // when the user has modified their address after going back to step 1.
+  const lastSavedAddressRef = useRef<string | null>(null);
   const CHECKOUT_SELECTION_KEY = "bringam_checkout_selected_items";
+
+  // Location data for cascading dropdowns (mirrors vendor-store pattern)
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [states, setStates] = useState<State[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+
+  // Selected location IDs (stored as strings, parsed to ints when submitting)
+  const [locationIds, setLocationIds] = useState<{
+    countryId: string;
+    stateId: string;
+    cityId: string;
+  }>({ countryId: "", stateId: "", cityId: "" });
 
   // Selected payment method
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'bank' | 'mobile' | null>(null);
@@ -96,6 +121,10 @@ const CheckoutPage = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Auth check — checkout requires a logged-in user for all API calls
+  const token = getBringAmToken();
+  const isAuthenticated = Boolean(token);
+
   const totalSteps = 4;
   const progressPercentage = (currentStep / totalSteps) * 100;
 
@@ -111,6 +140,20 @@ const CheckoutPage = () => {
     } catch {
       // ignore malformed selection
     }
+  }, []);
+
+  // Fetch countries on mount (mirrors vendor-store pattern)
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await getAllCountries();
+        setCountries(response.data.data || []);
+      } catch (error) {
+        console.error("Error fetching countries:", error);
+        setCountries([]);
+      }
+    };
+    fetchCountries();
   }, []);
 
   const formatPrice = (price: number) => {
@@ -136,6 +179,56 @@ const CheckoutPage = () => {
     // Clear error when user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  // Cascading location handlers (mirrors vendor-store pattern)
+  const handleCountryChange = (selectedOption: { value: string; label: string } | null) => {
+    const countryId = selectedOption?.value || "";
+    setLocationIds(prev => ({ ...prev, countryId, stateId: "", cityId: "" }));
+    setFormData(prev => ({
+      ...prev,
+      city: "",
+      state: "",
+    }));
+    setCities([]);
+    setStates([]);
+
+    if (countryId) {
+      getStatesByCountryId(countryId)
+        .then(res => setStates(res.data.data || []))
+        .catch(() => setStates([]));
+    }
+  };
+
+  const handleStateChange = (selectedOption: { value: string; label: string } | null) => {
+    const stateId = selectedOption?.value || "";
+    setLocationIds(prev => ({ ...prev, stateId, cityId: "" }));
+    setFormData(prev => ({
+      ...prev,
+      city: "",
+      state: selectedOption?.label || "",
+    }));
+    setCities([]);
+
+    if (stateId) {
+      getCitiesByStateId(stateId)
+        .then(res => setCities(res.data.data || []))
+        .catch(() => setCities([]));
+    }
+    // Clear state error
+    if (errors.stateId) {
+      setErrors(prev => ({ ...prev, stateId: "" }));
+    }
+  };
+
+  const handleCityChange = (selectedOption: { value: string; label: string } | null) => {
+    const cityId = selectedOption?.value || "";
+    setLocationIds(prev => ({ ...prev, cityId }));
+    setFormData(prev => ({ ...prev, city: selectedOption?.label || "" }));
+    // Clear city error
+    if (errors.cityId) {
+      setErrors(prev => ({ ...prev, cityId: "" }));
     }
   };
 
@@ -187,12 +280,16 @@ const CheckoutPage = () => {
       newErrors.address = "Address is required";
     }
     
-    if (!formData.city.trim()) {
-      newErrors.city = "City is required";
+    if (!locationIds.countryId) {
+      newErrors.countryId = "Country is required";
     }
     
-    if (!formData.state.trim()) {
-      newErrors.state = "State is required";
+    if (!locationIds.stateId) {
+      newErrors.stateId = "State is required";
+    }
+    
+    if (!locationIds.cityId) {
+      newErrors.cityId = "City is required";
     }
     
     setErrors(newErrors);
@@ -256,7 +353,11 @@ const CheckoutPage = () => {
   };
 
   /**
-   * Fetch the server cart, sync if empty, then build cartItemUUIDs for checkout.
+   * Fetch the server cart, sync local items if empty, then build cartItemUUIDs for checkout.
+   *
+   * The API expects `cartItemUUIDs` — the UUIDs of cart items on the server. These are NOT the
+   * same as store-product UUIDs — they are the per-line-item identifiers returned by
+   * `GET /carts/get-user-cart` (CartItemResp.uuid).
    */
   const buildCartItemUUIDsForCheckout = async (): Promise<string[] | { error: string }> => {
     const cartResponse = await getUserCartApi();
@@ -266,51 +367,103 @@ const CheckoutPage = () => {
 
     let serverItems: Record<string, unknown>[] = (cartResponse.data?.cartItems ?? []) as unknown as Record<string, unknown>[];
 
-    // If server cart is empty but local has items, sync them
-    if (serverItems.length === 0 && cart.stores.length > 0) {
-      const cartApiUuid = cartResponse.data?.uuid;
-      if (!cartApiUuid) {
-        return { error: "Missing cart identifier." };
-      }
-
-      // Collect all items to sync
-      const itemsToSync = selectedCartItemIds.length > 0
-        ? cart.stores.flatMap(s => s.items.filter(i => selectedCartItemIds.includes(i.id)))
-        : cart.stores.flatMap(s => s.items);
-
-      if (itemsToSync.length === 0) {
-        return { error: "Your cart is empty." };
-      }
-
-      showToast("Syncing cart with server…", "info");
-
-      let synced = 0;
-      for (const item of itemsToSync) {
-        // Try storeProductUuid first, fall back to productId which is always set on local items
-        let id: string | null = resolveStoreProductUuidFromPayload(item);
-        if (!id) id = item.productId || null;
-        if (!id) continue;
-        await addItemToCartApi(cartApiUuid, { storeProductUuid: id, quantity: item.quantity });
-        synced++;
-      }
-
-      if (synced === 0) {
-        return { error: "Cart items are missing product IDs. Open each product and add to cart again." };
-      }
-
-      // Re-fetch server cart after sync
-      const refreshed = await getUserCartApi();
-      if (!refreshed.success || !refreshed.data?.cartItems?.length) {
-        return { error: "Cart sync completed but server cart is still empty." };
-      }
-      serverItems = refreshed.data.cartItems as unknown as Record<string, unknown>[];
+    // If the server cart already has items, skip the sync and use those UUIDs directly.
+    if (serverItems.length > 0) {
+      return buildUuidListFromServerItems(serverItems);
     }
 
+    // Server cart is empty — check if we have local items to sync
+    if (cart.stores.length === 0) {
+      return { error: "Your cart is empty. Add items before checking out." };
+    }
+
+    const cartApiUuid = cartResponse.data?.uuid;
+    if (!cartApiUuid) {
+      return { error: "Missing cart identifier. Please refresh and try again." };
+    }
+
+    // Collect items that need to be synced to the server
+    const itemsToSync = selectedCartItemIds.length > 0
+      ? cart.stores.flatMap(s => s.items.filter(i => selectedCartItemIds.includes(i.id)))
+      : cart.stores.flatMap(s => s.items);
+
+    if (itemsToSync.length === 0) {
+      return { error: "No items selected for checkout." };
+    }
+
+    showToast("Syncing cart with server…", "info");
+
+    // Sync each item to the server. The API returns `APIResponseString` where `data` is a
+    // string — this is the newly-created cart item UUID. We capture these directly so we
+    // don't need a fragile re-fetch step.
+    let synced = 0;
+    const syncErrors: string[] = [];
+    const capturedUuids: string[] = [];
+
+    for (const item of itemsToSync) {
+      let id: string | null = resolveStoreProductUuidFromPayload(item);
+      if (!id) id = item.productId || null;
+      if (!id) {
+        syncErrors.push(`"${item.name}" is missing a product ID`);
+        continue;
+      }
+      try {
+        const response = await addItemToCartApi(cartApiUuid, { storeProductUuid: id, quantity: item.quantity });
+        // The response data string is the cart item UUID from the server
+        if (response.data) {
+          capturedUuids.push(response.data);
+        }
+        synced++;
+      } catch (err: any) {
+        syncErrors.push(`"${item.name}": ${err.message || "sync failed"}`);
+      }
+    }
+
+    if (synced === 0) {
+      return {
+        error: syncErrors.length > 0
+          ? syncErrors.join("; ")
+          : "Could not sync any items. Open each product and add to cart again.",
+      };
+    }
+
+    // If we captured UUIDs from the responses, use them directly
+    if (capturedUuids.length > 0) {
+      return capturedUuids;
+    }
+
+    // Fallback: re-fetch the server cart with polling (for APIs that don't return UUIDs in response)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const refreshed = await getUserCartApi();
+      if (refreshed.success && refreshed.data?.cartItems?.length) {
+        serverItems = refreshed.data.cartItems as unknown as Record<string, unknown>[];
+        return buildUuidListFromServerItems(serverItems);
+      }
+    }
+
+    // We know items were added (synced > 0), and we may have captured some UUIDs.
+    // Even without UUIDs from the server, return what we have — the checkout API
+    // will validate them server-side.
+    if (capturedUuids.length > 0) {
+      return capturedUuids;
+    }
+
+    return {
+      error: synced > 0
+        ? "Items added but checkout couldn't retrieve them. Please try again."
+        : "Could not sync items to server. Go back and add items to your cart again.",
+    };
+  };
+
+  /**
+   * Extract cart-item UUIDs from server cart items and match against the local selection.
+   */
+  const buildUuidListFromServerItems = (serverItems: Record<string, unknown>[]): string[] | { error: string } => {
     if (serverItems.length === 0) {
       return { error: "Your cart is empty." };
     }
 
-    // Build UUID list: if items are selected, match by store-product UUID; else take all
     const selectedSet = new Set(selectedCartItemIds);
     const uuids: string[] = [];
 
@@ -331,6 +484,10 @@ const CheckoutPage = () => {
 
       const uuid = extractCartItemUuid(serverItem);
       if (uuid) uuids.push(uuid);
+    }
+
+    if (uuids.length === 0) {
+      return { error: "No matching cart items found. Please refresh and try again." };
     }
 
     return uuids;
@@ -404,18 +561,52 @@ const CheckoutPage = () => {
     try {
       const response: PlaceOrderApiResponse = await placeOrderApi({
         checkoutSessionUuid: checkoutResult.uuid,
+        ...(addressUuid ? { addressUuid } : {}),
       });
 
       if (!response.success) {
         throw new Error(response.message || "Failed to place order. Please try again.");
       }
 
-      setOrderResult({
+      const orderData = {
         orderUuid: response.data?.orderUuid ?? undefined,
         paymentReference: response.data?.paymentReference ?? undefined,
         amount: response.data?.amount ?? undefined,
         message: response.message,
-      });
+      };
+
+      setOrderResult(orderData);
+
+      // Save order to localStorage for the My Orders page
+      try {
+        const existingOrders = JSON.parse(localStorage.getItem("bringam_orders") || "[]");
+        existingOrders.unshift({
+          ...orderData,
+          placedAt: new Date().toISOString(),
+          items: cart.stores.flatMap(s =>
+            s.items
+              .filter(item => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id))
+              .map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                storeName: s.storeName,
+              }))
+          ),
+          customerInfo: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+          },
+        });
+        localStorage.setItem("bringam_orders", JSON.stringify(existingOrders.slice(0, 50)));
+      } catch {
+        // localStorage may be full or unavailable; order is still placed
+      }
 
       showToast("Order placed successfully!", "success");
       return true;
@@ -440,11 +631,51 @@ const CheckoutPage = () => {
       return;
     }
 
-    // Create checkout session after information step so checkout session UUID
-    // is available before user reaches payment step.
-    if (currentStep === 1 && !checkoutResult) {
-      const created = await createCheckoutSession();
-      if (!created) return;
+    // Save / update customer address, then ensure checkout session exists
+    if (currentStep === 1) {
+      const addressFormSnapshot = JSON.stringify({
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        address: formData.address,
+        city: locationIds.cityId,
+        state: locationIds.stateId,
+        country: locationIds.countryId,
+        deliveryInstructions: formData.deliveryInstructions,
+      });
+
+      // (Re-)create address if form data changed since last save
+      if (addressFormSnapshot !== lastSavedAddressRef.current) {
+        try {
+          const addressResp = await createCustomerAddressApi({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phoneNumber: formData.phone,
+            street: formData.address,
+            landmark: formData.deliveryInstructions || "",
+            defaultAddress: true,
+            // Send location IDs as integers — mirrors vendor-store pattern
+            city: parseInt(locationIds.cityId) || undefined,
+            state: parseInt(locationIds.stateId) || undefined,
+            country: parseInt(locationIds.countryId) || undefined,
+          });
+          if (addressResp.success && addressResp.data?.uuid) {
+            setAddressUuid(addressResp.data.uuid);
+            lastSavedAddressRef.current = addressFormSnapshot;
+          }
+        } catch {
+          // Address creation is optional; proceed without it
+          console.warn("Address creation failed, proceeding without addressUuid");
+        }
+      }
+
+      // Create checkout session only once (re-using existing session is fine)
+      if (!checkoutResult) {
+        const created = await createCheckoutSession();
+        if (!created) return;
+      }
     }
 
     // Confirm order — call POST /place-order to finalize
@@ -552,27 +783,102 @@ const CheckoutPage = () => {
         error={errors.address}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Input
-          label="City"
-          type="text"
-          name="city"
-          value={formData.city}
-          onChange={handleInputChange}
-          placeholder="Enter city"
-          className="border-gray-300 rounded-lg"
-          error={errors.city}
+      {/* Country dropdown — mirrors vendor-store pattern */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          Country
+        </label>
+        <ReactSelect
+          name="country"
+          value={
+            locationIds.countryId && countries.length > 0
+              ? {
+                  value: locationIds.countryId,
+                  label: countries.find(c => c.id.toString() === locationIds.countryId)?.name || "",
+                }
+              : null
+          }
+          onChange={(option) => handleCountryChange(option)}
+          options={countries.map(c => ({
+            value: c.id.toString(),
+            label: c.name,
+          }))}
+          placeholder="Select a country"
+          isSearchable
+          isClearable
+          className="react-select-container"
+          classNamePrefix="react-select"
         />
-        <Input
-          label="State"
-          type="text"
+        {errors.countryId && (
+          <p className="text-red-500 text-sm mt-1">{errors.countryId}</p>
+        )}
+      </div>
+
+      {/* State dropdown */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          State
+        </label>
+        <ReactSelect
           name="state"
-          value={formData.state}
-          onChange={handleInputChange}
-          placeholder="Enter state"
-          className="border-gray-300 rounded-lg"
-          error={errors.state}
+          value={
+            locationIds.stateId && states.length > 0
+              ? {
+                  value: locationIds.stateId,
+                  label: states.find(s => s.id.toString() === locationIds.stateId)?.name || "",
+                }
+              : null
+          }
+          onChange={(option) => handleStateChange(option)}
+          options={states.map(s => ({
+            value: s.id.toString(),
+            label: s.name,
+          }))}
+          placeholder="Select a state"
+          isSearchable
+          isClearable
+          isDisabled={!locationIds.countryId}
+          className="react-select-container"
+          classNamePrefix="react-select"
         />
+        {errors.stateId && (
+          <p className="text-red-500 text-sm mt-1">{errors.stateId}</p>
+        )}
+      </div>
+
+      {/* City dropdown */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          City
+        </label>
+        <ReactSelect
+          name="city"
+          value={
+            locationIds.cityId && cities.length > 0
+              ? {
+                  value: locationIds.cityId,
+                  label: cities.find(c => c.id.toString() === locationIds.cityId)?.name || "",
+                }
+              : null
+          }
+          onChange={(option) => handleCityChange(option)}
+          options={cities.map(c => ({
+            value: c.id.toString(),
+            label: c.name,
+          }))}
+          placeholder="Select a city"
+          isSearchable
+          isClearable
+          isDisabled={!locationIds.stateId}
+          className="react-select-container"
+          classNamePrefix="react-select"
+        />
+        {errors.cityId && (
+          <p className="text-red-500 text-sm mt-1">{errors.cityId}</p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <Input
           label="Postal Code"
           type="text"
@@ -582,17 +888,16 @@ const CheckoutPage = () => {
           placeholder="Enter postal code"
           className="border-gray-300 rounded-lg"
         />
+        <Input
+          label="Delivery Instructions (Optional)"
+          type="text"
+          name="deliveryInstructions"
+          value={formData.deliveryInstructions}
+          onChange={handleInputChange}
+          placeholder="Any special delivery instructions..."
+          className="border-gray-300 rounded-lg"
+        />
       </div>
-
-      <Input
-        label="Delivery Instructions (Optional)"
-        type="text"
-        name="deliveryInstructions"
-        value={formData.deliveryInstructions}
-        onChange={handleInputChange}
-        placeholder="Any special delivery instructions..."
-        className="border-gray-300 rounded-lg"
-      />
     </motion.div>
   );
 
@@ -1191,6 +1496,64 @@ const CheckoutPage = () => {
       </div>
     </motion.div>
   );
+
+  // Auth guard — all checkout API calls require a valid token
+  if (!isAuthenticated) {
+    return (
+      <Wrapper>
+        <motion.div
+          className="bg-white min-h-screen flex items-center justify-center"
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          transition={{ type: "spring", duration: 0.5 }}
+        >
+          <motion.div
+            className="text-center max-w-md px-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="w-20 h-20 mx-auto bg-amber-100 rounded-full flex items-center justify-center mb-6">
+              <FaSignInAlt className="h-10 w-10 text-amber-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-3">Sign in to Checkout</h1>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              You need to be signed in to proceed with checkout. Please sign in or create an
+              account to continue with your order.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/auth">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button type="button" style="flex items-center justify-center gap-2" primary>
+                    <FaSignInAlt className="h-4 w-4" />
+                    Sign In
+                  </Button>
+                </motion.div>
+              </Link>
+              <Link href="/cart">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button
+                    type="button"
+                    style="flex items-center justify-center gap-2 bg-white border border-gray-300 text-[#3c4948] hover:bg-[#3c4948] hover:text-white"
+                  >
+                    <FaArrowLeft className="h-4 w-4" />
+                    Back to Cart
+                  </Button>
+                </motion.div>
+              </Link>
+            </div>
+          </motion.div>
+        </motion.div>
+      </Wrapper>
+    );
+  }
 
   if (cart.stores.length === 0) {
     return (

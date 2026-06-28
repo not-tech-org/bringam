@@ -45,6 +45,7 @@ const ProductDetailPage = () => {
   const { addToCart } = useCart();
   
   const [product, setProduct] = useState<any>(null);
+  const [storeName, setStoreName] = useState("");
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasFetched, setHasFetched] = useState(false);
@@ -109,6 +110,11 @@ const ProductDetailPage = () => {
         const productResponse = await getSingleStoreProduct(productId);
         const productData = productResponse.data;
         setProduct(productData);
+
+        // Fetch store name from vendor info if available
+        if (productData.vendor?.businessName) {
+          setStoreName(productData.vendor.businessName);
+        }
         
         // Fetch reviews after product is loaded
         const productUuid = resolveProductUuid(productData);
@@ -154,8 +160,8 @@ const ProductDetailPage = () => {
           productId ||
           product.productUuid ||
           product.id,
-        storeId: product.storeId || product.store?.id || product.store?.uuid,
-        storeName: product.storeName || product.store?.name || "",
+        storeId: product.storeId?.toString() || product.storeUuid || product.store?.id || product.store?.uuid || "",
+        storeName: storeName || product.storeName || product.store?.name || "",
         name: product.productName || product.name,
         price: product.price || 0,
         image: (product.productImages && product.productImages[0]) || product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
