@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Wrapper from "../components/wrapper/Wrapper";
 import Image from "next/image";
 import Button from "../components/common/Button";
@@ -47,11 +47,18 @@ const buttonVariants = {
 };
 
 const CartPage = () => {
-  const { cart, removeFromCart, updateQuantity, clearCart, getTotalAmount } = useCart();
+  const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
   const router = useRouter();
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isClearingCart, setIsClearingCart] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const CHECKOUT_SELECTION_KEY = "bringam_checkout_selected_items";
+
+  useEffect(() => {
+    const allItemIds = cart.stores.flatMap((store) => store.items.map((item) => item.id));
+    setSelectedItemIds(new Set(allItemIds));
+  }, [cart.lastUpdated]);
 
   const handleBackToStores = () => {
     router.push('/all');
@@ -75,6 +82,11 @@ const CartPage = () => {
 
   const handleRemoveItem = (itemId: string) => {
     removeFromCart(itemId);
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
     showToast("Item removed from cart", "success");
   };
 
@@ -92,6 +104,69 @@ const CartPage = () => {
 
   const formatPrice = (price: number) => {
     return `N${price.toLocaleString()}`;
+  };
+
+  const selectedTotalAmount = cart.stores.reduce(
+    (total, store) =>
+      total +
+      store.items.reduce((storeTotal, item) => {
+        if (!selectedItemIds.has(item.id)) return storeTotal;
+        return storeTotal + item.price * item.quantity;
+      }, 0),
+    0
+  );
+
+  const selectedTotalItems = cart.stores.reduce(
+    (total, store) =>
+      total +
+      store.items.reduce((storeTotal, item) => {
+        if (!selectedItemIds.has(item.id)) return storeTotal;
+        return storeTotal + item.quantity;
+      }, 0),
+    0
+  );
+
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  const toggleStoreSelection = (storeId: string, shouldSelect: boolean) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      const targetStore = cart.stores.find((store) => store.storeId === storeId);
+      if (!targetStore) return next;
+
+      targetStore.items.forEach((item) => {
+        if (shouldSelect) {
+          next.add(item.id);
+        } else {
+          next.delete(item.id);
+        }
+      });
+
+      return next;
+    });
+  };
+
+  const handleProceedToCheckout = () => {
+    if (selectedItemIds.size === 0) {
+      showToast("Select at least one item to checkout", "warning");
+      return;
+    }
+
+    sessionStorage.setItem(
+      CHECKOUT_SELECTION_KEY,
+      JSON.stringify(Array.from(selectedItemIds))
+    );
+    router.push("/checkout");
   };
 
   if (cart.stores.length === 0) {
@@ -263,16 +338,55 @@ const CartPage = () => {
                   <span className="text-sm text-gray-600">{store.items.length} item(s)</span>
                 </div>
 
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs font-medium text-gray-500">
+                    <span className="px-2 py-1 rounded-full bg-[#3c4948]/10 text-[#3c4948]">
+                      {store.items.filter((item) => selectedItemIds.has(item.id)).length} selected
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allSelected = store.items.every((item) => selectedItemIds.has(item.id));
+                      toggleStoreSelection(store.storeId, !allSelected);
+                    }}
+                    className="text-xs font-medium text-[#3c4948] hover:text-[#2a3a39] transition-colors"
+                  >
+                    {store.items.every((item) => selectedItemIds.has(item.id)) ? "Clear selection" : "Select all"}
+                  </button>
+                </div>
+
                 <div className="space-y-3">
                   {store.items.map((item, itemIndex) => (
                     <motion.div 
                       key={item.id} 
-                      className="bg-white rounded-lg p-4 flex items-center gap-4 hover:shadow-md transition-shadow duration-200"
+                      className={`rounded-lg p-4 flex items-center gap-4 hover:shadow-md transition-all duration-200 border ${
+                        selectedItemIds.has(item.id)
+                          ? "bg-[#f8fbfa] border-[#3c4948]/25"
+                          : "bg-white border-transparent"
+                      }`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: (storeIndex * 0.1) + (itemIndex * 0.05) }}
                       whileHover={{ y: -2 }}
                     >
+                      <button
+                        type="button"
+                        onClick={() => toggleItemSelection(item.id)}
+                        aria-pressed={selectedItemIds.has(item.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                          selectedItemIds.has(item.id)
+                            ? "bg-[#3c4948] border-[#3c4948] text-white shadow-sm"
+                            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {selectedItemIds.has(item.id) ? (
+                          <FaCheck className="h-3 w-3" />
+                        ) : (
+                          <span className="h-2 w-2 rounded-full bg-gray-300" />
+                        )}
+                        {selectedItemIds.has(item.id) ? "Selected" : "Select"}
+                      </button>
                       <div className="relative w-16 h-16 rounded-lg overflow-hidden">
                         <Image
                           src={item.image}
@@ -340,12 +454,16 @@ const CartPage = () => {
           </motion.div>
 
           <motion.div 
-            className="mt-8 bg-gray-50 rounded-lg p-6"
+            className={`mt-8 rounded-lg p-6 border transition-colors ${
+              selectedTotalItems > 0
+                ? "bg-[#f8fbfa] border-[#3c4948]/20"
+                : "bg-gray-50 border-transparent"
+            }`}
             variants={itemVariants}
           >
             <div className="flex justify-between items-center mb-4">
-              <span className="text-lg font-semibold text-gray-900">Total ({cart.totalItems} items):</span>
-              <span className="text-2xl font-bold text-[#3c4948]">{formatPrice(cart.totalAmount)}</span>
+              <span className="text-lg font-semibold text-gray-900">Selected Total ({selectedTotalItems} items):</span>
+              <span className="text-2xl font-bold text-[#3c4948]">{formatPrice(selectedTotalAmount)}</span>
             </div>
             
             <div className="flex gap-4">
@@ -367,15 +485,14 @@ const CartPage = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Link href="/checkout">
-                  <Button 
-                    type="button"
-                    style="flex-1 flex items-center justify-center gap-2"
-                    primary
-                  >
-                    Proceed to Checkout
-                  </Button>
-                </Link>
+                <Button
+                  type="button"
+                  style="flex-1 flex items-center justify-center gap-2"
+                  primary
+                  onClick={handleProceedToCheckout}
+                >
+                  Proceed to Checkout
+                </Button>
               </motion.div>
             </div>
           </motion.div>

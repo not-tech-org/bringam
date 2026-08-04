@@ -54,9 +54,9 @@ export const showToast = (
     close: true,
     gravity,
     position,
-    backgroundColor: style.backgroundColor,
     className: "rounded-lg border",
     style: {
+      background: style.backgroundColor,
       color: style.textColor,
       border: `1px solid ${style.textColor}20`,
       fontWeight: "500",

@@ -1,14 +1,35 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Wrapper from "../components/wrapper/Wrapper";
+import { useGeolocation } from "../hooks/useGeolocation";
 import Button from "../components/common/Button";
 import Input from "../components/common/Input";
-import { FaArrowLeft, FaCheck, FaMapMarkerAlt, FaUser, FaCreditCard, FaEye, FaUniversity, FaMobile, FaShieldAlt, FaTimes, FaReceipt, FaBox, FaCheckCircle, FaEnvelope, FaFileAlt, FaTruck } from "react-icons/fa";
+import ReactSelect from "react-select";
+import { FaArrowLeft, FaCheck, FaMapMarkerAlt, FaUser, FaCreditCard, FaEye, FaShieldAlt, FaTimes, FaReceipt, FaBox, FaCheckCircle, FaEnvelope, FaFileAlt, FaTruck, FaSignInAlt } from "react-icons/fa";
 import { useCart } from "../contexts/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { showToast } from "../components/utils/helperFunctions";
+import {
+  addItemToCartApi,
+  checkoutApi,
+  getUserCartApi,
+  placeOrderApi,
+  createCustomerAddressApi,
+  resolveStoreProductUuidFromPayload,
+  getBringAmToken,
+  type CheckoutApiResponse,
+  type PlaceOrderApiResponse,
+} from "../services/CartService";
+import { buildPagaCheckoutUrl, PAGA_CHECKOUT_STATE_KEY, PAGA_CONFIG } from "../utils/pagaCheckout";
+import {
+  getAllCountries,
+  getStatesByCountryId,
+  getCitiesByStateId,
+} from "../services/AuthService";
+import type { Country, State, City } from "../types/store";
 
 // Animation variants for subtle form interactions
 const pageVariants = {
@@ -30,6 +51,11 @@ const itemVariants = {
   }
 };
 
+/** Default coordinates used when the user's browser geolocation is unavailable.
+ *  Lagos, Nigeria — the app's primary market. */
+const DEFAULT_LATITUDE = 6.5244;
+const DEFAULT_LONGITUDE = 3.3792;
+
 const buttonVariants = {
   hover: {
     scale: 1.02,
@@ -46,13 +72,41 @@ const buttonVariants = {
 };
 
 const CheckoutPage = () => {
-  const { cart, getTotalAmount } = useCart();
+  const { cart } = useCart();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCartItemIds, setSelectedCartItemIds] = useState<string[]>([]);
+  const [checkoutResult, setCheckoutResult] = useState<{
+    uuid?: string;
+    subTotal?: number;
+    message?: string;
+  } | null>(null);
+  const [orderResult, setOrderResult] = useState<{
+    orderUuid?: string;
+    paymentReference?: string;
+    amount?: number;
+    message?: string;
+  } | null>(null);
+  const [addressUuid, setAddressUuid] = useState<string | null>(null);
+  // Snapshot of form data used for the last address creation — lets us detect
+  // when the user has modified their address after going back to step 1.
+  const lastSavedAddressRef = useRef<string | null>(null);
+  const CHECKOUT_SELECTION_KEY = "bringam_checkout_selected_items";
 
-  // Selected payment method
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'bank' | 'mobile' | null>(null);
+  // Location data for cascading dropdowns (mirrors vendor-store pattern)
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [states, setStates] = useState<State[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+
+  // Selected location IDs (stored as strings, parsed to ints when submitting)
+  const [locationIds, setLocationIds] = useState<{
+    countryId: string;
+    stateId: string;
+    cityId: string;
+  }>({ countryId: "", stateId: "", cityId: "" });
+
+
 
   // Form data
   const [formData, setFormData] = useState({
@@ -65,20 +119,202 @@ const CheckoutPage = () => {
     state: "",
     postalCode: "",
     deliveryInstructions: "",
-    // Payment fields
-    cardNumber: "",
-    cardExpiry: "",
-    cardCvv: ""
+
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // User's browser geolocation for address coordinates
+  const { latitude, longitude } = useGeolocation();
+
+
+
+  // Auth check — checkout requires a logged-in user for all API calls
+  const token = getBringAmToken();
+  const isAuthenticated = Boolean(token);
+
   const totalSteps = 4;
   const progressPercentage = (currentStep / totalSteps) * 100;
+
+  React.useEffect(() => {
+    const raw = sessionStorage.getItem(CHECKOUT_SELECTION_KEY);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setSelectedCartItemIds(parsed);
+      }
+    } catch {
+      // ignore malformed selection
+    }
+  }, []);
+
+  /**
+   * On mount, check for Paga redirect query params.
+   * When Paga completes payment, it redirects back to the charge_url (this page)
+   * with transaction status params. We detect these and finalize the order.
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    // Paga may append params in various formats — handle both standard and alternative naming
+    const pagaReference =
+      params.get("paga_reference") ||
+      params.get("tx_reference") ||
+      params.get("reference") ||
+      params.get("transactionReference") ||
+      "";
+    const pagaStatus =
+      params.get("paga_status") ||
+      params.get("status") ||
+      params.get("tx_status") ||
+      params.get("transactionStatus") ||
+      "";
+
+    if (!pagaReference) return;
+
+    // Handle failed / cancelled payment from Paga
+    if (pagaStatus && pagaStatus !== "success") {
+      showToast(
+        pagaStatus === "cancelled"
+          ? "Payment was cancelled. You can try again."
+          : "Payment was not completed. Please try again or contact support.",
+        "warning"
+      );
+      // Show a more descriptive message on the page
+      return;
+    }
+
+    // Payment succeeded — restore checkout state and finalize order
+    showToast("Payment confirmed! Placing your order…", "info");
+    const savedStateRaw = sessionStorage.getItem(PAGA_CHECKOUT_STATE_KEY);
+    if (!savedStateRaw) {
+      showToast("Session expired. Please start checkout again.", "error");
+      return;
+    }
+
+    let savedState: Record<string, unknown>;
+    try {
+      savedState = JSON.parse(savedStateRaw);
+    } catch {
+      showToast("Invalid session data. Please start checkout again.", "error");
+      return;
+    }
+
+    const sessionUuid = (savedState?.checkoutUuid as string) || "";
+    const savedAddressUuid = (savedState?.addressUuid as string) || "";
+    const savedFormData = savedState?.formData as typeof formData | undefined;
+    const savedLocationIds = savedState?.locationIds as typeof locationIds | undefined;
+    const savedSelectedIds = savedState?.selectedCartItemIds as string[] | undefined;
+
+    if (!sessionUuid) {
+      showToast("Missing checkout session. Please start checkout again.", "error");
+      return;
+    }
+
+    // Restore UI state from the saved snapshot
+    setCheckoutResult(prev => ({ ...prev, uuid: sessionUuid }));
+    if (savedAddressUuid) setAddressUuid(savedAddressUuid);
+    if (savedFormData) setFormData(savedFormData);
+    if (savedLocationIds) setLocationIds(savedLocationIds);
+    if (savedSelectedIds) setSelectedCartItemIds(savedSelectedIds);
+
+    // Clean up URL params so a refresh doesn't re-trigger
+    window.history.replaceState({}, "", window.location.pathname);
+
+    (async () => {
+      setIsLoading(true);
+      try {
+        const response: PlaceOrderApiResponse = await placeOrderApi({
+          checkoutSessionUuid: sessionUuid,
+          ...(savedAddressUuid ? { addressUuid: savedAddressUuid } : {}),
+        });
+
+        if (!response.success) {
+          throw new Error(response.message || "Failed to place order.");
+        }
+
+        const orderData = {
+          orderUuid: response.data?.orderUuid ?? undefined,
+          paymentReference: pagaReference || (response.data?.paymentReference ?? undefined),
+          amount: response.data?.amount ?? undefined,
+          message: response.message,
+        };
+
+        setOrderResult(orderData);
+
+        // Build restore formData from saved state so renderStep4 can display it
+        if (savedFormData) {
+          setFormData(savedFormData);
+        }
+
+        // Save order to localStorage for My Orders page
+        try {
+          const existingOrders = JSON.parse(localStorage.getItem("bringam_orders") || "[]");
+          existingOrders.unshift({
+            ...orderData,
+            placedAt: new Date().toISOString(),
+            items: (savedState?.cartItems as Array<Record<string, unknown>>) || [],
+            customerInfo: {
+              firstName: savedFormData?.firstName || "",
+              lastName: savedFormData?.lastName || "",
+              email: savedFormData?.email || "",
+              phone: savedFormData?.phone || "",
+              address: savedFormData?.address || "",
+              city: savedFormData?.city || "",
+              state: savedFormData?.state || "",
+            },
+          });
+          localStorage.setItem("bringam_orders", JSON.stringify(existingOrders.slice(0, 50)));
+        } catch {
+          // localStorage may be full; order is still placed
+        }
+
+        showToast("Order placed successfully!", "success");
+        setCurrentStep(4);
+      } catch (error: any) {
+        const errorMessage =
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to place order after payment. Please contact support.";
+        showToast(errorMessage, "error");
+        // Keep user on checkout — they can retry or contact support
+        setCurrentStep(2);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
+
+  // Fetch countries on mount (mirrors vendor-store pattern)
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await getAllCountries();
+        setCountries(response.data.data || []);
+      } catch (error) {
+        console.error("Error fetching countries:", error);
+        setCountries([]);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   const formatPrice = (price: number) => {
     return `N${price.toLocaleString()}`;
   };
+
+  const selectedSubtotal = cart.stores.reduce(
+    (total, store) =>
+      total +
+      store.items.reduce((storeTotal, item) => {
+        if (selectedCartItemIds.length > 0 && !selectedCartItemIds.includes(item.id)) {
+          return storeTotal;
+        }
+        return storeTotal + item.price * item.quantity;
+      }, 0),
+    0
+  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -90,27 +326,64 @@ const CheckoutPage = () => {
     }
   };
 
-  const validateStep2 = () => {
-    const newErrors: Record<string, string> = {};
+  // Cascading location handlers (mirrors vendor-store pattern)
+  const handleCountryChange = (selectedOption: { value: string; label: string } | null) => {
+    const countryId = selectedOption?.value || "";
+    setLocationIds(prev => ({ ...prev, countryId, stateId: "", cityId: "" }));
+    setFormData(prev => ({
+      ...prev,
+      city: "",
+      state: "",
+    }));
+    setCities([]);
+    setStates([]);
 
-    if (!selectedPaymentMethod) {
-      newErrors.paymentMethod = "Please select a payment method";
+    if (countryId) {
+      getStatesByCountryId(countryId)
+        .then(res => setStates(res.data.data || []))
+        .catch(() => setStates([]));
     }
+  };
 
-    if (selectedPaymentMethod === 'card') {
-      if (!formData.cardNumber.trim()) {
-        newErrors.cardNumber = "Card number is required";
-      }
-      if (!formData.cardExpiry.trim()) {
-        newErrors.cardExpiry = "Expiry date is required";
-      }
-      if (!formData.cardCvv.trim()) {
-        newErrors.cardCvv = "CVV is required";
-      }
+  const handleStateChange = (selectedOption: { value: string; label: string } | null) => {
+    const stateId = selectedOption?.value || "";
+    setLocationIds(prev => ({ ...prev, stateId, cityId: "" }));
+    setFormData(prev => ({
+      ...prev,
+      city: "",
+      state: selectedOption?.label || "",
+    }));
+    setCities([]);
+
+    if (stateId) {
+      getCitiesByStateId(stateId)
+        .then(res => setCities(res.data.data || []))
+        .catch(() => setCities([]));
     }
+    // Clear state error
+    if (errors.stateId) {
+      setErrors(prev => ({ ...prev, stateId: "" }));
+    }
+  };
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleCityChange = (selectedOption: { value: string; label: string } | null) => {
+    const cityId = selectedOption?.value || "";
+    setLocationIds(prev => ({ ...prev, cityId }));
+    setFormData(prev => ({ ...prev, city: selectedOption?.label || "" }));
+    // Clear city error
+    if (errors.cityId) {
+      setErrors(prev => ({ ...prev, cityId: "" }));
+    }
+  };
+
+  /**
+   * Validate step 2 — ensures a checkout session exists before redirecting to Paga.
+   * Paga handles all payment validation on its hosted page.
+   */
+  const validateStep2 = (): boolean => {
+    // Step 2 is Paga payment — no client-side card validation needed.
+    // Paga collects payment details on their secure hosted page.
+    return true;
   };
 
   const validateStep1 = () => {
@@ -138,19 +411,369 @@ const CheckoutPage = () => {
       newErrors.address = "Address is required";
     }
     
-    if (!formData.city.trim()) {
-      newErrors.city = "City is required";
+    if (!locationIds.countryId) {
+      newErrors.countryId = "Country is required";
     }
     
-    if (!formData.state.trim()) {
-      newErrors.state = "State is required";
+    if (!locationIds.stateId) {
+      newErrors.stateId = "State is required";
+    }
+    
+    if (!locationIds.cityId) {
+      newErrors.cityId = "City is required";
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNextStep = () => {
+  /**
+   * Extract a string value from an unknown data object by trying multiple field names.
+   * Handles variations in API response field naming (camelCase, snake_case, etc.).
+   */
+  const getStringField = (obj: Record<string, unknown> | null | undefined, ...keys: string[]): string | undefined => {
+    if (!obj) return undefined;
+    for (const key of keys) {
+      const val = obj[key];
+      if (typeof val === "string" && val.trim()) return val.trim();
+    }
+    return undefined;
+  };
+
+  const getNumberField = (obj: Record<string, unknown> | null | undefined, ...keys: string[]): number | undefined => {
+    if (!obj) return undefined;
+    for (const key of keys) {
+      const val = obj[key];
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      if (typeof val === "string") {
+        const n = Number(val);
+        if (Number.isFinite(n)) return n;
+      }
+    }
+    return undefined;
+  };
+
+  /**
+   * Try to extract a UUID from a server cart item, supporting both the nested
+   * CartItemResp format (item.uuid) and the flat ApiCartItem format (item.id / item.cartItemUuid).
+   */
+  const extractCartItemUuid = (item: Record<string, unknown>): string | null => {
+    // Nested format: CartItemResp with storeProduct sub-object
+    const nestedUuid = getStringField(item, "uuid");
+    if (nestedUuid) return nestedUuid;
+
+    // Flat format: ApiCartItem with direct UUID/id fields
+    const flatUuid = getStringField(item, "id", "cartItemUuid", "cartItemUUID", "cartItemId", "productId");
+    if (flatUuid) return flatUuid;
+
+    return null;
+  };
+
+  /**
+   * Try to extract a store-product UUID from a server cart item for matching purposes.
+   */
+  const extractStoreProductUuid = (item: Record<string, unknown>): string | null => {
+    // Nested format: storeProduct.productUuid
+    const sp = item.storeProduct as Record<string, unknown> | undefined;
+    if (sp) {
+      const spUuid = getStringField(sp, "productUuid", "productId");
+      if (spUuid) return spUuid;
+    }
+    // Flat format: direct field
+    return resolveStoreProductUuidFromPayload(item);
+  };
+
+  /**
+   * Fetch the server cart, sync local items if empty, then build cartItemUUIDs for checkout.
+   *
+   * The API expects `cartItemUUIDs` — the UUIDs of cart items on the server. These are NOT the
+   * same as store-product UUIDs — they are the per-line-item identifiers returned by
+   * `GET /carts/get-user-cart` (CartItemResp.uuid).
+   *
+   * Strategy:
+   * 1. First check if the server cart already has items → extract their UUIDs directly.
+   * 2. If the server cart is empty but the local cart has items, sync local items to the
+   *    server cart via PUT, then do ONE final GET server cart to retrieve the cart item UUIDs.
+   * 3. No polling or fragile response-data capturing — just one clean sync-and-reload cycle.
+   */
+  const buildCartItemUUIDsForCheckout = async (): Promise<string[] | { error: string }> => {
+    // ----------------------------------------------------------------
+    // Strategy: First check if the server cart has items we can use.
+    // If the server cart is empty but local has items, pass the store
+    // product UUIDs directly — the /checkout endpoint may accept them
+    // as cart-item identifiers and resolve them server-side.
+    // ----------------------------------------------------------------
+
+    const fetchServerCart = async (): Promise<{
+      items: Record<string, unknown>[];
+      uuid: string;
+    } | null> => {
+      try {
+        const resp = await getUserCartApi();
+        if (!resp.success || !resp.data) return null;
+        return {
+          items: (resp.data.cartItems ?? []) as unknown as Record<string, unknown>[],
+          uuid: resp.data.uuid,
+        };
+      } catch {
+        return null;
+      }
+    };
+
+    // Step 1: Try to get server cart items
+    const serverCart = await fetchServerCart();
+    if (!serverCart) {
+      return { error: "Unable to load your cart from the server. Please refresh and try again." };
+    }
+
+    // If the server cart already has items, extract their UUIDs
+    if (serverCart.items.length > 0) {
+      return buildUuidListFromServerItems(serverCart.items);
+    }
+
+    // Server cart is empty — check if we have local items.
+    // Try React state first; fall back to localStorage in case the
+    // CartContext hasn't finished loading or was overwritten.
+    const CART_STORAGE_KEY = "bringam_cart";
+
+    const getLocalCartItems = (): Array<{
+      storeProductUuid?: string;
+      productId: string;
+      name: string;
+      quantity: number;
+      productUuid?: string;
+      storeId?: string;
+      storeName?: string;
+      price: number;
+      id: string;
+    }> => {
+      // Try React state first
+      if (cart.stores.length > 0) {
+        return selectedCartItemIds.length > 0
+          ? cart.stores.flatMap(s => s.items.filter(i => selectedCartItemIds.includes(i.id)))
+          : cart.stores.flatMap(s => s.items);
+      }
+
+      // Fall back to localStorage
+      try {
+        const raw = localStorage.getItem(CART_STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        const stores = parsed?.stores ?? [];
+        if (!Array.isArray(stores) || stores.length === 0) return [];
+        return stores.flatMap((s: any) => {
+          const items = s?.items ?? [];
+          if (!Array.isArray(items)) return [];
+          return items;
+        });
+      } catch {
+        return [];
+      }
+    };
+
+    const itemsToCheckout = getLocalCartItems();
+
+    if (itemsToCheckout.length === 0) {
+      return { error: "Your cart is empty. Add items before checking out." };
+    }
+
+    // ----------------------------------------------------------------
+    // Step 2: Resolve store product UUIDs from each local item.
+    // These are the identifiers the server knows about — we pass them
+    // directly as cartItemUUIDs since the server cart is empty and
+    // attempting to sync via PUT/GET has proven unreliable.
+    // ----------------------------------------------------------------
+    const spUuids: string[] = [];
+    const missingIds: string[] = [];
+
+    for (const item of itemsToCheckout) {
+      let id: string | null = resolveStoreProductUuidFromPayload(item);
+      if (!id) id = item.productId || null;
+
+      if (id) {
+        spUuids.push(id);
+      } else {
+        missingIds.push(item.name);
+      }
+    }
+
+    if (spUuids.length === 0) {
+      const detail = missingIds.length > 0
+        ? `Could not resolve product IDs for: ${missingIds.join(", ")}`
+        : "No valid product IDs found in your cart.";
+      return { error: detail };
+    }
+
+    return spUuids;
+  };
+
+  /**
+   * Extract cart-item UUIDs from server cart items and match against the local selection.
+   */
+  const buildUuidListFromServerItems = (serverItems: Record<string, unknown>[]): string[] | { error: string } => {
+    if (serverItems.length === 0) {
+      return { error: "Your cart is empty." };
+    }
+
+    const selectedSet = new Set(selectedCartItemIds);
+    const uuids: string[] = [];
+
+    for (const serverItem of serverItems) {
+      if (selectedCartItemIds.length > 0) {
+        // Match selected local items by store product UUID
+        const serverSpUuid = extractStoreProductUuid(serverItem);
+        if (!serverSpUuid) continue;
+
+        const isSelected = cart.stores.some(store =>
+          store.items.some(
+            line => selectedSet.has(line.id) &&
+              (line.storeProductUuid === serverSpUuid || line.productId === serverSpUuid)
+          )
+        );
+        if (!isSelected) continue;
+      }
+
+      const uuid = extractCartItemUuid(serverItem);
+      if (uuid) uuids.push(uuid);
+    }
+
+    if (uuids.length === 0) {
+      return { error: "No matching cart items found. Please refresh and try again." };
+    }
+
+    return uuids;
+  };
+
+  const applyCheckoutSuccess = (response: CheckoutApiResponse): boolean => {
+    // Try multiple field name variations for the checkout session UUID
+    const d = response.data;
+    const sessionUuid = getStringField(d, "uuid", "checkoutSessionUuid", "sessionUuid", "checkoutSessionId", "sessionId") ?? "";
+    const amount = getNumberField(d, "subTotal", "subtotal", "sub_total", "amount", "total");
+
+    setCheckoutResult({
+      uuid: sessionUuid || undefined,
+      subTotal: amount,
+      message: response.message,
+    });
+
+    if (!sessionUuid) {
+      showToast("Checkout failed: no session ID returned by server.", "error");
+      return false;
+    }
+    showToast("Checkout session created. Proceed with payment.", "success");
+    return true;
+  };
+
+  const createCheckoutSession = async (): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const result = await buildCartItemUUIDsForCheckout();
+
+      if (Array.isArray(result)) {
+        // Successfully got cart item UUIDs
+        if (result.length === 0) {
+          showToast("No items to checkout.", "warning");
+          return false;
+        }
+
+        const response = await checkoutApi({ cartItemUUIDs: result });
+        if (!response.success) {
+          throw new Error(response.message || "Checkout failed. Please try again.");
+        }
+        return applyCheckoutSuccess(response);
+      } else {
+        // Error occurred
+        showToast(result.error || "Checkout failed. Please try again.", "error");
+        return false;
+      }
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Checkout failed. Please try again.";
+      showToast(errorMessage, "error");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Finalize the order after payment by calling POST /place-order.
+   * Requires a successful checkout session (checkoutResult.uuid).
+   */
+  const handlePlaceOrder = async (): Promise<boolean> => {
+    if (!checkoutResult?.uuid) {
+      showToast("No checkout session. Please start checkout again.", "error");
+      return false;
+    }
+
+    setIsLoading(true);
+    try {
+      const response: PlaceOrderApiResponse = await placeOrderApi({
+        checkoutSessionUuid: checkoutResult.uuid,
+        ...(addressUuid ? { addressUuid } : {}),
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || "Failed to place order. Please try again.");
+      }
+
+      const orderData = {
+        orderUuid: response.data?.orderUuid ?? undefined,
+        paymentReference: response.data?.paymentReference ?? undefined,
+        amount: response.data?.amount ?? undefined,
+        message: response.message,
+      };
+
+      setOrderResult(orderData);
+
+      // Save order to localStorage for the My Orders page
+      try {
+        const existingOrders = JSON.parse(localStorage.getItem("bringam_orders") || "[]");
+        existingOrders.unshift({
+          ...orderData,
+          placedAt: new Date().toISOString(),
+          items: cart.stores.flatMap(s =>
+            s.items
+              .filter(item => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id))
+              .map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                storeName: s.storeName,
+              }))
+          ),
+          customerInfo: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+          },
+        });
+        localStorage.setItem("bringam_orders", JSON.stringify(existingOrders.slice(0, 50)));
+      } catch {
+        // localStorage may be full or unavailable; order is still placed
+      }
+
+      showToast("Order placed successfully!", "success");
+      return true;
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to place order. Please try again.";
+      showToast(errorMessage, "error");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleNextStep = async () => {
     if (currentStep === 1 && !validateStep1()) {
       return;
     }
@@ -158,7 +781,136 @@ const CheckoutPage = () => {
     if (currentStep === 2 && !validateStep2()) {
       return;
     }
-    
+
+    // Save / update customer address, then ensure checkout session exists
+    if (currentStep === 1) {
+      const addressFormSnapshot = JSON.stringify({
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        address: formData.address,
+        city: locationIds.cityId,
+        state: locationIds.stateId,
+        country: locationIds.countryId,
+        deliveryInstructions: formData.deliveryInstructions,
+      });
+
+      // (Re-)create address if form data changed since last save
+      if (addressFormSnapshot !== lastSavedAddressRef.current) {
+        // Resolve coordinates — prefer browser geolocation, fall back to
+        // a sensible default so the API payload is always valid.
+        const coords = {
+          latitude: latitude ?? DEFAULT_LATITUDE,
+          longitude: longitude ?? DEFAULT_LONGITUDE,
+        };
+
+        try {
+          const addressResp = await createCustomerAddressApi({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phoneNumber: formData.phone,
+            street: formData.address,
+            landmark: formData.deliveryInstructions || "",
+            defaultAddress: true,
+            // Send location IDs as integers — mirrors vendor-store pattern
+            city: parseInt(locationIds.cityId) || undefined,
+            state: parseInt(locationIds.stateId) || undefined,
+            country: parseInt(locationIds.countryId) || undefined,
+            // Always include geolocation for delivery routing
+            ...coords,
+          });
+          if (addressResp.success && addressResp.data?.uuid) {
+            setAddressUuid(addressResp.data.uuid);
+            lastSavedAddressRef.current = addressFormSnapshot;
+          }
+        } catch {
+          // Address creation is optional; proceed without it
+          console.warn("Address creation failed, proceeding without addressUuid");
+        }
+      }
+
+      // Create checkout session only once (re-using existing session is fine)
+      if (!checkoutResult) {
+        const created = await createCheckoutSession();
+        if (!created) return;
+      }
+    }
+
+    // Paga payment redirect — save state, build URL, send user to Paga
+    if (currentStep === 2) {
+      // Guard: ensure a valid checkout session exists before redirecting to payment
+      if (!checkoutResult?.uuid) {
+        showToast(
+          "No checkout session. Please go back to the information step and try again.",
+          "error"
+        );
+        return;
+      }
+
+      const amount = ((checkoutResult?.subTotal ?? selectedSubtotal) + 2500).toFixed(2);
+
+      // Snapshot the current checkout state so we can restore it when Paga redirects back
+      // (the redirect is a full page navigation — React state would be lost otherwise).
+      const checkoutState = {
+        checkoutUuid: checkoutResult?.uuid || "",
+        addressUuid: addressUuid || "",
+        formData,
+        locationIds,
+        selectedCartItemIds,
+        // Also snapshot cart items for the order confirmation display
+        cartItems: cart.stores.flatMap(s =>
+          s.items
+            .filter(item => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id))
+            .map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              storeName: s.storeName,
+            }))
+        ),
+      };
+      sessionStorage.setItem(PAGA_CHECKOUT_STATE_KEY, JSON.stringify(checkoutState));
+
+      // Build Paga checkout URL and redirect
+      const chargeUrl = `${window.location.origin}/checkout`;
+      // Validate that Paga is configured before redirecting
+      if (!PAGA_CONFIG.publicKey) {
+        showToast(
+          "Payment is not configured. Please contact support.",
+          "error"
+        );
+        return;
+      }
+
+      const pagaUrl = buildPagaCheckoutUrl({
+        email: formData.email,
+        phoneNumber: formData.phone,
+        amount,
+        chargeUrl,
+        reference: checkoutResult.uuid,
+      });
+
+      setIsLoading(true);
+      showToast("Redirecting to Paga secure payment…", "info");
+
+      // Small delay so the user sees the loading state, then redirect.
+      // No cleanup needed — the page navigates away before the timer fires.
+      setTimeout(() => {
+        window.location.href = pagaUrl;
+      }, 600);
+      return;
+    }
+
+    // Confirm order — call POST /place-order to finalize
+    if (currentStep === 3) {
+      const placed = await handlePlaceOrder();
+      if (!placed) return;
+      setCurrentStep(4);
+      return;
+    }
+
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
     }
@@ -256,27 +1008,102 @@ const CheckoutPage = () => {
         error={errors.address}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Input
-          label="City"
-          type="text"
-          name="city"
-          value={formData.city}
-          onChange={handleInputChange}
-          placeholder="Enter city"
-          className="border-gray-300 rounded-lg"
-          error={errors.city}
+      {/* Country dropdown — mirrors vendor-store pattern */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          Country
+        </label>
+        <ReactSelect
+          name="country"
+          value={
+            locationIds.countryId && countries.length > 0
+              ? {
+                  value: locationIds.countryId,
+                  label: countries.find(c => c.id.toString() === locationIds.countryId)?.name || "",
+                }
+              : null
+          }
+          onChange={(option) => handleCountryChange(option)}
+          options={countries.map(c => ({
+            value: c.id.toString(),
+            label: c.name,
+          }))}
+          placeholder="Select a country"
+          isSearchable
+          isClearable
+          className="react-select-container"
+          classNamePrefix="react-select"
         />
-        <Input
-          label="State"
-          type="text"
+        {errors.countryId && (
+          <p className="text-red-500 text-sm mt-1">{errors.countryId}</p>
+        )}
+      </div>
+
+      {/* State dropdown */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          State
+        </label>
+        <ReactSelect
           name="state"
-          value={formData.state}
-          onChange={handleInputChange}
-          placeholder="Enter state"
-          className="border-gray-300 rounded-lg"
-          error={errors.state}
+          value={
+            locationIds.stateId && states.length > 0
+              ? {
+                  value: locationIds.stateId,
+                  label: states.find(s => s.id.toString() === locationIds.stateId)?.name || "",
+                }
+              : null
+          }
+          onChange={(option) => handleStateChange(option)}
+          options={states.map(s => ({
+            value: s.id.toString(),
+            label: s.name,
+          }))}
+          placeholder="Select a state"
+          isSearchable
+          isClearable
+          isDisabled={!locationIds.countryId}
+          className="react-select-container"
+          classNamePrefix="react-select"
         />
+        {errors.stateId && (
+          <p className="text-red-500 text-sm mt-1">{errors.stateId}</p>
+        )}
+      </div>
+
+      {/* City dropdown */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          City
+        </label>
+        <ReactSelect
+          name="city"
+          value={
+            locationIds.cityId && cities.length > 0
+              ? {
+                  value: locationIds.cityId,
+                  label: cities.find(c => c.id.toString() === locationIds.cityId)?.name || "",
+                }
+              : null
+          }
+          onChange={(option) => handleCityChange(option)}
+          options={cities.map(c => ({
+            value: c.id.toString(),
+            label: c.name,
+          }))}
+          placeholder="Select a city"
+          isSearchable
+          isClearable
+          isDisabled={!locationIds.stateId}
+          className="react-select-container"
+          classNamePrefix="react-select"
+        />
+        {errors.cityId && (
+          <p className="text-red-500 text-sm mt-1">{errors.cityId}</p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <Input
           label="Postal Code"
           type="text"
@@ -286,17 +1113,16 @@ const CheckoutPage = () => {
           placeholder="Enter postal code"
           className="border-gray-300 rounded-lg"
         />
+        <Input
+          label="Delivery Instructions (Optional)"
+          type="text"
+          name="deliveryInstructions"
+          value={formData.deliveryInstructions}
+          onChange={handleInputChange}
+          placeholder="Any special delivery instructions..."
+          className="border-gray-300 rounded-lg"
+        />
       </div>
-
-      <Input
-        label="Delivery Instructions (Optional)"
-        type="text"
-        name="deliveryInstructions"
-        value={formData.deliveryInstructions}
-        onChange={handleInputChange}
-        placeholder="Any special delivery instructions..."
-        className="border-gray-300 rounded-lg"
-      />
     </motion.div>
   );
 
@@ -326,9 +1152,34 @@ const CheckoutPage = () => {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h2>
         <p className="text-gray-600 max-w-md">
-          Thank you for your order. We&apos;ve received your order and will begin processing it right away.
+          {orderResult?.message || checkoutResult?.message || "Thank you for your order. We've received your order and will begin processing it right away."}
         </p>
       </motion.div>
+
+      {/* Order Details from API */}
+      {orderResult && (
+        <motion.div
+          variants={itemVariants}
+          className="bg-green-50 border border-green-200 rounded-xl p-6 space-y-3"
+        >
+          <h3 className="font-semibold text-green-900">Order Details</h3>
+          {orderResult.orderUuid && (
+            <p className="text-sm text-green-800">
+              Order ID: <span className="font-mono font-medium">{orderResult.orderUuid}</span>
+            </p>
+          )}
+          {orderResult.paymentReference && (
+            <p className="text-sm text-green-800">
+              Payment Reference: <span className="font-mono font-medium">{orderResult.paymentReference}</span>
+            </p>
+          )}
+          {orderResult.amount !== undefined && (
+            <p className="text-sm text-green-800">
+              Total: <span className="font-medium">{formatPrice(Number(orderResult.amount) || 0)}</span>
+            </p>
+          )}
+        </motion.div>
+      )}
 
       {/* Order Information */}
       <motion.div
@@ -340,7 +1191,7 @@ const CheckoutPage = () => {
             <FaFileAlt className="text-[#3c4948] text-xl" />
           </div>
           <div>
-            <h3 className="font-medium text-gray-900">Order #BRG-{Math.floor(Math.random() * 10000).toString().padStart(4, '0')}</h3>
+            <h3 className="font-medium text-gray-900">Order #{orderResult?.orderUuid?.slice(0, 8)?.toUpperCase() || `BRG-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`}</h3>
             <p className="text-sm text-gray-600">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
         </div>
@@ -389,14 +1240,11 @@ const CheckoutPage = () => {
           <div>
             <h4 className="text-sm font-medium text-gray-900 mb-2">Payment Method</h4>
             <div className="text-sm text-gray-600">
-              {selectedPaymentMethod === 'card' && (
-                <p>Credit Card ending in {formData.cardNumber.slice(-4)}</p>
-              )}
-              {selectedPaymentMethod === 'bank' && (
-                <p>Bank Transfer</p>
-              )}
-              {selectedPaymentMethod === 'mobile' && (
-                <p>Mobile Money</p>
+              <p>Paga Checkout</p>
+              {orderResult?.paymentReference && (
+                <p className="mt-1 text-xs font-mono text-gray-500">
+                  Ref: {orderResult.paymentReference}
+                </p>
               )}
             </div>
           </div>
@@ -405,7 +1253,7 @@ const CheckoutPage = () => {
 
       {/* Next Steps */}
       <div className="flex flex-col md:flex-row gap-4 pt-6">
-        <Link href="/cart" className="flex-1">
+        <Link href="/my-orders" className="flex-1">
           <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -415,7 +1263,7 @@ const CheckoutPage = () => {
               style="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-[#3c4948] hover:bg-[#3c4948] hover:text-white hover:border-[#3c4948] hover:shadow-lg transition-all duration-300 ease-out font-medium shadow-sm"
             >
               <FaReceipt className="text-base" />
-              Back to Cart
+              View My Orders
             </Button>
           </motion.div>
         </Link>
@@ -523,7 +1371,7 @@ const CheckoutPage = () => {
         </div>
       </motion.div>
 
-      {/* Payment Method */}
+      {/* Payment Method — Paga */}
       <motion.div
         variants={itemVariants}
         className="bg-gray-50 rounded-xl p-6 space-y-4"
@@ -546,21 +1394,13 @@ const CheckoutPage = () => {
         
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-[#3c4948]/10 flex items-center justify-center">
-            {selectedPaymentMethod === 'card' && <FaCreditCard className="text-[#3c4948] text-xl" />}
-            {selectedPaymentMethod === 'bank' && <FaUniversity className="text-[#3c4948] text-xl" />}
-            {selectedPaymentMethod === 'mobile' && <FaMobile className="text-[#3c4948] text-xl" />}
+            <FaCreditCard className="text-[#3c4948] text-xl" />
           </div>
           <div>
-            <p className="font-medium text-gray-900">
-              {selectedPaymentMethod === 'card' && 'Credit/Debit Card'}
-              {selectedPaymentMethod === 'bank' && 'Bank Transfer'}
-              {selectedPaymentMethod === 'mobile' && 'Mobile Money'}
+            <p className="font-medium text-gray-900">Paga Checkout</p>
+            <p className="text-sm text-gray-600">
+              Pay with card, bank transfer, or mobile money via Paga
             </p>
-            {selectedPaymentMethod === 'card' && (
-              <p className="text-sm text-gray-600">
-                Card ending in {formData.cardNumber.slice(-4)}
-              </p>
-            )}
           </div>
         </div>
       </motion.div>
@@ -587,11 +1427,17 @@ const CheckoutPage = () => {
         </div>
         
         <div className="space-y-4">
-          {cart.stores.map((store) => (
+          {cart.stores.map((store) => {
+            const filteredItems = store.items.filter(
+              (item) => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id)
+            );
+            if (filteredItems.length === 0) return null;
+
+            return (
             <div key={store.storeId} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
               <h4 className="font-medium text-gray-900 mb-2">{store.storeName}</h4>
               <div className="space-y-2">
-                {store.items.map((item) => (
+                {filteredItems.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-900">{item.name}</span>
@@ -602,7 +1448,8 @@ const CheckoutPage = () => {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </motion.div>
 
@@ -622,183 +1469,132 @@ const CheckoutPage = () => {
     </motion.div>
   );
 
-  const renderStep2 = () => (
-    <motion.div
-      variants={itemVariants}
-      initial="initial"
-      animate="animate"
-      transition={{ type: "spring", duration: 0.3 }}
-      className="space-y-6"
-    >
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <FaCreditCard className="text-[#3c4948]" />
-          Payment Method
-        </h2>
-        <p className="text-gray-600 mb-6">
-          Choose your preferred payment method to complete your order.
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        {/* Payment Method Selection */}
-        <motion.div 
-          className={`p-4 border rounded-xl cursor-pointer transition-all duration-200 ${
-            selectedPaymentMethod === 'card' 
-              ? 'border-[#3c4948] bg-[#3c4948]/5' 
-              : 'border-gray-200 hover:border-[#3c4948] hover:bg-gray-50'
-          }`}
-          onClick={() => setSelectedPaymentMethod('card')}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#3c4948]/10 flex items-center justify-center">
-              <FaCreditCard className="text-[#3c4948] text-xl" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-gray-900">Credit/Debit Card</h3>
-              <p className="text-sm text-gray-600">Pay securely with your card</p>
-            </div>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-              selectedPaymentMethod === 'card' ? 'border-[#3c4948]' : 'border-gray-300'
-            }`}>
-              {selectedPaymentMethod === 'card' && (
-                <motion.div
-                  className="w-3 h-3 rounded-full bg-[#3c4948]"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                />
-              )}
-            </div>
-          </div>
-
-          {selectedPaymentMethod === 'card' && (
-            <motion.div 
-              className="mt-4 space-y-4"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Input
-                label="Card Number"
-                type="text"
-                name="cardNumber"
-                value={formData.cardNumber}
-                onChange={handleInputChange}
-                placeholder="1234 5678 9012 3456"
-                className="border-gray-300 rounded-lg"
-                error={errors.cardNumber}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Expiry Date"
-                  type="text"
-                  name="cardExpiry"
-                  value={formData.cardExpiry}
-                  onChange={handleInputChange}
-                  placeholder="MM/YY"
-                  className="border-gray-300 rounded-lg"
-                  error={errors.cardExpiry}
-                />
-                <Input
-                  label="CVV"
-                  type="text"
-                  name="cardCvv"
-                  value={formData.cardCvv}
-                  onChange={handleInputChange}
-                  placeholder="123"
-                  className="border-gray-300 rounded-lg"
-                  error={errors.cardCvv}
-                />
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
-
-        <motion.div 
-          className={`p-4 border rounded-xl cursor-pointer transition-all duration-200 ${
-            selectedPaymentMethod === 'bank' 
-              ? 'border-[#3c4948] bg-[#3c4948]/5' 
-              : 'border-gray-200 hover:border-[#3c4948] hover:bg-gray-50'
-          }`}
-          onClick={() => setSelectedPaymentMethod('bank')}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#3c4948]/10 flex items-center justify-center">
-              <FaUniversity className="text-[#3c4948] text-xl" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-gray-900">Bank Transfer</h3>
-              <p className="text-sm text-gray-600">Pay directly from your bank account</p>
-            </div>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-              selectedPaymentMethod === 'bank' ? 'border-[#3c4948]' : 'border-gray-300'
-            }`}>
-              {selectedPaymentMethod === 'bank' && (
-                <motion.div
-                  className="w-3 h-3 rounded-full bg-[#3c4948]"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                />
-              )}
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div 
-          className={`p-4 border rounded-xl cursor-pointer transition-all duration-200 ${
-            selectedPaymentMethod === 'mobile' 
-              ? 'border-[#3c4948] bg-[#3c4948]/5' 
-              : 'border-gray-200 hover:border-[#3c4948] hover:bg-gray-50'
-          }`}
-          onClick={() => setSelectedPaymentMethod('mobile')}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#3c4948]/10 flex items-center justify-center">
-              <FaMobile className="text-[#3c4948] text-xl" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-gray-900">Mobile Money</h3>
-              <p className="text-sm text-gray-600">Pay using your mobile wallet</p>
-            </div>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-              selectedPaymentMethod === 'mobile' ? 'border-[#3c4948]' : 'border-gray-300'
-            }`}>
-              {selectedPaymentMethod === 'mobile' && (
-                <motion.div
-                  className="w-3 h-3 rounded-full bg-[#3c4948]"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                />
-              )}
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-        <div className="flex items-start gap-3">
-          <div className="p-1">
-            <FaShieldAlt className="text-blue-600 text-lg" />
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-blue-900">Secure Payment</h4>
-            <p className="text-sm text-blue-700 mt-1">
-              Your payment information is encrypted and securely processed. We never store your full card details.
-            </p>
-          </div>
+  const renderStep2 = () => {
+    const total = (checkoutResult?.subTotal ?? selectedSubtotal) + 2500;
+    return (
+      <motion.div
+        variants={itemVariants}
+        initial="initial"
+        animate="animate"
+        transition={{ type: "spring", duration: 0.3 }}
+        className="space-y-6"
+      >
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <FaCreditCard className="text-[#3c4948]" />
+            Payment with Paga
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Complete your payment securely through Paga. You&apos;ll be redirected to Paga&apos;s
+            secure payment page to enter your card or bank details.
+          </p>
         </div>
-      </div>
-    </motion.div>
-  );
+
+        {/* Checkout Session Confirmation */}
+        {checkoutResult?.uuid && (
+          <motion.div
+            variants={itemVariants}
+            className="p-4 bg-green-50 rounded-xl border border-green-200"
+          >
+            <p className="text-sm text-green-900 font-medium flex items-center gap-2">
+              <FaCheck className="text-green-600" />
+              Checkout session created
+            </p>
+            {checkoutResult.subTotal !== undefined && (
+              <p className="text-xs text-green-700 mt-1">
+                Amount: {formatPrice(checkoutResult.subTotal)}
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {/* Order Amount Summary */}
+        <motion.div
+          variants={itemVariants}
+          className="bg-white border border-gray-200 rounded-xl p-6 space-y-4"
+        >
+          <h3 className="font-semibold text-gray-900">Order Summary</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Subtotal</span>
+              <span className="text-gray-900 font-medium">
+                {formatPrice(checkoutResult?.subTotal ?? selectedSubtotal)}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Delivery Fee</span>
+              <span className="text-gray-900 font-medium">N2,000</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Tax</span>
+              <span className="text-gray-900 font-medium">N500</span>
+            </div>
+            <div className="border-t border-gray-200 pt-3 flex justify-between text-lg font-semibold">
+              <span className="text-gray-900">Total</span>
+              <span className="text-[#3c4948]">{formatPrice(total)}</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Paga Payment Card */}
+        <motion.div
+          variants={itemVariants}
+          className="bg-white border border-gray-200 rounded-xl p-6"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-[#3c4948]/10 flex items-center justify-center shrink-0">
+              <FaCreditCard className="text-[#3c4948] text-2xl" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium text-gray-900">Paga Checkout</h3>
+              <p className="text-sm text-gray-600">
+                Pay securely with your card, bank account, or mobile money via Paga.
+                Your payment information is handled entirely by Paga&apos;s secure platform.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Paga Features */}
+        <motion.div
+          variants={itemVariants}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+        >
+          {[
+            { icon: FaCreditCard, label: "Card Payments", desc: "Visa, Mastercard, Verve" },
+            { icon: FaTruck, label: "Bank Transfer", desc: "Direct bank transfer" },
+            { icon: FaCheckCircle, label: "Mobile Money", desc: "Pay with mobile wallet" },
+          ].map((feature, i) => (
+            <div
+              key={feature.label}
+              className="flex flex-col items-center text-center p-4 bg-gray-50 rounded-xl"
+            >
+              <feature.icon className="text-[#3c4948] text-xl mb-2" />
+              <h4 className="text-sm font-medium text-gray-900">{feature.label}</h4>
+              <p className="text-xs text-gray-600 mt-1">{feature.desc}</p>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Secure Badge */}
+        <motion.div
+          variants={itemVariants}
+          className="p-4 bg-blue-50 rounded-xl border border-blue-100"
+        >
+          <div className="flex items-start gap-3">
+            <FaShieldAlt className="text-blue-600 text-lg mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-sm font-medium text-blue-900">Secure Payment</h4>
+              <p className="text-sm text-blue-700 mt-1">
+                You will be redirected to Paga&apos;s PCI-DSS compliant payment page.
+                We never see or store your payment card details.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  };
 
   const renderOrderSummary = () => (
     <motion.div
@@ -811,11 +1607,17 @@ const CheckoutPage = () => {
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
       
       <div className="space-y-3 mb-4">
-        {cart.stores.map((store) => (
+        {cart.stores.map((store) => {
+          const filteredItems = store.items.filter(
+            (item) => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id)
+          );
+          if (filteredItems.length === 0) return null;
+
+          return (
           <div key={store.storeId}>
             <h4 className="font-medium text-gray-900 text-sm">{store.storeName}</h4>
             <div className="ml-2 space-y-1">
-              {store.items.map((item) => (
+              {filteredItems.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm text-gray-600">
                   <span>{item.name} × {item.quantity}</span>
                   <span>{formatPrice(item.price * item.quantity)}</span>
@@ -823,13 +1625,14 @@ const CheckoutPage = () => {
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="border-t border-gray-200 pt-4 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Subtotal</span>
-          <span className="text-gray-900">{formatPrice(cart.totalAmount)}</span>
+          <span className="text-gray-900">{formatPrice(selectedSubtotal)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Delivery Fee</span>
@@ -841,11 +1644,69 @@ const CheckoutPage = () => {
         </div>
         <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
           <span className="text-gray-900">Total</span>
-          <span className="text-[#3c4948]">{formatPrice(cart.totalAmount + 2500)}</span>
+          <span className="text-[#3c4948]">{formatPrice(selectedSubtotal + 2500)}</span>
         </div>
       </div>
     </motion.div>
   );
+
+  // Auth guard — all checkout API calls require a valid token
+  if (!isAuthenticated) {
+    return (
+      <Wrapper>
+        <motion.div
+          className="bg-white min-h-screen flex items-center justify-center"
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          transition={{ type: "spring", duration: 0.5 }}
+        >
+          <motion.div
+            className="text-center max-w-md px-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="w-20 h-20 mx-auto bg-amber-100 rounded-full flex items-center justify-center mb-6">
+              <FaSignInAlt className="h-10 w-10 text-amber-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-3">Sign in to Checkout</h1>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              You need to be signed in to proceed with checkout. Please sign in or create an
+              account to continue with your order.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/auth">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button type="button" style="flex items-center justify-center gap-2" primary>
+                    <FaSignInAlt className="h-4 w-4" />
+                    Sign In
+                  </Button>
+                </motion.div>
+              </Link>
+              <Link href="/cart">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button
+                    type="button"
+                    style="flex items-center justify-center gap-2 bg-white border border-gray-300 text-[#3c4948] hover:bg-[#3c4948] hover:text-white"
+                  >
+                    <FaArrowLeft className="h-4 w-4" />
+                    Back to Cart
+                  </Button>
+                </motion.div>
+              </Link>
+            </div>
+          </motion.div>
+        </motion.div>
+      </Wrapper>
+    );
+  }
 
   if (cart.stores.length === 0) {
     return (
@@ -926,43 +1787,53 @@ const CheckoutPage = () => {
           </div>
 
           {/* Navigation Buttons */}
-          <motion.div
-            variants={itemVariants}
-            className="flex justify-between mt-8 pt-6 border-t border-gray-200"
-          >
+          {currentStep < totalSteps && (
             <motion.div
-              whileHover="hover"
-              whileTap="tap"
-              variants={buttonVariants}
+              variants={itemVariants}
+              className="flex justify-between mt-8 pt-6 border-t border-gray-200"
             >
-              <Button
-                type="button"
-                style="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                onClick={handlePrevStep}
-                disabled={currentStep === 1}
+              <motion.div
+                whileHover="hover"
+                whileTap="tap"
+                variants={buttonVariants}
               >
-                <FaArrowLeft className="h-4 w-4" />
-                Previous
-              </Button>
-            </motion.div>
+                <Button
+                  type="button"
+                  style="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                  onClick={handlePrevStep}
+                  disabled={currentStep === 1}
+                >
+                  <FaArrowLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+              </motion.div>
 
-            <motion.div
-              whileHover="hover"
-              whileTap="tap"
-              variants={buttonVariants}
-            >
-              <Button
-                type="button"
-                style="flex items-center gap-2"
-                primary
-                onClick={handleNextStep}
-                isLoading={isLoading}
+              <motion.div
+                whileHover="hover"
+                whileTap="tap"
+                variants={buttonVariants}
               >
-                {currentStep === totalSteps ? "Place Order" : "Continue"}
-                <FaCheck className="h-4 w-4" />
-              </Button>
+                <Button
+                  type="button"
+                  style="flex items-center gap-2"
+                  primary
+                  onClick={handleNextStep}
+                  isLoading={isLoading}
+                >
+                  {currentStep === 3
+                    ? "Confirm Order"
+                    : currentStep === 2
+                    ? "Pay with Paga"
+                    : "Continue"}
+                  {currentStep === 2 ? (
+                    <FaCreditCard className="h-4 w-4" />
+                  ) : (
+                    <FaCheck className="h-4 w-4" />
+                  )}
+                </Button>
+              </motion.div>
             </motion.div>
-          </motion.div>
+          )}
         </div>
       </motion.div>
     </Wrapper>

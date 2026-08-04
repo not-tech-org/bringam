@@ -9,6 +9,7 @@ import Button from "../../components/common/Button";
 import { FaArrowLeft, FaPhone, FaMapMarkerAlt, FaClock, FaStar, FaHeart, FaShare, FaShoppingCart } from "react-icons/fa";
 import { useCart } from "../../contexts/CartContext";
 import { toggleWishlistItemApi } from "../../services/WishlistService";
+import { resolveStoreProductUuidFromPayload } from "../../services/CartService";
 import { showToast } from "../../components/utils/helperFunctions";
 import { motion } from "framer-motion";
 import { getStoreById, getStoreProductsByStore } from "../../services/AuthService";
@@ -116,8 +117,13 @@ const StorePage = () => {
     router.push('/all');
   };
 
-  const handleAddToCart = (product: any) => {
+  const handleAddToCart = async (product: any) => {
     try {
+      // Resolve the store-product UUID from the raw API response data.
+      // The actual field name varies between endpoints (productUuid, uuid, etc.)
+      // so we use the comprehensive resolver from CartService.
+      const resolvedUuid = resolveStoreProductUuidFromPayload(product);
+
       // Improved price parsing with error handling
       const priceString = (product.price ?? "").toString();
       const numericPrice = parseFloat(priceString.replace(/[^\d.]/g, ''));
@@ -127,9 +133,20 @@ const StorePage = () => {
         return;
       }
 
-      addToCart({
-        productId: product.productUuid || product.id || product.uuid,
-        storeProductUuid: product.productUuid || product.storeProductUuid || product.uuid,
+      const result = await addToCart({
+        productId: resolvedUuid || product.productId?.toString() || product.id || product.uuid,
+        productUuid: resolvedUuid || product.productUuid,
+        // Use the resolved UUID as the primary value, with direct product fields as fallback
+        storeProductUuid:
+          resolvedUuid ||
+          product.storeProductUuid ||
+          product.storeProductUUID ||
+          (product.storeProductId != null && product.storeProductId !== ""
+            ? String(product.storeProductId)
+            : undefined) ||
+          product.uuid ||
+          product.id ||
+          product.productUuid,
         storeId: store.id || store.uuid || product.storeId?.toString?.() || product.storeId,
         storeName: store.name,
         name: product.productName || product.name,
@@ -137,6 +154,22 @@ const StorePage = () => {
         image: (product.productImages && product.productImages[0]) || product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
         category: product.category || product.productCategory || "Product",
       });
+
+      if (result?.data?.synced === false && result?.data?.reason === "unauthenticated") {
+        showToast("Item added locally. Sign in to save your cart.", "warning");
+        return;
+      }
+
+      if (result?.data?.synced === false) {
+        const detail = result.error ? ` (${result.error})` : "";
+        showToast(
+          `Item added locally. Server sync failed — will retry later.${detail}`,
+          "warning"
+        );
+        return;
+      }
+
+      showToast("Item added to cart", "success");
     } catch (error) {
       showToast("Failed to add item to cart", "error");
     }
@@ -463,7 +496,9 @@ const StorePage = () => {
                     />
                   </motion.button>
 
-                  <Link href={`/product/${product.productUuid || product.id || product.uuid || product.storeProductUuid}`}>
+                  <Link
+                    href={`/product/${product.uuid || product.storeProductUuid || product.productUuid || product.id}`}
+                  >
                     <div className="cursor-pointer">
                   <div className="relative h-32 w-full">
                     <Image

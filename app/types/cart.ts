@@ -4,6 +4,8 @@
 export interface CartItem {
   id: string;
   productId: string;
+  /** Vendor store-product row UUID when API uses productUuid (maps to customer-service storeProductUuid). */
+  productUuid?: string;
   storeProductUuid?: string;
   storeId: string;
   storeName: string;
@@ -30,6 +32,45 @@ export interface Cart {
 }
 
 // ===== API CART TYPES (Server Structure) =====
+
+/** Matches the API's CartItemResp schema — each cart line item has its own UUID. */
+export interface ServerCartItem {
+  uuid: string;
+  cartUuid: string;
+  quantity: number;
+  storeProduct: ServerStoreProduct;
+}
+
+/** Nested store-product object inside CartItemResp. */
+export interface ServerStoreProduct {
+  productId?: number;
+  productUuid: string;
+  productName: string;
+  price: number;
+  storeId?: number;
+  vendorUuid?: string;
+  productImages?: string[];
+  availability?: string;
+  noInStock?: number;
+}
+
+/** Matches the API's CartResp schema. */
+export interface ApiCartData {
+  uuid: string;
+  status: string;
+  cartItems: ServerCartItem[];
+}
+
+export interface ApiCartResponse {
+  success: boolean;
+  message: string;
+  data: ApiCartData;
+}
+
+/**
+ * Legacy flat cart-item type for API responses (may be returned by older endpoints).
+ * Keep for backward compatibility.
+ */
 export interface ApiCartItem {
   id?: string;
   productId: string;
@@ -41,18 +82,6 @@ export interface ApiCartItem {
   quantity: number;
   category?: string;
   addedAt?: string;
-}
-
-export interface ApiCartData {
-  uuid: string;
-  status: string;
-  cartItems: ApiCartItem[];
-}
-
-export interface ApiCartResponse {
-  success: boolean;
-  message: string;
-  data: ApiCartData;
 }
 
 // ===== CART LOADING & ERROR STATES =====
@@ -105,7 +134,7 @@ export interface CartContextType {
   error: CartErrorState;
   
   // Cart Operations (Existing - now with API integration)
-  addToCart: (item: Omit<CartItem, 'id' | 'addedAt' | 'quantity'>) => Promise<void>;
+  addToCart: (item: Omit<CartItem, 'id' | 'addedAt' | 'quantity'>) => Promise<CartOperationResult>;
   removeFromCart: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;

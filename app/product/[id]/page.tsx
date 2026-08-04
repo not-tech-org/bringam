@@ -45,6 +45,7 @@ const ProductDetailPage = () => {
   const { addToCart } = useCart();
   
   const [product, setProduct] = useState<any>(null);
+  const [storeName, setStoreName] = useState("");
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasFetched, setHasFetched] = useState(false);
@@ -109,6 +110,11 @@ const ProductDetailPage = () => {
         const productResponse = await getSingleStoreProduct(productId);
         const productData = productResponse.data;
         setProduct(productData);
+
+        // Fetch store name from vendor info if available
+        if (productData.vendor?.businessName) {
+          setStoreName(productData.vendor.businessName);
+        }
         
         // Fetch reviews after product is loaded
         const productUuid = resolveProductUuid(productData);
@@ -137,18 +143,45 @@ const ProductDetailPage = () => {
     router.back();
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     try {
-      addToCart({
+      const result = await addToCart({
         productId: product.productUuid || product.id || product.uuid,
-        storeProductUuid: product.productUuid || product.storeProductUuid || product.uuid,
-        storeId: product.storeId || product.store?.id || product.store?.uuid,
-        storeName: product.storeName || product.store?.name || "",
+        productUuid: product.productUuid,
+        // Prefer explicit store-product fields, then the route param `productId` (get-one query uuid),
+        // then catalog ids. Customer cart API expects the store-product identifier from vendor-service.
+        storeProductUuid:
+          product.storeProductUuid ||
+          product.storeProductUUID ||
+          (product.storeProductId != null && product.storeProductId !== ""
+            ? String(product.storeProductId)
+            : undefined) ||
+          product.uuid ||
+          productId ||
+          product.productUuid ||
+          product.id,
+        storeId: product.storeId?.toString() || product.storeUuid || product.store?.id || product.store?.uuid || "",
+        storeName: storeName || product.storeName || product.store?.name || "",
         name: product.productName || product.name,
         price: product.price || 0,
         image: (product.productImages && product.productImages[0]) || product.image || product.productImageUrl || product.imageUrl || "/images/placeholder.png",
         category: product.category || product.productCategory,
       });
+
+      if (result?.data?.synced === false && result?.data?.reason === "unauthenticated") {
+        showToast("Item added locally. Sign in to save your cart.", "warning");
+        return;
+      }
+
+      if (result?.data?.synced === false) {
+        const detail = result.error ? ` (${result.error})` : "";
+        showToast(
+          `Item added locally. Server sync failed — will retry later.${detail}`,
+          "warning"
+        );
+        return;
+      }
+
       showToast("Item added to cart", "success");
     } catch (error) {
       showToast("Failed to add item to cart", "error");
