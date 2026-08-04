@@ -288,20 +288,38 @@ export const createCustomerAddressApi = async (request: {
   city?: number;
   state?: number;
   country?: number;
+  /**
+   * Longitude coordinate for the address.
+   * The backend requires this field — use browser geolocation
+   * or a sensible default (e.g. Lagos, Nigeria) when unavailable.
+   */
+  longitude: number;
+  /**
+   * Latitude coordinate for the address.
+   * The backend requires this field — use browser geolocation
+   * or a sensible default (e.g. Lagos, Nigeria) when unavailable.
+   */
+  latitude: number;
 }): Promise<{ success: boolean; message: string; data: { uuid: string } | null }> => {
   try {
-    const response = await cartApi.post("/address", {
+    const payload: Record<string, unknown> = {
       firstName: request.firstName,
       lastName: request.lastName,
       email: request.email,
       phoneNumber: request.phoneNumber,
       street: request.street,
-      ...(request.landmark ? { landmark: request.landmark } : {}),
-      ...(request.defaultAddress !== undefined ? { defaultAddress: request.defaultAddress } : {}),
-      ...(request.city ? { city: request.city } : {}),
-      ...(request.state ? { state: request.state } : {}),
-      ...(request.country ? { country: request.country } : {}),
-    });
+      longitude: request.longitude,
+      latitude: request.latitude,
+    };
+
+    // Only include optional fields when they have a value
+    if (request.landmark) payload.landmark = request.landmark;
+    if (request.defaultAddress !== undefined) payload.defaultAddress = request.defaultAddress;
+    if (request.city) payload.city = request.city;
+    if (request.state) payload.state = request.state;
+    if (request.country) payload.country = request.country;
+
+    const response = await cartApi.post("/address", payload);
     return response.data;
   } catch (err: unknown) {
     throw new Error(extractAxiosMessage(err));
