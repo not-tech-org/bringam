@@ -1,5 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { getServerMessage, rejectUnsuccessfulApiResponse } from "../lib/apiFeedback";
 
 /** Same token source for axios interceptors and cart “should sync?” checks (non-httpOnly cookie). */
 export const getBringAmToken = (): string | undefined => {
@@ -98,17 +99,13 @@ const addAuthInterceptor = (apiInstance: any) => {
 
 // Add auth interceptor to cart API instance
 addAuthInterceptor(cartApi);
+cartApi.interceptors.response.use(rejectUnsuccessfulApiResponse);
 
 // Import types from cart types file to avoid duplication
 import type { ApiCartResponse } from "../types/cart";
 
 export const extractAxiosMessage = (err: any): string => {
-  return (
-    err?.response?.data?.message ||
-    err?.response?.data?.error ||
-    err?.message ||
-    "Request failed"
-  );
+  return getServerMessage(err);
 };
 
 // Cart API Request Types
@@ -139,11 +136,14 @@ export interface CheckoutApiResponse {
   data: Record<string, unknown> | null;
 }
 
+/** Matches the API's AddDeliveryAddressToCheckoutReq schema. */
+export interface AddDeliveryAddressToCheckoutReq {
+  addressUuid: string;
+}
+
+/** Matches CustomerPlaceOrderReq — per the API spec, only checkoutSessionUuid is required. */
 export interface PlaceOrderRequest {
   checkoutSessionUuid: string;
-  addressUuid?: string;
-  deliveryOption?: string;
-  deliveryAddressUuid?: string;
 }
 
 /** Matches CustomerPlaceOrderResp — real order id and payment reference. */
@@ -268,6 +268,28 @@ export const placeOrderApi = async (
   }
 };
 
+// ===== CHECKOUT ADDRESS API FUNCTIONS =====
+
+/**
+ * Attach a delivery address to an existing checkout session.
+ *
+ * Per the API spec, this is the second step of the three-step checkout flow:
+ * 1. POST /api/v1/checkout → creates session with cost breakdown
+ * 2. POST /api/v1/checkout/{sessionUuid}/address → attaches address, returns updated totals
+ * 3. POST /api/v1/place-order → finalizes the order
+ */
+export const attachAddressToCheckoutSessionApi = async (
+  sessionUuid: string,
+  request: AddDeliveryAddressToCheckoutReq
+): Promise<CheckoutApiResponse> => {
+  try {
+    const response = await cartApi.post(`/checkout/${sessionUuid}/address`, request);
+    return response.data;
+  } catch (err: unknown) {
+    throw new Error(extractAxiosMessage(err));
+  }
+};
+
 // ===== ADDRESS API FUNCTIONS =====
 
 /**
@@ -339,5 +361,4 @@ export const getCustomerAddressesApi = async (): Promise<{
     throw new Error(extractAxiosMessage(err));
   }
 };
-
 

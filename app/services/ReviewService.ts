@@ -1,5 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { rejectUnsuccessfulApiResponse } from "../lib/apiFeedback";
 import { ReviewApiResponse, GetReviewsParams, AddReviewRequest, AddReviewResponse } from "../types/review";
 
 const baseUrl = () => {
@@ -40,6 +41,7 @@ const addAuthInterceptor = (apiInstance: any) => {
 
 // Add auth interceptor to review API instance
 addAuthInterceptor(reviewApi);
+reviewApi.interceptors.response.use(rejectUnsuccessfulApiResponse);
 
 // Get product reviews from API
 export const getProductReviewsApi = async (

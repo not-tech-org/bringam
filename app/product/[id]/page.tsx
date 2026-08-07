@@ -12,6 +12,7 @@ import { FaArrowLeft, FaStar, FaShoppingCart, FaHeart, FaEdit } from "react-icon
 import { getProductReviewsApi, addProductReviewApi } from "../../services/ReviewService";
 import { ReviewItem } from "../../types/review";
 import { showToast } from "../../components/utils/helperFunctions";
+import { getServerMessage } from "@/app/lib/apiFeedback";
 import { motion } from "framer-motion";
 import { useCart } from "../../contexts/CartContext";
 import { toggleWishlistItemApi } from "../../services/WishlistService";
@@ -150,15 +151,15 @@ const ProductDetailPage = () => {
         productUuid: product.productUuid,
         // Prefer explicit store-product fields, then the route param `productId` (get-one query uuid),
         // then catalog ids. Customer cart API expects the store-product identifier from vendor-service.
+        // The backend StoreProductResp uses `productUuid` as the store-product UUID.
+        // Priority: explicit store-product fields first, then the documented backend field,
+        // then fallbacks from the route param and generic ids.
         storeProductUuid:
-          product.storeProductUuid ||
-          product.storeProductUUID ||
-          (product.storeProductId != null && product.storeProductId !== ""
-            ? String(product.storeProductId)
-            : undefined) ||
-          product.uuid ||
-          productId ||
-          product.productUuid ||
+          product.storeProductUuid ??
+          product.storeProductUUID ??
+          product.productUuid ??
+          product.uuid ??
+          productId ??
           product.id,
         storeId: product.storeId?.toString() || product.storeUuid || product.store?.id || product.store?.uuid || "",
         storeName: storeName || product.storeName || product.store?.name || "",
@@ -184,7 +185,7 @@ const ProductDetailPage = () => {
 
       showToast("Item added to cart", "success");
     } catch (error) {
-      showToast("Failed to add item to cart", "error");
+      showToast(getServerMessage(error, "Failed to add item to cart"), "error");
     }
   };
 

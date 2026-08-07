@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# BringAm
 
-## Getting Started
+BringAm is a multi-vendor marketplace frontend for customers and vendors. Customers can discover stores and products, manage a cart and wishlist, provide delivery details, place an order, and pay through Paga. Vendors can manage their stores, products, and offers.
 
-First, run the development server:
+## What the app includes
+
+- Customer sign-up, sign-in, password recovery, and account screens
+- Store discovery, product browsing, search, reviews, and wishlists
+- Cart management and selected-item checkout
+- Delivery-address collection and Paga payment handoff
+- Customer orders, notifications, and support screens
+- Vendor onboarding, store management, product management, and offers
+
+## Tech stack
+
+- Next.js 14 (App Router)
+- React 18 and TypeScript
+- Tailwind CSS
+- Axios for API requests
+- Redux Toolkit for shared application state
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 18 or later
+- npm
+- Access to the BringAm backend services
+
+### Install and run
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+Create a `.env.local` file in the project root:
 
-## Learn More
+```env
+NEXT_PUBLIC_API_URL=https://your-api-host
+NEXT_PUBLIC_PAYMENT_PUBLIC_KEY=your-paga-public-key
+```
 
-To learn more about Next.js, take a look at the following resources:
+`NEXT_PUBLIC_DISABLE_BOOTSTRAP_CART_FETCH=true` can be used for local cart-only debugging. Do not use it when testing the signed-in cart and checkout flow.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+```text
+app/
+  auth/                 Customer authentication pages
+  cart/                 Cart page and item selection
+  checkout/             Address, checkout, order, and payment handoff
+  contexts/             Shared client state, including CartContext
+  services/             API clients and request helpers
+  product/ and store/   Customer product and store views
+  vendor*/              Vendor onboarding and catalog management
+  wishlist/             Customer wishlist
+```
 
-## Deploy on Vercel
+## Customer checkout flow
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+For an authenticated customer, the intended API sequence is:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+1. Read the active server cart with `GET /api/v1/carts/get-user-cart`.
+2. Add a product with `PUT /api/v1/carts/add-item-to-cart/{cartUuid}` using the vendor store-product UUID and quantity.
+3. Re-read the cart and use `cartItems[].uuid` as the checkout item IDs.
+4. Create a checkout session with `POST /api/v1/checkout`.
+5. Create or select a delivery address, then attach it with `POST /api/v1/checkout/{sessionUuid}/address`.
+6. Place the order with `POST /api/v1/place-order` and use the returned payment reference and amount for the Paga handoff.
+7. Let the backend verify payment through its Paga webhook; the client should display the resulting order state.
+
+Important: `storeProductUuid` and `cartItems[].uuid` are different values. Checkout must use the cart-item UUIDs returned by the server, never a product UUID.
+
+## Current integration note
+
+The frontend correctly requires cart items to appear in `GET /carts/get-user-cart` before checkout. If the add-to-cart endpoint reports success but the next cart read remains empty, the issue is in backend cart persistence or the active-cart/customer association. Checkout cannot safely continue until the server returns persisted cart items.
+
+## Quality checks
+
+```bash
+npm run lint
+npm run build
+```
+
+Before merging cart or checkout changes, manually verify this path with a fresh signed-in account:
+
+```text
+add product -> refresh cart -> select item -> add address
+-> create checkout session -> attach address -> place order -> Paga handoff
+```
+
+## Contributing
+
+- Keep API request logic in `app/services`.
+- Keep cart state changes in `CartContext` and treat the server cart as authoritative for signed-in users.
+- Do not commit secrets or `.env.local` files.
+- Keep checkout changes small and test the full customer flow before merging.
