@@ -1,5 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { rejectUnsuccessfulApiResponse } from "../lib/apiFeedback";
 
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
@@ -39,6 +40,7 @@ const addAuthInterceptor = (apiInstance: any) => {
 
 // Add auth interceptor to customer API instance
 addAuthInterceptor(customerApi);
+customerApi.interceptors.response.use(rejectUnsuccessfulApiResponse);
 
 // Get store by ID (customer-facing)
 export const getStoreById = async (storeUuid: string) => {

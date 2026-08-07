@@ -1,5 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { rejectUnsuccessfulApiResponse } from "../lib/apiFeedback";
 import { WishlistApiResponse, GetWishlistParams, ToggleWishlistResponse } from "../types/wishlist";
 
 const baseUrl = () => {
@@ -40,6 +41,7 @@ const addAuthInterceptor = (apiInstance: any) => {
 
 // Add auth interceptor to wishlist API instance
 addAuthInterceptor(wishlistApi);
+wishlistApi.interceptors.response.use(rejectUnsuccessfulApiResponse);
 
 // Get customer wishlist from API
 export const getCustomerWishlistApi = async (

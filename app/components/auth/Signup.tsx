@@ -6,6 +6,7 @@ import Button from "../common/Button";
 import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 import Toastify from "toastify-js";
 import { motion } from "framer-motion";
+import { getServerMessage } from "@/app/lib/apiFeedback";
 
 // Toast configuration constants - matching the signin component
 const TOAST_STYLES = {
@@ -177,25 +178,30 @@ const Signup = () => {
     }
 
     setErrors(newErrors);
-    return isValid;
+    return { isValid, errors: newErrors };
   };
 
   // Handle form submission with validation
-  const onSignUp = (e: React.FormEvent) => {
+  const onSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validate form
-    if (!validateForm()) {
+    const validation = validateForm();
+    if (!validation.isValid) {
       // Show only one error message to avoid overwhelming the user
-      const errorKey = Object.keys(errors)[0] as keyof typeof errors;
-      if (errorKey && errors[errorKey]) {
-        showToast(errors[errorKey]!, "error");
+      const errorKey = Object.keys(validation.errors)[0] as keyof typeof validation.errors;
+      if (errorKey && validation.errors[errorKey]) {
+        showToast(validation.errors[errorKey]!, "error");
       }
       return;
     }
 
-    // If validation passes, proceed with signup
-    contextSignUp(e);
+    try {
+      const response = await contextSignUp(e);
+      showToast(response?.data?.message || "Account created successfully", "success");
+    } catch (error) {
+      showToast(getServerMessage(error, "Unable to create your account"), "error");
+    }
   };
 
   // Handle input change and clear related error

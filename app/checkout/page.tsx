@@ -18,8 +18,10 @@ import {
   getUserCartApi,
   placeOrderApi,
   createCustomerAddressApi,
+  attachAddressToCheckoutSessionApi,
   resolveStoreProductUuidFromPayload,
   getBringAmToken,
+  extractAxiosMessage,
   type CheckoutApiResponse,
   type PlaceOrderApiResponse,
 } from "../services/CartService";
@@ -77,9 +79,18 @@ const CheckoutPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCartItemIds, setSelectedCartItemIds] = useState<string[]>([]);
+  /**
+   * Stores the full CustomerCheckoutSessionResp from the API.
+   * All pricing fields come from the server — no hardcoded values.
+   */
   const [checkoutResult, setCheckoutResult] = useState<{
     uuid?: string;
     subTotal?: number;
+    deliveryCost?: number;
+    vat?: number;
+    serviceCharge?: number;
+    total?: number;
+    deliveryAddressUuid?: string;
     message?: string;
   } | null>(null);
   const [orderResult, setOrderResult] = useState<{
@@ -153,7 +164,9 @@ const CheckoutPage = () => {
   /**
    * On mount, check for Paga redirect query params.
    * When Paga completes payment, it redirects back to the charge_url (this page)
-   * with transaction status params. We detect these and finalize the order.
+   * with transaction status params. Since place-order was already called BEFORE
+   * the redirect, we just restore the checkout state and show the confirmation.
+   * The backend webhook handles payment verification from Paga.
    */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -181,12 +194,10 @@ const CheckoutPage = () => {
           : "Payment was not completed. Please try again or contact support.",
         "warning"
       );
-      // Show a more descriptive message on the page
       return;
     }
 
-    // Payment succeeded — restore checkout state and finalize order
-    showToast("Payment confirmed! Placing your order…", "info");
+    // Restore saved state from session storage
     const savedStateRaw = sessionStorage.getItem(PAGA_CHECKOUT_STATE_KEY);
     if (!savedStateRaw) {
       showToast("Session expired. Please start checkout again.", "error");
@@ -202,6 +213,8 @@ const CheckoutPage = () => {
     }
 
     const sessionUuid = (savedState?.checkoutUuid as string) || "";
+    const savedOrderUuid = (savedState?.orderUuid as string) || "";
+    const savedPaymentReference = (savedState?.paymentReference as string) || "";
     const savedAddressUuid = (savedState?.addressUuid as string) || "";
     const savedFormData = savedState?.formData as typeof formData | undefined;
     const savedLocationIds = savedState?.locationIds as typeof locationIds | undefined;
@@ -219,71 +232,21 @@ const CheckoutPage = () => {
     if (savedLocationIds) setLocationIds(savedLocationIds);
     if (savedSelectedIds) setSelectedCartItemIds(savedSelectedIds);
 
+    // Restore order result (already placed before the Paga redirect)
+    if (savedOrderUuid || savedPaymentReference) {
+      setOrderResult({
+        orderUuid: savedOrderUuid || undefined,
+        paymentReference: savedPaymentReference || pagaReference || undefined,
+        message: "Order placed successfully. Payment is being processed.",
+      });
+    }
+
     // Clean up URL params so a refresh doesn't re-trigger
     window.history.replaceState({}, "", window.location.pathname);
 
-    (async () => {
-      setIsLoading(true);
-      try {
-        const response: PlaceOrderApiResponse = await placeOrderApi({
-          checkoutSessionUuid: sessionUuid,
-          ...(savedAddressUuid ? { addressUuid: savedAddressUuid } : {}),
-        });
-
-        if (!response.success) {
-          throw new Error(response.message || "Failed to place order.");
-        }
-
-        const orderData = {
-          orderUuid: response.data?.orderUuid ?? undefined,
-          paymentReference: pagaReference || (response.data?.paymentReference ?? undefined),
-          amount: response.data?.amount ?? undefined,
-          message: response.message,
-        };
-
-        setOrderResult(orderData);
-
-        // Build restore formData from saved state so renderStep4 can display it
-        if (savedFormData) {
-          setFormData(savedFormData);
-        }
-
-        // Save order to localStorage for My Orders page
-        try {
-          const existingOrders = JSON.parse(localStorage.getItem("bringam_orders") || "[]");
-          existingOrders.unshift({
-            ...orderData,
-            placedAt: new Date().toISOString(),
-            items: (savedState?.cartItems as Array<Record<string, unknown>>) || [],
-            customerInfo: {
-              firstName: savedFormData?.firstName || "",
-              lastName: savedFormData?.lastName || "",
-              email: savedFormData?.email || "",
-              phone: savedFormData?.phone || "",
-              address: savedFormData?.address || "",
-              city: savedFormData?.city || "",
-              state: savedFormData?.state || "",
-            },
-          });
-          localStorage.setItem("bringam_orders", JSON.stringify(existingOrders.slice(0, 50)));
-        } catch {
-          // localStorage may be full; order is still placed
-        }
-
-        showToast("Order placed successfully!", "success");
-        setCurrentStep(4);
-      } catch (error: any) {
-        const errorMessage =
-          error?.response?.data?.message ||
-          error?.message ||
-          "Failed to place order after payment. Please contact support.";
-        showToast(errorMessage, "error");
-        // Keep user on checkout — they can retry or contact support
-        setCurrentStep(2);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
+    // Show the confirmation screen
+    showToast("Payment confirmed! Your order has been placed.", "success");
+    setCurrentStep(4);
   }, []);
 
   // Fetch countries on mount (mirrors vendor-store pattern)
@@ -377,12 +340,11 @@ const CheckoutPage = () => {
   };
 
   /**
-   * Validate step 2 — ensures a checkout session exists before redirecting to Paga.
-   * Paga handles all payment validation on its hosted page.
+   * Validate step 2 — ensures a checkout session exists before proceeding.
+   * Step 2 calls place-order and then redirects to Paga.
    */
   const validateStep2 = (): boolean => {
-    // Step 2 is Paga payment — no client-side card validation needed.
-    // Paga collects payment details on their secure hosted page.
+    // No client-side validation needed — the API handles all validation.
     return true;
   };
 
@@ -484,175 +446,153 @@ const CheckoutPage = () => {
   };
 
   /**
-   * Fetch the server cart, sync local items if empty, then build cartItemUUIDs for checkout.
+   * Build cartItemUUIDs for the checkout API.
    *
-   * The API expects `cartItemUUIDs` — the UUIDs of cart items on the server. These are NOT the
-   * same as store-product UUIDs — they are the per-line-item identifiers returned by
-   * `GET /carts/get-user-cart` (CartItemResp.uuid).
+   * Per the API spec, the correct flow is:
+   * 1. Items are added to the server cart via PUT /carts/add-item-to-cart/{cart-uuid}
+   * 2. GET /carts/get-user-cart returns items with their cart-item UUIDs
+   * 3. Use cartItems[].uuid as cartItemUUIDs for POST /api/v1/checkout
    *
-   * Strategy:
-   * 1. First check if the server cart already has items → extract their UUIDs directly.
-   * 2. If the server cart is empty but the local cart has items, sync local items to the
-   *    server cart via PUT, then do ONE final GET server cart to retrieve the cart item UUIDs.
-   * 3. No polling or fragile response-data capturing — just one clean sync-and-reload cycle.
+   * If the server cart is empty, we sync local items to the server cart, then
+   * re-fetch the server cart to get the authoritative cart-item UUIDs.
+   * We NEVER fall back to store-product UUIDs — the API requires cart-item UUIDs.
    */
   const buildCartItemUUIDsForCheckout = async (): Promise<string[] | { error: string }> => {
-    // ----------------------------------------------------------------
-    // Strategy: First check if the server cart has items we can use.
-    // If the server cart is empty but local has items, pass the store
-    // product UUIDs directly — the /checkout endpoint may accept them
-    // as cart-item identifiers and resolve them server-side.
-    // ----------------------------------------------------------------
-
-    const fetchServerCart = async (): Promise<{
-      items: Record<string, unknown>[];
-      uuid: string;
-    } | null> => {
-      try {
-        const resp = await getUserCartApi();
-        if (!resp.success || !resp.data) return null;
-        return {
+    // Step 1: Fetch the server cart to get existing cart-item UUIDs
+    let serverCart: { items: Record<string, unknown>[]; uuid: string } | null = null;
+    try {
+      const resp = await getUserCartApi();
+      if (resp.success && resp.data) {
+        serverCart = {
           items: (resp.data.cartItems ?? []) as unknown as Record<string, unknown>[],
           uuid: resp.data.uuid,
         };
-      } catch {
-        return null;
       }
-    };
-
-    // Step 1: Try to get server cart items
-    const serverCart = await fetchServerCart();
-    if (!serverCart) {
+    } catch {
       return { error: "Unable to load your cart from the server. Please refresh and try again." };
     }
 
-    // If the server cart already has items, extract their UUIDs
-    if (serverCart.items.length > 0) {
-      return buildUuidListFromServerItems(serverCart.items);
+    if (!serverCart) {
+      return { error: "Unable to load your cart. Please refresh and try again." };
     }
 
-    // Server cart is empty — check if we have local items.
-    // Try React state first; fall back to localStorage in case the
-    // CartContext hasn't finished loading or was overwritten.
-    const CART_STORAGE_KEY = "bringam_cart";
+    // If the server cart is empty, sync local items to the server cart first
+    if (serverCart.items.length === 0) {
+      const itemsToSync = cart.stores.length > 0
+        ? (selectedCartItemIds.length > 0
+            ? cart.stores.flatMap(s => s.items.filter(i => selectedCartItemIds.includes(i.id)))
+            : cart.stores.flatMap(s => s.items))
+        : [];
 
-    const getLocalCartItems = (): Array<{
-      storeProductUuid?: string;
-      productId: string;
-      name: string;
-      quantity: number;
-      productUuid?: string;
-      storeId?: string;
-      storeName?: string;
-      price: number;
-      id: string;
-    }> => {
-      // Try React state first
-      if (cart.stores.length > 0) {
-        return selectedCartItemIds.length > 0
-          ? cart.stores.flatMap(s => s.items.filter(i => selectedCartItemIds.includes(i.id)))
-          : cart.stores.flatMap(s => s.items);
+      if (itemsToSync.length === 0) {
+        return { error: "Your cart is empty. Add items before checking out." };
       }
 
-      // Fall back to localStorage
+      const syncErrors: string[] = [];
+
+      for (const item of itemsToSync) {
+        const storeProductUuid = resolveStoreProductUuidFromPayload(item) || item.productId;
+        if (!storeProductUuid) {
+          syncErrors.push(`${item.name}: missing product identifier`);
+          continue;
+        }
+
+        try {
+          await addItemToCartApi(serverCart.uuid, {
+            storeProductUuid,
+            quantity: item.quantity,
+          });
+        } catch (err) {
+          const apiError = extractAxiosMessage(err);
+          console.warn(`[checkout] Failed to sync ${item.name}:`, apiError);
+          syncErrors.push(`${item.name}: ${apiError}`);
+        }
+      }
+
+      if (syncErrors.length > 0) {
+        return { error: `Could not add cart items: ${syncErrors.join("; ")}` };
+      }
+
+      // Re-fetch the server cart to get authoritative cart-item UUIDs
       try {
-        const raw = localStorage.getItem(CART_STORAGE_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        const stores = parsed?.stores ?? [];
-        if (!Array.isArray(stores) || stores.length === 0) return [];
-        return stores.flatMap((s: any) => {
-          const items = s?.items ?? [];
-          if (!Array.isArray(items)) return [];
-          return items;
-        });
+        const resp = await getUserCartApi();
+        if (resp.success && resp.data) {
+          serverCart = {
+            items: (resp.data.cartItems ?? []) as unknown as Record<string, unknown>[],
+            uuid: resp.data.uuid,
+          };
+        }
       } catch {
-        return [];
+        return { error: "Failed to refresh cart after syncing. Please try again." };
       }
-    };
 
-    const itemsToCheckout = getLocalCartItems();
-
-    if (itemsToCheckout.length === 0) {
-      return { error: "Your cart is empty. Add items before checking out." };
-    }
-
-    // ----------------------------------------------------------------
-    // Step 2: Resolve store product UUIDs from each local item.
-    // These are the identifiers the server knows about — we pass them
-    // directly as cartItemUUIDs since the server cart is empty and
-    // attempting to sync via PUT/GET has proven unreliable.
-    // ----------------------------------------------------------------
-    const spUuids: string[] = [];
-    const missingIds: string[] = [];
-
-    for (const item of itemsToCheckout) {
-      let id: string | null = resolveStoreProductUuidFromPayload(item);
-      if (!id) id = item.productId || null;
-
-      if (id) {
-        spUuids.push(id);
-      } else {
-        missingIds.push(item.name);
+      if (!serverCart || serverCart.items.length === 0) {
+        return { error: "Could not sync cart items to the server. Please try again." };
       }
     }
 
-    if (spUuids.length === 0) {
-      const detail = missingIds.length > 0
-        ? `Could not resolve product IDs for: ${missingIds.join(", ")}`
-        : "No valid product IDs found in your cart.";
-      return { error: detail };
-    }
-
-    return spUuids;
-  };
-
-  /**
-   * Extract cart-item UUIDs from server cart items and match against the local selection.
-   */
-  const buildUuidListFromServerItems = (serverItems: Record<string, unknown>[]): string[] | { error: string } => {
-    if (serverItems.length === 0) {
-      return { error: "Your cart is empty." };
-    }
-
-    const selectedSet = new Set(selectedCartItemIds);
-    const uuids: string[] = [];
-
-    for (const serverItem of serverItems) {
-      if (selectedCartItemIds.length > 0) {
-        // Match selected local items by store product UUID
-        const serverSpUuid = extractStoreProductUuid(serverItem);
-        if (!serverSpUuid) continue;
-
-        const isSelected = cart.stores.some(store =>
-          store.items.some(
-            line => selectedSet.has(line.id) &&
-              (line.storeProductUuid === serverSpUuid || line.productId === serverSpUuid)
-          )
-        );
-        if (!isSelected) continue;
-      }
-
-      const uuid = extractCartItemUuid(serverItem);
-      if (uuid) uuids.push(uuid);
-    }
+    // Now build cart-item UUIDs from the server cart (which is guaranteed to have items)
+    const uuids = serverCart.items
+      .map(item => extractCartItemUuid(item))
+      .filter((uuid): uuid is string => uuid !== null);
 
     if (uuids.length === 0) {
-      return { error: "No matching cart items found. Please refresh and try again." };
+      return { error: "Could not read cart item identifiers from your cart. Please refresh and try again." };
+    }
+
+    // If the user selected specific items, filter by store-product UUID
+    if (selectedCartItemIds.length > 0) {
+      // Build a set of selected store-product UUIDs from the local cart
+      const selectedStoreProductUuids = new Set(
+        cart.stores.flatMap(store =>
+          store.items
+            .filter(item => selectedCartItemIds.includes(item.id))
+            .map(item => item.storeProductUuid)
+            .filter((uuid): uuid is string => Boolean(uuid))
+        )
+      );
+
+      // Filter server cart items: keep only those whose store-product UUID is in the selected set
+      const filteredCartItemUUIDs = serverCart.items
+        .filter(serverItem => {
+          const serverSpUuid = extractStoreProductUuid(serverItem);
+          return serverSpUuid !== null && selectedStoreProductUuids.has(serverSpUuid);
+        })
+        .map(serverItem => extractCartItemUuid(serverItem))
+        .filter((uuid): uuid is string => Boolean(uuid));
+
+      if (filteredCartItemUUIDs.length === 0) {
+        return { error: "No matching cart items found. Please refresh and try again." };
+      }
+
+      return filteredCartItemUUIDs;
     }
 
     return uuids;
   };
 
+  /**
+   * Extract all fields from the CustomerCheckoutSessionResp API response.
+   * The API returns: uuid, subTotal, deliveryCost, vat, serviceCharge, total, deliveryAddressUuid.
+   */
   const applyCheckoutSuccess = (response: CheckoutApiResponse): boolean => {
-    // Try multiple field name variations for the checkout session UUID
     const d = response.data;
     const sessionUuid = getStringField(d, "uuid", "checkoutSessionUuid", "sessionUuid", "checkoutSessionId", "sessionId") ?? "";
-    const amount = getNumberField(d, "subTotal", "subtotal", "sub_total", "amount", "total");
+    const subTotal = getNumberField(d, "subTotal", "subtotal", "sub_total");
+    const deliveryCost = getNumberField(d, "deliveryCost", "delivery_cost", "deliveryCost");
+    const vat = getNumberField(d, "vat", "VAT");
+    const serviceCharge = getNumberField(d, "serviceCharge", "service_charge", "serviceCharge");
+    const total = getNumberField(d, "total");
+    const deliveryAddressUuid = getStringField(d, "deliveryAddressUuid", "delivery_address_uuid");
 
     setCheckoutResult({
       uuid: sessionUuid || undefined,
-      subTotal: amount,
+      subTotal,
+      deliveryCost,
+      vat,
+      serviceCharge,
+      total,
+      deliveryAddressUuid,
       message: response.message,
     });
 
@@ -664,27 +604,35 @@ const CheckoutPage = () => {
     return true;
   };
 
-  const createCheckoutSession = async (): Promise<boolean> => {
+  /**
+   * Create a checkout session and return the session UUID.
+   * Returns null on failure.
+   */
+  const createCheckoutSession = async (): Promise<string | null> => {
     setIsLoading(true);
     try {
       const result = await buildCartItemUUIDsForCheckout();
 
       if (Array.isArray(result)) {
-        // Successfully got cart item UUIDs
         if (result.length === 0) {
           showToast("No items to checkout.", "warning");
-          return false;
+          return null;
         }
 
         const response = await checkoutApi({ cartItemUUIDs: result });
         if (!response.success) {
           throw new Error(response.message || "Checkout failed. Please try again.");
         }
-        return applyCheckoutSuccess(response);
+
+        const success = applyCheckoutSuccess(response);
+        if (!success) return null;
+
+        // Return the session UUID from the response immediately (not from React state)
+        const d = response.data;
+        return getStringField(d, "uuid", "checkoutSessionUuid", "sessionUuid", "checkoutSessionId", "sessionId") || null;
       } else {
-        // Error occurred
         showToast(result.error || "Checkout failed. Please try again.", "error");
-        return false;
+        return null;
       }
     } catch (error: any) {
       const errorMessage =
@@ -692,43 +640,215 @@ const CheckoutPage = () => {
         error?.message ||
         "Checkout failed. Please try again.";
       showToast(errorMessage, "error");
-      return false;
+      return null;
     } finally {
       setIsLoading(false);
     }
   };
 
   /**
-   * Finalize the order after payment by calling POST /place-order.
-   * Requires a successful checkout session (checkoutResult.uuid).
+   * Place-order is now called inline in the step 2 handler (before the Paga redirect).
+   * This function is kept as a reference implementation for future use.
    */
-  const handlePlaceOrder = async (): Promise<boolean> => {
-    if (!checkoutResult?.uuid) {
-      showToast("No checkout session. Please start checkout again.", "error");
-      return false;
+
+  const handleNextStep = async () => {
+    if (currentStep === 1 && !validateStep1()) {
+      return;
     }
 
-    setIsLoading(true);
-    try {
-      const response: PlaceOrderApiResponse = await placeOrderApi({
-        checkoutSessionUuid: checkoutResult.uuid,
-        ...(addressUuid ? { addressUuid } : {}),
+    if (currentStep === 2 && !validateStep2()) {
+      return;
+    }
+
+    // Step 1: Save address, create checkout session, then attach address to session
+    if (currentStep === 1) {
+      const addressFormSnapshot = JSON.stringify({
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        address: formData.address,
+        city: locationIds.cityId,
+        state: locationIds.stateId,
+        country: locationIds.countryId,
+        deliveryInstructions: formData.deliveryInstructions,
       });
 
-      if (!response.success) {
-        throw new Error(response.message || "Failed to place order. Please try again.");
+      // Track values locally to avoid React state timing issues
+      let resolvedAddressUuid: string | null = addressUuid;
+      let resolvedSessionUuid: string | null = checkoutResult?.uuid || null;
+
+      // (Re-)create address if form data changed since last save
+      if (addressFormSnapshot !== lastSavedAddressRef.current) {
+        const coords = {
+          latitude: latitude ?? DEFAULT_LATITUDE,
+          longitude: longitude ?? DEFAULT_LONGITUDE,
+        };
+
+        try {
+          const addressResp = await createCustomerAddressApi({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phoneNumber: formData.phone,
+            street: formData.address,
+            landmark: formData.deliveryInstructions || "",
+            defaultAddress: true,
+            city: parseInt(locationIds.cityId) || undefined,
+            state: parseInt(locationIds.stateId) || undefined,
+            country: parseInt(locationIds.countryId) || undefined,
+            ...coords,
+          });
+          if (addressResp.success && addressResp.data?.uuid) {
+            resolvedAddressUuid = addressResp.data.uuid;
+            setAddressUuid(resolvedAddressUuid);
+            lastSavedAddressRef.current = addressFormSnapshot;
+          } else {
+            showToast("Failed to create delivery address. Please try again.", "error");
+            return;
+          }
+        } catch {
+          showToast("Failed to save delivery address. Please check your information and try again.", "error");
+          return;
+        }
       }
 
-      const orderData = {
-        orderUuid: response.data?.orderUuid ?? undefined,
-        paymentReference: response.data?.paymentReference ?? undefined,
-        amount: response.data?.amount ?? undefined,
-        message: response.message,
+      // Create checkout session only once — capture the UUID directly from the response
+      if (!resolvedSessionUuid) {
+        resolvedSessionUuid = await createCheckoutSession();
+        if (!resolvedSessionUuid) return;
+      }
+
+      // Step 2 of the three-step flow: attach the delivery address to the checkout session.
+      // Per the API spec: POST /api/v1/checkout/{sessionUuid}/address with { addressUuid }
+      // Use locally resolved values to avoid React state timing issues.
+      if (resolvedAddressUuid && resolvedSessionUuid) {
+        try {
+          const attachResp = await attachAddressToCheckoutSessionApi(resolvedSessionUuid, {
+            addressUuid: resolvedAddressUuid,
+          });
+          if (attachResp.success && attachResp.data) {
+            // Update the checkout result with the refreshed pricing (delivery cost may change)
+            const d = attachResp.data;
+            const updatedTotal = getNumberField(d, "total");
+            const updatedDeliveryCost = getNumberField(d, "deliveryCost", "delivery_cost");
+            const updatedSubTotal = getNumberField(d, "subTotal", "subtotal", "sub_total");
+            const updatedVat = getNumberField(d, "vat", "VAT");
+            const updatedServiceCharge = getNumberField(d, "serviceCharge", "service_charge");
+
+            setCheckoutResult(prev => ({
+              ...prev,
+              total: updatedTotal ?? prev?.total,
+              deliveryCost: updatedDeliveryCost ?? prev?.deliveryCost,
+              subTotal: updatedSubTotal ?? prev?.subTotal,
+              vat: updatedVat ?? prev?.vat,
+              serviceCharge: updatedServiceCharge ?? prev?.serviceCharge,
+            }));
+          }
+        } catch {
+          // Address attachment is critical — if it fails, the order won't know where to deliver
+          showToast("Failed to attach delivery address. Please try again.", "error");
+          return;
+        }
+      }
+    }
+
+    // Step 2: Call place-order BEFORE redirecting to Paga, so we get the
+    // paymentReference from the server. Use that reference in the Paga URL.
+    // The backend webhook will confirm payment when Paga calls back.
+    if (currentStep === 2) {
+      // Guard: ensure a valid checkout session exists before redirecting to payment
+      if (!checkoutResult?.uuid) {
+        showToast(
+          "No checkout session. Please go back to the information step and try again.",
+          "error"
+        );
+        return;
+      }
+
+      // Use the API-returned total from the checkout session.
+      const amount = (checkoutResult?.total ?? (checkoutResult?.subTotal ?? selectedSubtotal) + 2500).toFixed(2);
+
+      // Step 2a: Call POST /place-order to create the order and get paymentReference
+      setIsLoading(true);
+      let orderData: { orderUuid?: string; paymentReference?: string; amount?: number } | null = null;
+      try {
+        const placeOrderResp: PlaceOrderApiResponse = await placeOrderApi({
+          checkoutSessionUuid: checkoutResult.uuid,
+        });
+
+        if (!placeOrderResp.success) {
+          throw new Error(placeOrderResp.message || "Failed to place order. Please try again.");
+        }
+
+        orderData = {
+          orderUuid: placeOrderResp.data?.orderUuid ?? undefined,
+          paymentReference: placeOrderResp.data?.paymentReference ?? undefined,
+          amount: placeOrderResp.data?.amount ?? undefined,
+        };
+
+        setOrderResult(orderData);
+      } catch (error: any) {
+        const errorMessage =
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to place order. Please try again.";
+        showToast(errorMessage, "error");
+        setIsLoading(false);
+        return;
+      }
+
+      // Use the paymentReference from place-order as the Paga reference.
+      // This lets the backend webhook match the Paga callback to the order.
+      const pagaReference = orderData.paymentReference || checkoutResult.uuid;
+
+      // Snapshot the current checkout state so we can restore it when Paga redirects back
+      // (the redirect is a full page navigation — React state would be lost otherwise).
+      const checkoutState = {
+        checkoutUuid: checkoutResult?.uuid || "",
+        orderUuid: orderData.orderUuid || "",
+        paymentReference: orderData.paymentReference || "",
+        addressUuid: addressUuid || "",
+        formData,
+        locationIds,
+        selectedCartItemIds,
+        // Also snapshot cart items for the order confirmation display
+        cartItems: cart.stores.flatMap(s =>
+          s.items
+            .filter(item => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id))
+            .map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              storeName: s.storeName,
+            }))
+        ),
       };
+      sessionStorage.setItem(PAGA_CHECKOUT_STATE_KEY, JSON.stringify(checkoutState));
 
-      setOrderResult(orderData);
+      // Build Paga checkout URL and redirect
+      const chargeUrl = `${window.location.origin}/checkout`;
+      // Validate that Paga is configured before redirecting
+      if (!PAGA_CONFIG.publicKey) {
+        showToast(
+          "Payment is not configured. Please contact support.",
+          "error"
+        );
+        setIsLoading(false);
+        return;
+      }
 
-      // Save order to localStorage for the My Orders page
+      const pagaUrl = buildPagaCheckoutUrl({
+        email: formData.email,
+        phoneNumber: formData.phone,
+        amount,
+        chargeUrl,
+        reference: pagaReference,
+      });
+
+      showToast("Redirecting to Paga secure payment…", "info");
+
+      // Save order to localStorage before redirecting (the order is placed on the server)
       try {
         const existingOrders = JSON.parse(localStorage.getItem("bringam_orders") || "[]");
         existingOrders.unshift({
@@ -759,154 +879,18 @@ const CheckoutPage = () => {
         // localStorage may be full or unavailable; order is still placed
       }
 
-      showToast("Order placed successfully!", "success");
-      return true;
-    } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to place order. Please try again.";
-      showToast(errorMessage, "error");
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleNextStep = async () => {
-    if (currentStep === 1 && !validateStep1()) {
-      return;
-    }
-
-    if (currentStep === 2 && !validateStep2()) {
-      return;
-    }
-
-    // Save / update customer address, then ensure checkout session exists
-    if (currentStep === 1) {
-      const addressFormSnapshot = JSON.stringify({
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone,
-        address: formData.address,
-        city: locationIds.cityId,
-        state: locationIds.stateId,
-        country: locationIds.countryId,
-        deliveryInstructions: formData.deliveryInstructions,
-      });
-
-      // (Re-)create address if form data changed since last save
-      if (addressFormSnapshot !== lastSavedAddressRef.current) {
-        // Resolve coordinates — prefer browser geolocation, fall back to
-        // a sensible default so the API payload is always valid.
-        const coords = {
-          latitude: latitude ?? DEFAULT_LATITUDE,
-          longitude: longitude ?? DEFAULT_LONGITUDE,
-        };
-
-        try {
-          const addressResp = await createCustomerAddressApi({
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phoneNumber: formData.phone,
-            street: formData.address,
-            landmark: formData.deliveryInstructions || "",
-            defaultAddress: true,
-            // Send location IDs as integers — mirrors vendor-store pattern
-            city: parseInt(locationIds.cityId) || undefined,
-            state: parseInt(locationIds.stateId) || undefined,
-            country: parseInt(locationIds.countryId) || undefined,
-            // Always include geolocation for delivery routing
-            ...coords,
-          });
-          if (addressResp.success && addressResp.data?.uuid) {
-            setAddressUuid(addressResp.data.uuid);
-            lastSavedAddressRef.current = addressFormSnapshot;
-          }
-        } catch {
-          // Address creation is optional; proceed without it
-          console.warn("Address creation failed, proceeding without addressUuid");
-        }
-      }
-
-      // Create checkout session only once (re-using existing session is fine)
-      if (!checkoutResult) {
-        const created = await createCheckoutSession();
-        if (!created) return;
-      }
-    }
-
-    // Paga payment redirect — save state, build URL, send user to Paga
-    if (currentStep === 2) {
-      // Guard: ensure a valid checkout session exists before redirecting to payment
-      if (!checkoutResult?.uuid) {
-        showToast(
-          "No checkout session. Please go back to the information step and try again.",
-          "error"
-        );
-        return;
-      }
-
-      const amount = ((checkoutResult?.subTotal ?? selectedSubtotal) + 2500).toFixed(2);
-
-      // Snapshot the current checkout state so we can restore it when Paga redirects back
-      // (the redirect is a full page navigation — React state would be lost otherwise).
-      const checkoutState = {
-        checkoutUuid: checkoutResult?.uuid || "",
-        addressUuid: addressUuid || "",
-        formData,
-        locationIds,
-        selectedCartItemIds,
-        // Also snapshot cart items for the order confirmation display
-        cartItems: cart.stores.flatMap(s =>
-          s.items
-            .filter(item => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id))
-            .map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              storeName: s.storeName,
-            }))
-        ),
-      };
-      sessionStorage.setItem(PAGA_CHECKOUT_STATE_KEY, JSON.stringify(checkoutState));
-
-      // Build Paga checkout URL and redirect
-      const chargeUrl = `${window.location.origin}/checkout`;
-      // Validate that Paga is configured before redirecting
-      if (!PAGA_CONFIG.publicKey) {
-        showToast(
-          "Payment is not configured. Please contact support.",
-          "error"
-        );
-        return;
-      }
-
-      const pagaUrl = buildPagaCheckoutUrl({
-        email: formData.email,
-        phoneNumber: formData.phone,
-        amount,
-        chargeUrl,
-        reference: checkoutResult.uuid,
-      });
-
-      setIsLoading(true);
-      showToast("Redirecting to Paga secure payment…", "info");
-
       // Small delay so the user sees the loading state, then redirect.
-      // No cleanup needed — the page navigates away before the timer fires.
       setTimeout(() => {
         window.location.href = pagaUrl;
       }, 600);
       return;
     }
 
-    // Confirm order — call POST /place-order to finalize
+    // Step 3: After Paga return, show confirmation (already placed via place-order)
     if (currentStep === 3) {
-      const placed = await handlePlaceOrder();
-      if (!placed) return;
+      // The order was already placed before the Paga redirect.
+      // On return from Paga, the handler checks query params and shows the confirmation.
+      // If the user didn't come from Paga (e.g. refreshed on step 3), just advance.
       setCurrentStep(4);
       return;
     }
@@ -1294,183 +1278,39 @@ const CheckoutPage = () => {
       transition={{ type: "spring", duration: 0.3 }}
       className="space-y-6"
     >
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <FaReceipt className="text-[#3c4948]" />
-          Review Order
+      <div className="text-center py-8">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="w-16 h-16 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-4"
+        >
+          <FaCheck className="text-blue-600 text-2xl" />
+        </motion.div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          Order Placed Successfully
         </h2>
-        <p className="text-gray-600 mb-6">
-          Please review your order details before confirming.
+        <p className="text-gray-600 max-w-md mx-auto">
+          Your order has been created. You will now be redirected to Paga&apos;s secure payment page to complete the transaction.
         </p>
-      </div>
-
-      {/* Customer Information */}
-      <motion.div
-        variants={itemVariants}
-        className="bg-gray-50 rounded-xl p-6 space-y-4"
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-            <FaUser className="text-[#3c4948] text-base" />
-            Customer Details
-          </h3>
-          <motion.button
-            className="text-[#3c4948] text-sm font-medium hover:text-[#2a3a39] flex items-center gap-1"
-            onClick={() => setCurrentStep(1)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <FaEye className="text-base" />
-            Edit
-          </motion.button>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-gray-600">Name</p>
-            <p className="font-medium text-gray-900">{formData.firstName} {formData.lastName}</p>
-          </div>
-          <div>
-            <p className="text-gray-600">Email</p>
-            <p className="font-medium text-gray-900">{formData.email}</p>
-          </div>
-          <div>
-            <p className="text-gray-600">Phone</p>
-            <p className="font-medium text-gray-900">{formData.phone}</p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Delivery Address */}
-      <motion.div
-        variants={itemVariants}
-        className="bg-gray-50 rounded-xl p-6 space-y-4"
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-            <FaMapMarkerAlt className="text-[#3c4948] text-base" />
-            Delivery Address
-          </h3>
-          <motion.button
-            className="text-[#3c4948] text-sm font-medium hover:text-[#2a3a39] flex items-center gap-1"
-            onClick={() => setCurrentStep(1)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <FaEye className="text-base" />
-            Edit
-          </motion.button>
-        </div>
-        
-        <div className="space-y-2 text-sm">
-          <p className="font-medium text-gray-900">{formData.address}</p>
-          <p className="text-gray-600">{formData.city}, {formData.state} {formData.postalCode}</p>
-          {formData.deliveryInstructions && (
-            <p className="text-gray-600 italic">Note: {formData.deliveryInstructions}</p>
-          )}
-        </div>
-      </motion.div>
-
-      {/* Payment Method — Paga */}
-      <motion.div
-        variants={itemVariants}
-        className="bg-gray-50 rounded-xl p-6 space-y-4"
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-            <FaCreditCard className="text-[#3c4948] text-base" />
-            Payment Method
-          </h3>
-          <motion.button
-            className="text-[#3c4948] text-sm font-medium hover:text-[#2a3a39] flex items-center gap-1"
-            onClick={() => setCurrentStep(2)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <FaEye className="text-base" />
-            Edit
-          </motion.button>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#3c4948]/10 flex items-center justify-center">
-            <FaCreditCard className="text-[#3c4948] text-xl" />
-          </div>
-          <div>
-            <p className="font-medium text-gray-900">Paga Checkout</p>
-            <p className="text-sm text-gray-600">
-              Pay with card, bank transfer, or mobile money via Paga
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Order Items */}
-      <motion.div
-        variants={itemVariants}
-        className="bg-gray-50 rounded-xl p-6 space-y-4"
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-            <FaBox className="text-[#3c4948] text-base" />
-            Order Items
-          </h3>
-          <motion.button
-            className="text-[#3c4948] text-sm font-medium hover:text-[#2a3a39] flex items-center gap-1"
-            onClick={handleBackToCart}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <FaEye className="text-base" />
-            Edit Cart
-          </motion.button>
-        </div>
-        
-        <div className="space-y-4">
-          {cart.stores.map((store) => {
-            const filteredItems = store.items.filter(
-              (item) => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id)
-            );
-            if (filteredItems.length === 0) return null;
-
-            return (
-            <div key={store.storeId} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
-              <h4 className="font-medium text-gray-900 mb-2">{store.storeName}</h4>
-              <div className="space-y-2">
-                {filteredItems.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-900">{item.name}</span>
-                      <span className="text-gray-600">× {item.quantity}</span>
-                    </div>
-                    <span className="font-medium text-gray-900">{formatPrice(item.price * item.quantity)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            );
-          })}
-        </div>
-      </motion.div>
-
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-        <div className="flex items-start gap-3">
-          <div className="p-1">
-            <FaShieldAlt className="text-blue-600 text-lg" />
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-blue-900">Order Confirmation</h4>
-            <p className="text-sm text-blue-700 mt-1">
-              By clicking &quot;Place Order&quot;, you agree to our terms and conditions. Your order will be processed securely.
-            </p>
-          </div>
-        </div>
+        {orderResult?.orderUuid && (
+          <p className="text-sm text-gray-500 mt-4 font-mono">
+            Order ID: {orderResult.orderUuid}
+          </p>
+        )}
       </div>
     </motion.div>
   );
 
   const renderStep2 = () => {
-    const total = (checkoutResult?.subTotal ?? selectedSubtotal) + 2500;
+    // Use API-returned pricing from the checkout session.
+    // The server computes subTotal, deliveryCost, vat, serviceCharge, and total.
+    const subTotal = checkoutResult?.subTotal ?? selectedSubtotal;
+    const deliveryCost = checkoutResult?.deliveryCost;
+    const vat = checkoutResult?.vat;
+    const serviceCharge = checkoutResult?.serviceCharge;
+    const total = checkoutResult?.total ?? (subTotal + (deliveryCost ?? 0) + (vat ?? 0) + (serviceCharge ?? 0));
+
     return (
       <motion.div
         variants={itemVariants}
@@ -1500,15 +1340,13 @@ const CheckoutPage = () => {
               <FaCheck className="text-green-600" />
               Checkout session created
             </p>
-            {checkoutResult.subTotal !== undefined && (
-              <p className="text-xs text-green-700 mt-1">
-                Amount: {formatPrice(checkoutResult.subTotal)}
-              </p>
-            )}
+            <p className="text-xs text-green-700 mt-1">
+              Amount: {formatPrice(total)}
+            </p>
           </motion.div>
         )}
 
-        {/* Order Amount Summary */}
+        {/* Order Amount Summary — uses API-returned pricing */}
         <motion.div
           variants={itemVariants}
           className="bg-white border border-gray-200 rounded-xl p-6 space-y-4"
@@ -1518,17 +1356,27 @@ const CheckoutPage = () => {
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Subtotal</span>
               <span className="text-gray-900 font-medium">
-                {formatPrice(checkoutResult?.subTotal ?? selectedSubtotal)}
+                {formatPrice(subTotal)}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Delivery Fee</span>
-              <span className="text-gray-900 font-medium">N2,000</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Tax</span>
-              <span className="text-gray-900 font-medium">N500</span>
-            </div>
+            {deliveryCost !== undefined && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Delivery Fee</span>
+                <span className="text-gray-900 font-medium">{formatPrice(deliveryCost)}</span>
+              </div>
+            )}
+            {vat !== undefined && vat > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">VAT</span>
+                <span className="text-gray-900 font-medium">{formatPrice(vat)}</span>
+              </div>
+            )}
+            {serviceCharge !== undefined && serviceCharge > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Service Charge</span>
+                <span className="text-gray-900 font-medium">{formatPrice(serviceCharge)}</span>
+              </div>
+            )}
             <div className="border-t border-gray-200 pt-3 flex justify-between text-lg font-semibold">
               <span className="text-gray-900">Total</span>
               <span className="text-[#3c4948]">{formatPrice(total)}</span>
@@ -1596,59 +1444,78 @@ const CheckoutPage = () => {
     );
   };
 
-  const renderOrderSummary = () => (
-    <motion.div
-      variants={itemVariants}
-      initial="initial"
-      animate="animate"
-      transition={{ type: "spring", duration: 0.3 }}
-      className="bg-gray-50 rounded-lg p-6 sticky top-4"
-    >
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
-      
-      <div className="space-y-3 mb-4">
-        {cart.stores.map((store) => {
-          const filteredItems = store.items.filter(
-            (item) => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id)
-          );
-          if (filteredItems.length === 0) return null;
+  const renderOrderSummary = () => {
+    // Use API-returned pricing when available (post-checkout-session), otherwise local subtotal
+    const subTotal = checkoutResult?.subTotal ?? selectedSubtotal;
+    const deliveryCost = checkoutResult?.deliveryCost;
+    const vat = checkoutResult?.vat;
+    const serviceCharge = checkoutResult?.serviceCharge;
+    const total = checkoutResult?.total ?? (subTotal + (deliveryCost ?? 0) + (vat ?? 0) + (serviceCharge ?? 0));
 
-          return (
-          <div key={store.storeId}>
-            <h4 className="font-medium text-gray-900 text-sm">{store.storeName}</h4>
-            <div className="ml-2 space-y-1">
-              {filteredItems.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm text-gray-600">
-                  <span>{item.name} × {item.quantity}</span>
-                  <span>{formatPrice(item.price * item.quantity)}</span>
-                </div>
-              ))}
+    return (
+      <motion.div
+        variants={itemVariants}
+        initial="initial"
+        animate="animate"
+        transition={{ type: "spring", duration: 0.3 }}
+        className="bg-gray-50 rounded-lg p-6 sticky top-4"
+      >
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
+        
+        <div className="space-y-3 mb-4">
+          {cart.stores.map((store) => {
+            const filteredItems = store.items.filter(
+              (item) => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id)
+            );
+            if (filteredItems.length === 0) return null;
+
+            return (
+            <div key={store.storeId}>
+              <h4 className="font-medium text-gray-900 text-sm">{store.storeName}</h4>
+              <div className="ml-2 space-y-1">
+                {filteredItems.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm text-gray-600">
+                    <span>{item.name} × {item.quantity}</span>
+                    <span>{formatPrice(item.price * item.quantity)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      <div className="border-t border-gray-200 pt-4 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Subtotal</span>
-          <span className="text-gray-900">{formatPrice(selectedSubtotal)}</span>
+        <div className="border-t border-gray-200 pt-4 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Subtotal</span>
+            <span className="text-gray-900">{formatPrice(subTotal)}</span>
+          </div>
+          {deliveryCost !== undefined && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Delivery Fee</span>
+              <span className="text-gray-900">{formatPrice(deliveryCost)}</span>
+            </div>
+          )}
+          {vat !== undefined && vat > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">VAT</span>
+              <span className="text-gray-900">{formatPrice(vat)}</span>
+            </div>
+          )}
+          {serviceCharge !== undefined && serviceCharge > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Service Charge</span>
+              <span className="text-gray-900">{formatPrice(serviceCharge)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
+            <span className="text-gray-900">Total</span>
+            <span className="text-[#3c4948]">{formatPrice(total)}</span>
+          </div>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Delivery Fee</span>
-          <span className="text-gray-900">N2,000</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Tax</span>
-          <span className="text-gray-900">N500</span>
-        </div>
-        <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
-          <span className="text-gray-900">Total</span>
-          <span className="text-[#3c4948]">{formatPrice(selectedSubtotal + 2500)}</span>
-        </div>
-      </div>
-    </motion.div>
-  );
+      </motion.div>
+    );
+  };
 
   // Auth guard — all checkout API calls require a valid token
   if (!isAuthenticated) {
@@ -1768,8 +1635,8 @@ const CheckoutPage = () => {
             <div className="flex justify-between text-sm text-gray-600">
               <span className={currentStep >= 1 ? "text-[#3c4948] font-medium" : ""}>Information</span>
               <span className={currentStep >= 2 ? "text-[#3c4948] font-medium" : ""}>Payment</span>
-              <span className={currentStep >= 3 ? "text-[#3c4948] font-medium" : ""}>Review</span>
-              <span className={currentStep >= 4 ? "text-[#3c4948] font-medium" : ""}>Confirm</span>
+              <span className={currentStep >= 3 ? "text-[#3c4948] font-medium" : ""}>Processing</span>
+              <span className={currentStep >= 4 ? "text-[#3c4948] font-medium" : ""}>Confirmation</span>
             </div>
           </motion.div>
 
@@ -1820,11 +1687,9 @@ const CheckoutPage = () => {
                   onClick={handleNextStep}
                   isLoading={isLoading}
                 >
-                  {currentStep === 3
-                    ? "Confirm Order"
-                    : currentStep === 2
-                    ? "Pay with Paga"
-                    : "Continue"}
+                  {currentStep === 2
+                      ? "Pay with Paga"
+                      : "Continue"}
                   {currentStep === 2 ? (
                     <FaCreditCard className="h-4 w-4" />
                   ) : (

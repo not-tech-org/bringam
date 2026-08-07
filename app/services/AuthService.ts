@@ -1,5 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { rejectUnsuccessfulApiResponse } from "../lib/apiFeedback";
 import type {
   GetStoreProductsByStoreParams,
   StoreProductPageResponse,
@@ -55,6 +56,8 @@ const addAuthInterceptor = (apiInstance: any) => {
 // Add auth interceptor to both instances
 addAuthInterceptor(authApi);
 addAuthInterceptor(vendorApi);
+authApi.interceptors.response.use(rejectUnsuccessfulApiResponse);
+vendorApi.interceptors.response.use(rejectUnsuccessfulApiResponse);
 
 export const signupApi = async (data: object) => {
   const response = await authApi.post("/registration/customer-sign-up", data);

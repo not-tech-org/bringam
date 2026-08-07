@@ -11,6 +11,7 @@ import { useCart } from "../../contexts/CartContext";
 import { toggleWishlistItemApi } from "../../services/WishlistService";
 import { resolveStoreProductUuidFromPayload } from "../../services/CartService";
 import { showToast } from "../../components/utils/helperFunctions";
+import { getServerMessage } from "@/app/lib/apiFeedback";
 import { motion } from "framer-motion";
 import { getStoreById, getStoreProductsByStore } from "../../services/AuthService";
 import type { StoreProductResp } from "../../types/storeProduct";
@@ -171,7 +172,7 @@ const StorePage = () => {
 
       showToast("Item added to cart", "success");
     } catch (error) {
-      showToast("Failed to add item to cart", "error");
+      showToast(getServerMessage(error, "Failed to add item to cart"), "error");
     }
   };
 
