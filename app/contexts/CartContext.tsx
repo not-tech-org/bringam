@@ -158,7 +158,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         // Nested CartItemResp format
         const sp = apiItem.storeProduct || {};
         productId = sp.productUuid || sp.productId?.toString() || "";
-        storeProductUuid = sp.productUuid || "";
+        storeProductUuid = resolveStoreProductUuidFromPayload(sp) || "";
         storeId = sp.storeId?.toString() || apiItem.cartUuid || "";
         storeName = sp.productName || "Store";
         name = sp.productName || "";

@@ -17,6 +17,7 @@ import { motion } from "framer-motion";
 import { useCart } from "../../contexts/CartContext";
 import { toggleWishlistItemApi } from "../../services/WishlistService";
 import { getSingleStoreProduct } from "../../services/AuthService";
+import { resolveStoreProductUuidFromPayload } from "../../services/CartService";
 import { SkeletonCard } from "../../components/common/Skeleton";
 
 // Animation variants
@@ -146,21 +147,17 @@ const ProductDetailPage = () => {
 
   const handleAddToCart = async () => {
     try {
+      const storeProductUuid = resolveStoreProductUuidFromPayload(product);
+      if (!storeProductUuid) {
+        showToast("Unable to add item: missing store-product identifier", "error");
+        return;
+      }
+
       const result = await addToCart({
         productId: product.productUuid || product.id || product.uuid,
         productUuid: product.productUuid,
-        // Prefer explicit store-product fields, then the route param `productId` (get-one query uuid),
-        // then catalog ids. Customer cart API expects the store-product identifier from vendor-service.
-        // The backend StoreProductResp uses `productUuid` as the store-product UUID.
-        // Priority: explicit store-product fields first, then the documented backend field,
-        // then fallbacks from the route param and generic ids.
-        storeProductUuid:
-          product.storeProductUuid ??
-          product.storeProductUUID ??
-          product.productUuid ??
-          product.uuid ??
-          productId ??
-          product.id,
+        // StoreProductResp.uuid is the store-product row ID required by the cart API.
+        storeProductUuid,
         storeId: product.storeId?.toString() || product.storeUuid || product.store?.id || product.store?.uuid || "",
         storeName: storeName || product.storeName || product.store?.name || "",
         name: product.productName || product.name,

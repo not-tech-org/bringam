@@ -43,7 +43,10 @@ export interface ServerCartItem {
 
 /** Nested store-product object inside CartItemResp. */
 export interface ServerStoreProduct {
+  /** Store-product row UUID required by cart mutation APIs. */
+  uuid?: string;
   productId?: number;
+  /** UUID of the underlying catalog product. */
   productUuid: string;
   productName: string;
   price: number;

@@ -120,10 +120,12 @@ const StorePage = () => {
 
   const handleAddToCart = async (product: any) => {
     try {
-      // Resolve the store-product UUID from the raw API response data.
-      // The actual field name varies between endpoints (productUuid, uuid, etc.)
-      // so we use the comprehensive resolver from CartService.
+      // StoreProductResp.uuid is the store-product row ID required by the cart API.
       const resolvedUuid = resolveStoreProductUuidFromPayload(product);
+      if (!resolvedUuid) {
+        showToast("Unable to add item: missing store-product identifier", "error");
+        return;
+      }
 
       // Improved price parsing with error handling
       const priceString = (product.price ?? "").toString();
@@ -135,19 +137,9 @@ const StorePage = () => {
       }
 
       const result = await addToCart({
-        productId: resolvedUuid || product.productId?.toString() || product.id || product.uuid,
-        productUuid: resolvedUuid || product.productUuid,
-        // Use the resolved UUID as the primary value, with direct product fields as fallback
-        storeProductUuid:
-          resolvedUuid ||
-          product.storeProductUuid ||
-          product.storeProductUUID ||
-          (product.storeProductId != null && product.storeProductId !== ""
-            ? String(product.storeProductId)
-            : undefined) ||
-          product.uuid ||
-          product.id ||
-          product.productUuid,
+        productId: product.productUuid || product.productId?.toString() || product.id,
+        productUuid: product.productUuid,
+        storeProductUuid: resolvedUuid,
         storeId: store.id || store.uuid || product.storeId?.toString?.() || product.storeId,
         storeName: store.name,
         name: product.productName || product.name,

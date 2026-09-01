@@ -28,17 +28,13 @@ export const normalizeClientStringId = (value: unknown): string | null => {
 };
 
 /**
- * Vendor-service store-product payloads often use `productUuid` for the row id.
- * Cart lines may expose `storeProductUuid`, `productId`, or `uuid` — honor all.
- */
-/**
  * Resolve a store-product UUID from an API payload (either the raw product object
  * or a cart item), handling all known field-name variations the backend returns.
  *
  * Priority order:
  * 1. storeProductUuid / storeProductUUID  (used in cart-related payloads)
- * 2. productUuid / productUUID            (StoreProductResp from vendor-service)
- * 3. uuid                                 (ProductResp from vendor-service)
+ * 2. uuid                                 (StoreProductResp row UUID)
+ * 3. productUuid / productUUID            (underlying catalog product UUID)
  * 4. storeProductId                       (legacy numeric id)
  * 5. productId (number)                   (numeric id on StoreProductResp/ProductResp)
  *
@@ -52,9 +48,9 @@ export const resolveStoreProductUuidFromPayload = (
   return (
     normalizeClientStringId(row.storeProductUuid) ||
     normalizeClientStringId(row.storeProductUUID) ||
+    normalizeClientStringId(row.uuid) ||
     normalizeClientStringId(row.productUuid) ||
     normalizeClientStringId(row.productUUID) ||
-    normalizeClientStringId(row.uuid) ||
     normalizeClientStringId(row.storeProductId) ||
     normalizeClientStringId(row.productId) ||
     null
@@ -232,10 +228,7 @@ export const clearCartApi = async (
 
   const items = cartResp.data.cartItems;
   for (const item of items) {
-    const spUuid =
-      item.storeProduct?.productUuid ||
-      item.storeProduct?.productId?.toString() ||
-      "";
+    const spUuid = resolveStoreProductUuidFromPayload(item.storeProduct) || "";
     if (spUuid) {
       await removeCartItemApi(cartUuid, spUuid);
     }
@@ -361,4 +354,3 @@ export const getCustomerAddressesApi = async (): Promise<{
     throw new Error(extractAxiosMessage(err));
   }
 };
-
