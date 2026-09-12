@@ -58,7 +58,7 @@ const CartPage = () => {
   useEffect(() => {
     const allItemIds = cart.stores.flatMap((store) => store.items.map((item) => item.id));
     setSelectedItemIds(new Set(allItemIds));
-  }, [cart.lastUpdated]);
+  }, [cart.stores]);
 
   const handleBackToStores = () => {
     router.push('/all');
@@ -80,14 +80,26 @@ const CartPage = () => {
     showToast("Quantity updated successfully!", "success");
   };
 
-  const handleRemoveItem = (itemId: string) => {
-    removeFromCart(itemId);
+  const handleRemoveItem = async (itemId: string) => {
+    setUpdatingItems(prev => new Set(prev).add(itemId));
+    const result = await removeFromCart(itemId);
+    setUpdatingItems(prev => {
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+
+    if (!result.success) {
+      showToast(result.error || "Failed to remove item from cart", "error");
+      return;
+    }
+
     setSelectedItemIds((prev) => {
       const next = new Set(prev);
       next.delete(itemId);
       return next;
     });
-    showToast("Item removed from cart", "success");
+    showToast(result.data?.message || "Item removed from cart", "success");
   };
 
   const handleClearCart = async () => {

@@ -148,21 +148,17 @@ const StorePage = () => {
         category: product.category || product.productCategory || "Product",
       });
 
+      if (!result.success) {
+        showToast(result.error || "Failed to add item to cart", "error");
+        return;
+      }
+
       if (result?.data?.synced === false && result?.data?.reason === "unauthenticated") {
         showToast("Item added locally. Sign in to save your cart.", "warning");
         return;
       }
 
-      if (result?.data?.synced === false) {
-        const detail = result.error ? ` (${result.error})` : "";
-        showToast(
-          `Item added locally. Server sync failed — will retry later.${detail}`,
-          "warning"
-        );
-        return;
-      }
-
-      showToast("Item added to cart", "success");
+      showToast(result.data?.message || "Item added to cart", "success");
     } catch (error) {
       showToast(getServerMessage(error, "Failed to add item to cart"), "error");
     }

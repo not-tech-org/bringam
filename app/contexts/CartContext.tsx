@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { 
   Cart, 
   CartItem, 
@@ -60,6 +60,7 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     syncError: null,
   });
   const [hasApiConnection, setHasApiConnection] = useState(false);
+  const pendingCartAddsRef = useRef(new Set<string>());
   // Load cart from localStorage on mount
   useEffect(() => {
     const loadCart = () => {
@@ -370,145 +371,112 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   };
 
   const addToCart = async (itemData: Omit<CartItem, 'id' | 'addedAt' | 'quantity'>) => {
-    setLoading(prev => ({ ...prev, isUpdating: true }));
     clearErrors();
 
     // Resolve store product UUID from item data — this is the key identifier the API needs
     const storeProductUuid = resolveStoreProductUuidFromPayload(itemData);
-
-    let apiError: string | null = null;
-    let apiSynced = false;
-
-    const token = getBringAmToken();
-    const canSyncToServer = Boolean(token);
-
-    // ============================================================
-    // STEP 1: Update local cart IMMEDIATELY
-    // This ensures the item is visible in the cart right away,
-    // regardless of API sync status or response format issues.
-    // ============================================================
-    setCart(prevCart => addItemToLocalCart(prevCart, itemData, storeProductUuid));
-
-    // ============================================================
-    // STEP 2: Sync with server if authenticated (fire-and-forget)
-    // ============================================================
-    if (canSyncToServer) {
-      try {
-        const cartUuid = await ensureApiCartUuid();
-
-        if (storeProductUuid) {
-          await addItemToCartApi(cartUuid, {
-            storeProductUuid,
-            quantity: 1,
-          });
-          // Refresh cart from API to stay in sync (this will overwrite
-          // the local state, but we already added the item locally so
-          // there's no visual flash)
-          await fetchCartFromApi();
-          apiSynced = true;
-        } else {
-          console.warn(
-            "[addToCart] Could not resolve storeProductUuid from itemData:",
-            itemData
-          );
-          apiError = "Could not resolve product ID from the server data.";
-        }
-      } catch (err: any) {
-        const msg = extractAxiosMessage(err);
-        console.error("[addToCart] API call failed, cart stays local:", msg);
-        apiError = msg;
-        setError(prev => ({ ...prev, apiError: msg }));
-      }
+    if (!storeProductUuid) {
+      return { success: false, error: "Missing store-product identifier" };
     }
 
-    setLoading(prev => ({ ...prev, isUpdating: false }));
+    // Prevent rapid clicks from sending the same add request more than once.
+    if (pendingCartAddsRef.current.has(storeProductUuid)) {
+      return { success: false, error: "This item is already being added" };
+    }
 
-    if (!canSyncToServer) {
+    const token = getBringAmToken();
+    if (!token) {
+      setCart(prevCart => addItemToLocalCart(prevCart, itemData, storeProductUuid));
       return {
         success: true,
         data: { synced: false, reason: "unauthenticated" },
       };
     }
 
-    if (!apiSynced) {
-      return {
-        success: true,
-        data: {
-          synced: false,
-          ...(apiError ? { reason: "api_error" as const } : {}),
-        },
-        ...(apiError ? { error: apiError } : {}),
-      };
-    }
+    pendingCartAddsRef.current.add(storeProductUuid);
+    setLoading(prev => ({ ...prev, isUpdating: true }));
 
-    return {
-      success: true,
-      data: { synced: true },
-    };
+    try {
+      const cartUuid = await ensureApiCartUuid();
+      const response = await addItemToCartApi(cartUuid, {
+        storeProductUuid,
+        quantity: 1,
+      });
+
+      // Signed-in carts are server-authoritative. Refresh once after the
+      // mutation instead of also creating an optimistic local cart line.
+      await fetchCartFromApi();
+      return { success: true, data: { synced: true, message: response.message } };
+    } catch (err: any) {
+      const message = extractAxiosMessage(err);
+      setError(prev => ({ ...prev, apiError: message }));
+      return { success: false, error: message };
+    } finally {
+      pendingCartAddsRef.current.delete(storeProductUuid);
+      setLoading(prev => ({ ...prev, isUpdating: false }));
+    }
   };
 
-  const removeFromCart = async (itemId: string) => {
-    // Set updating state
+  const removeFromCart = async (itemId: string): Promise<CartOperationResult> => {
     setLoading(prev => ({ ...prev, isUpdating: true }));
     clearErrors();
 
-    let shouldUseLocalFallback = true;
     const token = getBringAmToken();
-
-    // Try to remove via API first if logged in (same rule as add-to-cart)
-    if (token) {
-      try {
-        // Find the item to get its storeProductUuid for the API call
-        let storeProductUuid = null;
-        for (const store of cart.stores) {
-          const item = store.items.find(item => item.id === itemId);
-          if (item) {
-            storeProductUuid = resolveStoreProductUuidFromPayload(item);
-            break;
-          }
-        }
-
-        if (storeProductUuid) {
-          const cartUuid = await ensureApiCartUuid();
-          await removeCartItemApi(cartUuid, storeProductUuid);
-          await fetchCartFromApi();
-          shouldUseLocalFallback = false;
-        }
-      } catch (err: any) {
-        console.error("Failed to remove item via API, using local remove:", err);
-        setError(prev => ({ 
-          ...prev, 
-          apiError: extractAxiosMessage(err) || "Failed to remove item from server" 
-        }));
-      }
-    }
-
-    // Remove from local cart only when API sync is unavailable/failed
-    if (shouldUseLocalFallback) {
+    const removeLocalItem = () => {
       setCart(prevCart => {
-      const updatedStores = prevCart.stores.map(store => ({
-        ...store,
-        items: store.items.filter(item => item.id !== itemId),
-      })).filter(store => store.items.length > 0); // Remove empty stores
+        const updatedStores = prevCart.stores
+          .map(store => ({
+            ...store,
+            items: store.items.filter(item => item.id !== itemId),
+          }))
+          .filter(store => store.items.length > 0)
+          .map(store => ({
+            ...store,
+            total: store.items.reduce(
+              (sum, item) => sum + item.price * item.quantity,
+              0
+            ),
+          }));
 
-      // Recalculate store totals
-      const storesWithTotals = updatedStores.map(store => ({
-        ...store,
-        total: store.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-      }));
-
-      const { totalItems, totalAmount } = calculateTotals(storesWithTotals);
-
-      return {
-        stores: storesWithTotals,
-        totalItems,
-        totalAmount,
-        lastUpdated: new Date().toISOString(),
-      };
+        const { totalItems, totalAmount } = calculateTotals(updatedStores);
+        return {
+          stores: updatedStores,
+          totalItems,
+          totalAmount,
+          lastUpdated: new Date().toISOString(),
+        };
       });
+    };
+
+    if (!token) {
+      removeLocalItem();
+      setLoading(prev => ({ ...prev, isUpdating: false }));
+      return { success: true, data: { synced: false } };
     }
 
-    setLoading(prev => ({ ...prev, isUpdating: false }));
+    const item = cart.stores
+      .flatMap(store => store.items)
+      .find(cartItem => cartItem.id === itemId);
+    const storeProductUuid = resolveStoreProductUuidFromPayload(item);
+
+    if (!storeProductUuid) {
+      setLoading(prev => ({ ...prev, isUpdating: false }));
+      return { success: false, error: "Missing store-product identifier" };
+    }
+
+    try {
+      const cartUuid = await ensureApiCartUuid();
+      const response = await removeCartItemApi(cartUuid, storeProductUuid);
+      removeLocalItem();
+      await fetchCartFromApi();
+      return { success: true, data: response };
+    } catch (err: any) {
+      const message = extractAxiosMessage(err);
+      setError(prev => ({ ...prev, apiError: message }));
+      return { success: false, error: message };
+    } finally {
+      setLoading(prev => ({ ...prev, isUpdating: false }));
+    }
   };
 
   const updateQuantity = async (itemId: string, quantity: number) => {
@@ -648,8 +616,16 @@ const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           if (hasValidItems) {
             setCart(apiCart);
           }
+        } else {
+          // An explicit authenticated server fetch is authoritative, including
+          // an empty cart after the final item is removed.
+          setCart({
+            stores: [],
+            totalItems: 0,
+            totalAmount: 0,
+            lastUpdated: new Date().toISOString(),
+          });
         }
-        // Never overwrite local cart with empty server cart.
 
       } else {
         throw new Error(response.message || "Failed to fetch cart");
