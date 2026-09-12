@@ -438,7 +438,7 @@ const CheckoutPage = () => {
     // Nested format: storeProduct.productUuid
     const sp = item.storeProduct as Record<string, unknown> | undefined;
     if (sp) {
-      const spUuid = getStringField(sp, "productUuid", "productId");
+      const spUuid = resolveStoreProductUuidFromPayload(sp);
       if (spUuid) return spUuid;
     }
     // Flat format: direct field

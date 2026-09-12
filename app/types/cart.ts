@@ -43,7 +43,10 @@ export interface ServerCartItem {
 
 /** Nested store-product object inside CartItemResp. */
 export interface ServerStoreProduct {
+  /** Store-product row UUID required by cart mutation APIs. */
+  uuid?: string;
   productId?: number;
+  /** UUID of the underlying catalog product. */
   productUuid: string;
   productName: string;
   price: number;
@@ -135,7 +138,7 @@ export interface CartContextType {
   
   // Cart Operations (Existing - now with API integration)
   addToCart: (item: Omit<CartItem, 'id' | 'addedAt' | 'quantity'>) => Promise<CartOperationResult>;
-  removeFromCart: (itemId: string) => Promise<void>;
+  removeFromCart: (itemId: string) => Promise<CartOperationResult>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
   getItemCount: () => number;

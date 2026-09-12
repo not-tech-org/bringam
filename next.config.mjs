@@ -11,8 +11,6 @@ const nextConfig = {
 
   // Prevent static optimization to avoid localStorage errors
   experimental: {
-    // This helps with dynamic content
-    appDir: true,
     // Skip static optimization for pages using localStorage
     optimizeCss: false,
     optimizeServerReact: false,

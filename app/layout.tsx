@@ -15,6 +15,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Bringam",
   description: "Soft Market",
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({

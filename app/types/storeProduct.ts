@@ -32,15 +32,16 @@ export interface ReviewResp {
 /**
  * Shape returned by vendor-service storeProduct endpoints.
  *
- * Note: the backend currently uses `productUuid` as the UUID field on this object,
- * and the get-one endpoint accepts `uuid` as a query parameter.
- * In Phase 2/3 we will standardize how this maps to `storeProductUuid` in the UI/cart.
+ * `uuid` identifies the store-product row and is the value required by cart APIs.
+ * `productUuid` identifies the underlying catalog product.
  */
 export interface StoreProductResp {
+  uuid: string;
   productId: number;
   productUuid: string;
   productName: string;
   storeId: number;
+  storeUuid: string;
   vendorUuid: string;
   vendor?: VendorResp;
   noInStock: number;
@@ -91,4 +92,3 @@ export interface GetStoreProductsByStoreParams {
   pageNo?: number;
   pageSize?: number;
 }
-
