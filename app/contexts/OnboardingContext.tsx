@@ -3,7 +3,6 @@
 import React, { createContext, useState, ChangeEvent, ReactNode } from "react";
 import {
   forgotPasswordApi,
-  forgotPasswordOtpVerifyApi,
   resetPasswordApi,
   logoutApi,
   otpApi,
@@ -23,7 +22,7 @@ interface OnboardingContextType {
   onOtp: (e: React.FormEvent) => Promise<any>;
   onResendOtp: (e: React.FormEvent) => Promise<any>;
   onForgetPassword: (e: React.FormEvent) => Promise<any>;
-  onForgetPasswordOtpVerify: (e: React.FormEvent) => Promise<any>;
+  onResendForgotPassword: () => Promise<any>;
   onResetPassword: (e: React.FormEvent) => Promise<any>;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onRouteChange: (value: string) => void;
@@ -50,7 +49,7 @@ const defaultContextValue: OnboardingContextType = {
   onOtp: () => Promise.resolve(),
   onResendOtp: () => Promise.resolve(),
   onForgetPassword: () => Promise.resolve(),
-  onForgetPasswordOtpVerify: () => Promise.resolve(),
+  onResendForgotPassword: () => Promise.resolve(),
   onResetPassword: () => Promise.resolve(),
   onChange: () => {},
   onRouteChange: () => {},
@@ -232,9 +231,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const onForgetPassword = async (e: React.FormEvent): Promise<any> => {
-    e.preventDefault();
-
+  const requestPasswordReset = async (): Promise<any> => {
     if (!email) {
       return Promise.reject(new Error("Email cannot be empty"));
     }
@@ -245,62 +242,24 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     }));
 
     try {
-      const res = await forgotPasswordApi(email);
-
-      // Navigate to OTP verification on success
-      onRouteChange("forgotPasswordOTP");
-
+      return await forgotPasswordApi(email);
+    } finally {
       setState((prevState) => ({
         ...prevState,
         isLoading: false,
       }));
-
-      return res;
-    } catch (err: any) {
-      setState((prevState) => ({
-        ...prevState,
-        isLoading: false,
-      }));
-
-      return Promise.reject(err);
     }
   };
 
-  const onForgetPasswordOtpVerify = async (
-    e: React.FormEvent
-  ): Promise<any> => {
+  const onForgetPassword = async (e: React.FormEvent): Promise<any> => {
     e.preventDefault();
 
-    if (!forgotPasswordOTP) {
-      return Promise.reject(new Error("OTP cannot be empty"));
-    }
-
-    setState((prevState) => ({
-      ...prevState,
-      isLoading: true,
-    }));
-
-    try {
-      const res = await forgotPasswordOtpVerifyApi(forgotPasswordOTP);
-
-      // Navigate to reset password on success
-      onRouteChange("resetPassword");
-
-      setState((prevState) => ({
-        ...prevState,
-        isLoading: false,
-      }));
-
-      return res;
-    } catch (err: any) {
-      setState((prevState) => ({
-        ...prevState,
-        isLoading: false,
-      }));
-
-      return Promise.reject(err);
-    }
+    const res = await requestPasswordReset();
+    onRouteChange("forgotPasswordOTP");
+    return res;
   };
+
+  const onResendForgotPassword = requestPasswordReset;
 
   const onResetPassword = async (e: React.FormEvent): Promise<any> => {
     e.preventDefault();
@@ -354,7 +313,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     <OnboardingContext.Provider
       value={{
         onForgetPassword,
-        onForgetPasswordOtpVerify,
+        onResendForgotPassword,
         onResetPassword,
         onOtp,
         onSignUp,

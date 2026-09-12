@@ -7,6 +7,7 @@ import { FaChevronLeft } from "react-icons/fa";
 import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 import Toastify from "toastify-js";
 import { motion } from "framer-motion";
+import { getServerMessage } from "@/app/lib/apiFeedback";
 
 // Toast configuration constants - matching other components
 const TOAST_STYLES = {
@@ -155,28 +156,24 @@ const ForgotPassword = () => {
               "success"
             );
           }
-          // Navigate to OTP verification
-          onRouteChange("forgotPasswordOTP");
         })
         .catch((err: any) => {
-          let errorMessage =
-            "Failed to send password reset code. Please try again.";
-          if (err.response && err.response.data && err.response.data.message) {
-            errorMessage = err.response.data.message;
-          }
-          showToast(errorMessage, "error");
+          showToast(
+            getServerMessage(
+              err,
+              "Failed to send password reset code. Please try again."
+            ),
+            "error"
+          );
         });
     } catch (error: any) {
-      let errorMessage =
-        "Failed to send password reset code. Please try again.";
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
-        errorMessage = error.response.data.message;
-      }
-      showToast(errorMessage, "error");
+      showToast(
+        getServerMessage(
+          error,
+          "Failed to send password reset code. Please try again."
+        ),
+        "error"
+      );
     }
   };
 

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { showToast } from "../components/utils/helperFunctions";
 import { motion } from "framer-motion";
+import { PAGA_CHECKOUT_STATE_KEY } from "../utils/pagaCheckout";
 
 // Animation variants for cart page
 const pageVariants = {
@@ -174,6 +175,8 @@ const CartPage = () => {
       return;
     }
 
+    // A cart checkout is always a new flow and must start from customer information.
+    sessionStorage.removeItem(PAGA_CHECKOUT_STATE_KEY);
     sessionStorage.setItem(
       CHECKOUT_SELECTION_KEY,
       JSON.stringify(Array.from(selectedItemIds))

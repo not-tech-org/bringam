@@ -81,15 +81,7 @@ export const resendOtpApi = async (otp: string) => {
 
 export const forgotPasswordApi = async (email: string) => {
   const response = await authApi.post(
-    `/forgot-password/initiate-password-reset/${email}`,
-    null
-  );
-  return response;
-};
-
-export const forgotPasswordOtpVerifyApi = async (otp: string) => {
-  const response = await authApi.post(
-    `/forgot-password/verify-password-reset-token/${otp}`,
+    `/forgot-password/initiate-password-reset/${encodeURIComponent(email)}`,
     null
   );
   return response;
@@ -100,7 +92,10 @@ export const resetPasswordApi = async (data: {
   password: string;
   confirmPassword: string;
 }) => {
-  const response = await authApi.post("/forgot-password/reset-password-with-otp", data);
+  const response = await authApi.put(
+    "/forgot-password/reset-password-with-otp",
+    data
+  );
   return response;
 };
 
