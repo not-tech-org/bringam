@@ -5,6 +5,7 @@ import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 import Button from "../common/Button";
 import OtpInput from "../common/OtpInput";
 import Toastify from "toastify-js";
+import { getServerMessage } from "@/app/lib/apiFeedback";
 
 // Toast configuration constants - matching other components
 const TOAST_STYLES = {
@@ -41,8 +42,7 @@ const ForgotPasswordOTPContent = ({ context }: { context: any }) => {
     onRouteChange,
     onChange,
     state,
-    onResendOtp,
-    onForgetPasswordOtpVerify,
+    onResendForgotPassword,
   } = context;
   const { forgotPasswordOTP, email, isLoading } = state;
 
@@ -86,97 +86,56 @@ const ForgotPasswordOTPContent = ({ context }: { context: any }) => {
   };
 
   // Validate the OTP
-  const validateOtp = (): boolean => {
+  const validateOtp = (): string | null => {
     if (!forgotPasswordOTP) {
-      setError("Please enter the verification code");
-      return false;
+      return "Please enter the verification code";
     }
 
     if (forgotPasswordOTP.length !== 6) {
-      setError("Please enter all 6 digits of the verification code");
-      return false;
+      return "Please enter all 6 digits of the verification code";
     }
 
     if (!/^\d+$/.test(forgotPasswordOTP)) {
-      setError("Verification code should contain only digits");
-      return false;
+      return "Verification code should contain only digits";
     }
 
-    return true;
+    return null;
   };
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateOtp()) {
-      showToast(error, "error");
+    const validationError = validateOtp();
+    if (validationError) {
+      setError(validationError);
+      showToast(validationError, "error");
       return;
     }
 
-    try {
-      const response = await onForgetPasswordOtpVerify(e);
-      if (response && response.data && response.data.message) {
-        showToast(response.data.message, "success");
-      } else {
-        showToast("Verification successful", "success");
-      }
-      // Navigate to reset password page
-      onRouteChange("resetPassword");
-    } catch (error: any) {
-      let errorMessage = "Invalid verification code. Please try again.";
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
-        errorMessage = error.response.data.message;
-      }
-      showToast(errorMessage, "error");
-    }
+    onRouteChange("resetPassword");
   };
 
   // Handle resend OTP with timer
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
     if (resendTimer > 0) return;
 
     try {
-      // Create a synthetic form event
-      const syntheticEvent = {
-        preventDefault: () => {},
-      } as React.FormEvent;
-
-      onResendOtp(syntheticEvent)
-        .then((response: any) => {
-          if (response && response.data && response.data.message) {
-            showToast(response.data.message, "success");
-          } else {
-            showToast(
-              "Verification code has been resent to your email",
-              "success"
-            );
-          }
-        })
-        .catch((err: any) => {
-          let errorMessage = "Failed to resend code. Please try again.";
-          if (err.response && err.response.data && err.response.data.message) {
-            errorMessage = err.response.data.message;
-          }
-          showToast(errorMessage, "error");
-        });
+      const response = await onResendForgotPassword();
+      showToast(
+        getServerMessage(
+          response,
+          "Verification code has been resent to your email"
+        ),
+        "success"
+      );
+      setResendTimer(60);
     } catch (error: any) {
-      let errorMessage = "Failed to resend code. Please try again.";
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
-        errorMessage = error.response.data.message;
-      }
-      showToast(errorMessage, "error");
+      showToast(
+        getServerMessage(error, "Failed to resend code. Please try again."),
+        "error"
+      );
     }
-
-    setResendTimer(60); // 60 seconds countdown
   };
 
   // Format masked email for display
@@ -220,7 +179,7 @@ const ForgotPasswordOTPContent = ({ context }: { context: any }) => {
             className="w-full"
             isLoading={isLoading}
           >
-            Verify Code
+            Continue
           </Button>
         </div>
 

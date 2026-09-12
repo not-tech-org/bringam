@@ -9,8 +9,10 @@
 
 /** Paga configuration constants — single source of truth. */
 export const PAGA_CONFIG = {
-  /** Paga Checkout base URL (production). */
-  baseUrl: 'https://checkout.paga.com/checkout/params',
+  /** Paga Checkout URL. Override with the beta URL in sandbox environments. */
+  baseUrl:
+    process.env.NEXT_PUBLIC_PAYMENT_CHECKOUT_URL ||
+    'https://checkout.paga.com/checkout/params',
   /** Your Paga merchant public key. Set via NEXT_PUBLIC_PAYMENT_PUBLIC_KEY env var. */
   publicKey: process.env.NEXT_PUBLIC_PAYMENT_PUBLIC_KEY || '',
   /** Default currency for transactions. */
@@ -50,12 +52,14 @@ export const buildPagaCheckoutUrl = ({
   amount,
   chargeUrl,
   reference,
+  callbackUrl,
 }: {
   email: string;
   phoneNumber: string;
   amount: string;
   chargeUrl: string;
   reference?: string;
+  callbackUrl?: string;
 }): string => {
   const params = new URLSearchParams({
     public_key: PAGA_CONFIG.publicKey,
@@ -69,7 +73,11 @@ export const buildPagaCheckoutUrl = ({
 
   // Include optional transaction reference if provided
   if (reference) {
-    params.set('reference', reference);
+    params.set('payment_reference', reference);
+  }
+
+  if (callbackUrl) {
+    params.set('callback_url', callbackUrl);
   }
 
   return `${PAGA_CONFIG.baseUrl}?${params.toString()}`;

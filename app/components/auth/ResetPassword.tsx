@@ -5,6 +5,7 @@ import Input from "../common/Input";
 import Button from "../common/Button";
 import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 import Toastify from "toastify-js";
+import { getServerMessage } from "@/app/lib/apiFeedback";
 
 // Toast configuration constants - matching other components
 const TOAST_STYLES = {
@@ -36,7 +37,7 @@ const ResetPassword = () => {
     return <div>Error: OnboardingContext not found</div>;
   }
 
-  const { onRouteChange, onChange, state, onResetPassword } = context;
+  const { onChange, state, onResetPassword } = context;
   const { newPassword, confirmNewPassword, isLoading } = state;
 
   // Show toast notifications with consistent styling
@@ -72,34 +73,28 @@ const ResetPassword = () => {
   };
 
   // Validate form inputs
-  const validateForm = () => {
+  const validateForm = (): string | null => {
     const newErrors: {
       newPassword?: string;
       confirmNewPassword?: string;
     } = {};
-    let isValid = true;
-
     // Password validation
     if (!newPassword) {
       newErrors.newPassword = "Password is required";
-      isValid = false;
     } else if (!validatePasswordStrength(newPassword)) {
       newErrors.newPassword =
         "Password must be at least 8 characters with uppercase, lowercase and numbers";
-      isValid = false;
     }
 
     // Confirm password validation
     if (!confirmNewPassword) {
       newErrors.confirmNewPassword = "Please confirm your password";
-      isValid = false;
     } else if (newPassword !== confirmNewPassword) {
       newErrors.confirmNewPassword = "Passwords do not match";
-      isValid = false;
     }
 
     setErrors(newErrors);
-    return isValid;
+    return Object.values(newErrors)[0] ?? null;
   };
 
   // Handle input change and clear related error
@@ -116,12 +111,9 @@ const ResetPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      // Show only one error message to avoid overwhelming the user
-      const errorKey = Object.keys(errors)[0] as keyof typeof errors;
-      if (errorKey && errors[errorKey]) {
-        showToast(errors[errorKey]!, "error");
-      }
+    const validationError = validateForm();
+    if (validationError) {
+      showToast(validationError, "error");
       return;
     }
 
@@ -134,21 +126,15 @@ const ResetPassword = () => {
           showToast("Your password has been reset successfully", "success");
         }
 
-        // Redirect to signin after successful password reset
-        setTimeout(() => {
-          onRouteChange("signin");
-        }, 2000);
       }
     } catch (error: any) {
-      let errorMessage = "Failed to reset password. Please try again later.";
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
-        errorMessage = error.response.data.message;
-      }
-      showToast(errorMessage, "error");
+      showToast(
+        getServerMessage(
+          error,
+          "Failed to reset password. Please try again later."
+        ),
+        "error"
+      );
     }
   };
 

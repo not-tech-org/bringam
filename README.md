@@ -43,6 +43,8 @@ Create a `.env.local` file in the project root:
 ```env
 NEXT_PUBLIC_API_URL=https://your-api-host
 NEXT_PUBLIC_PAYMENT_PUBLIC_KEY=your-paga-public-key
+# Use https://beta-checkout.paga.com/checkout/params for sandbox keys.
+NEXT_PUBLIC_PAYMENT_CHECKOUT_URL=https://checkout.paga.com/checkout/params
 ```
 
 `NEXT_PUBLIC_DISABLE_BOOTSTRAP_CART_FETCH=true` can be used for local cart-only debugging. Do not use it when testing the signed-in cart and checkout flow.

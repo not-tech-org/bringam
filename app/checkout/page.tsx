@@ -79,6 +79,12 @@ const CheckoutPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCartItemIds, setSelectedCartItemIds] = useState<string[]>([]);
+  const [pendingCheckoutItems, setPendingCheckoutItems] = useState<Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    storeName: string;
+  }>>([]);
   /**
    * Stores the full CustomerCheckoutSessionResp from the API.
    * All pricing fields come from the server — no hardcoded values.
@@ -172,32 +178,27 @@ const CheckoutPage = () => {
     const params = new URLSearchParams(window.location.search);
     // Paga may append params in various formats — handle both standard and alternative naming
     const pagaReference =
+      params.get("charge_reference") ||
       params.get("paga_reference") ||
+      params.get("payment_reference") ||
       params.get("tx_reference") ||
       params.get("reference") ||
       params.get("transactionReference") ||
       "";
     const pagaStatus =
+      params.get("status_message") ||
       params.get("paga_status") ||
       params.get("status") ||
       params.get("tx_status") ||
       params.get("transactionStatus") ||
       "";
+    const pagaStatusCode = params.get("status_code") || "";
+    const hasPagaReturn = Boolean(pagaReference || pagaStatus || pagaStatusCode);
 
-    if (!pagaReference) return;
+    // A normal checkout always starts at customer information. Only restore
+    // state when Paga explicitly redirects back with transaction parameters.
+    if (!hasPagaReturn) return;
 
-    // Handle failed / cancelled payment from Paga
-    if (pagaStatus && pagaStatus !== "success") {
-      showToast(
-        pagaStatus === "cancelled"
-          ? "Payment was cancelled. You can try again."
-          : "Payment was not completed. Please try again or contact support.",
-        "warning"
-      );
-      return;
-    }
-
-    // Restore saved state from session storage
     const savedStateRaw = sessionStorage.getItem(PAGA_CHECKOUT_STATE_KEY);
     if (!savedStateRaw) {
       showToast("Session expired. Please start checkout again.", "error");
@@ -215,10 +216,13 @@ const CheckoutPage = () => {
     const sessionUuid = (savedState?.checkoutUuid as string) || "";
     const savedOrderUuid = (savedState?.orderUuid as string) || "";
     const savedPaymentReference = (savedState?.paymentReference as string) || "";
+    const savedOrderAmount = savedState?.orderAmount as number | undefined;
     const savedAddressUuid = (savedState?.addressUuid as string) || "";
     const savedFormData = savedState?.formData as typeof formData | undefined;
     const savedLocationIds = savedState?.locationIds as typeof locationIds | undefined;
     const savedSelectedIds = savedState?.selectedCartItemIds as string[] | undefined;
+    const savedCheckoutResult = savedState?.checkoutResult as typeof checkoutResult;
+    const savedCartItems = savedState?.cartItems as typeof pendingCheckoutItems | undefined;
 
     if (!sessionUuid) {
       showToast("Missing checkout session. Please start checkout again.", "error");
@@ -226,26 +230,46 @@ const CheckoutPage = () => {
     }
 
     // Restore UI state from the saved snapshot
-    setCheckoutResult(prev => ({ ...prev, uuid: sessionUuid }));
+    setCheckoutResult(savedCheckoutResult || { uuid: sessionUuid });
     if (savedAddressUuid) setAddressUuid(savedAddressUuid);
     if (savedFormData) setFormData(savedFormData);
     if (savedLocationIds) setLocationIds(savedLocationIds);
     if (savedSelectedIds) setSelectedCartItemIds(savedSelectedIds);
+    if (savedCartItems) setPendingCheckoutItems(savedCartItems);
 
     // Restore order result (already placed before the Paga redirect)
     if (savedOrderUuid || savedPaymentReference) {
       setOrderResult({
         orderUuid: savedOrderUuid || undefined,
         paymentReference: savedPaymentReference || pagaReference || undefined,
+        amount: savedOrderAmount,
         message: "Order placed successfully. Payment is being processed.",
       });
+    }
+
+    const normalizedStatus = pagaStatus.toLowerCase();
+    const isSuccessfulReturn =
+      pagaStatusCode === "0" ||
+      normalizedStatus === "success" ||
+      normalizedStatus === "successful";
+
+    if (!isSuccessfulReturn) {
+      showToast(
+        normalizedStatus === "cancelled" || normalizedStatus === "canceled"
+          ? "Payment was cancelled. You can try again."
+          : "Payment was not completed. You can try again.",
+        "warning"
+      );
+      setCurrentStep(2);
+      return;
     }
 
     // Clean up URL params so a refresh doesn't re-trigger
     window.history.replaceState({}, "", window.location.pathname);
 
     // Show the confirmation screen
-    showToast("Payment confirmed! Your order has been placed.", "success");
+    sessionStorage.removeItem(PAGA_CHECKOUT_STATE_KEY);
+    showToast("Payment submitted. Your order is being verified.", "success");
     setCurrentStep(4);
   }, []);
 
@@ -766,68 +790,85 @@ const CheckoutPage = () => {
         return;
       }
 
-      // Use the API-returned total from the checkout session.
-      const amount = (checkoutResult?.total ?? (checkoutResult?.subTotal ?? selectedSubtotal) + 2500).toFixed(2);
-
       // Step 2a: Call POST /place-order to create the order and get paymentReference
       setIsLoading(true);
-      let orderData: { orderUuid?: string; paymentReference?: string; amount?: number } | null = null;
-      try {
-        const placeOrderResp: PlaceOrderApiResponse = await placeOrderApi({
-          checkoutSessionUuid: checkoutResult.uuid,
-        });
+      let orderData = orderResult;
+      let createdOrder = false;
+      if (!orderData?.paymentReference) {
+        try {
+          const placeOrderResp: PlaceOrderApiResponse = await placeOrderApi({
+            checkoutSessionUuid: checkoutResult.uuid,
+          });
 
-        if (!placeOrderResp.success) {
-          throw new Error(placeOrderResp.message || "Failed to place order. Please try again.");
+          if (!placeOrderResp.success) {
+            throw new Error(placeOrderResp.message || "Failed to place order. Please try again.");
+          }
+
+          orderData = {
+            orderUuid: placeOrderResp.data?.orderUuid ?? undefined,
+            paymentReference: placeOrderResp.data?.paymentReference ?? undefined,
+            amount: placeOrderResp.data?.amount ?? undefined,
+          };
+
+          setOrderResult(orderData);
+          createdOrder = true;
+        } catch (error: any) {
+          const errorMessage =
+            error?.response?.data?.message ||
+            error?.message ||
+            "Failed to place order. Please try again.";
+          showToast(errorMessage, "error");
+          setIsLoading(false);
+          return;
         }
-
-        orderData = {
-          orderUuid: placeOrderResp.data?.orderUuid ?? undefined,
-          paymentReference: placeOrderResp.data?.paymentReference ?? undefined,
-          amount: placeOrderResp.data?.amount ?? undefined,
-        };
-
-        setOrderResult(orderData);
-      } catch (error: any) {
-        const errorMessage =
-          error?.response?.data?.message ||
-          error?.message ||
-          "Failed to place order. Please try again.";
-        showToast(errorMessage, "error");
-        setIsLoading(false);
-        return;
       }
 
       // Use the paymentReference from place-order as the Paga reference.
       // This lets the backend webhook match the Paga callback to the order.
       const pagaReference = orderData.paymentReference || checkoutResult.uuid;
+      const payableAmount = orderData.amount ?? checkoutResult.total;
+      if (!payableAmount || payableAmount <= 0) {
+        showToast("The server did not return a valid payment amount.", "error");
+        setIsLoading(false);
+        return;
+      }
+      const amount = payableAmount.toFixed(2);
 
       // Snapshot the current checkout state so we can restore it when Paga redirects back
       // (the redirect is a full page navigation — React state would be lost otherwise).
+      const checkoutItems = cart.stores.length > 0
+        ? cart.stores.flatMap(s =>
+            s.items
+              .filter(item => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id))
+              .map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                storeName: s.storeName,
+              }))
+          )
+        : pendingCheckoutItems;
       const checkoutState = {
         checkoutUuid: checkoutResult?.uuid || "",
         orderUuid: orderData.orderUuid || "",
         paymentReference: orderData.paymentReference || "",
+        orderAmount: orderData.amount,
         addressUuid: addressUuid || "",
         formData,
         locationIds,
         selectedCartItemIds,
+        checkoutResult,
         // Also snapshot cart items for the order confirmation display
-        cartItems: cart.stores.flatMap(s =>
-          s.items
-            .filter(item => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id))
-            .map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              storeName: s.storeName,
-            }))
-        ),
+        cartItems: checkoutItems,
       };
       sessionStorage.setItem(PAGA_CHECKOUT_STATE_KEY, JSON.stringify(checkoutState));
 
       // Build Paga checkout URL and redirect
       const chargeUrl = `${window.location.origin}/checkout`;
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+      const callbackUrl = apiBaseUrl
+        ? `${apiBaseUrl}/customer-service/api/v1/paga-webhooks/receive-checkout-webhook`
+        : undefined;
       // Validate that Paga is configured before redirecting
       if (!PAGA_CONFIG.publicKey) {
         showToast(
@@ -844,39 +885,33 @@ const CheckoutPage = () => {
         amount,
         chargeUrl,
         reference: pagaReference,
+        callbackUrl,
       });
 
       showToast("Redirecting to Paga secure payment…", "info");
 
-      // Save order to localStorage before redirecting (the order is placed on the server)
-      try {
-        const existingOrders = JSON.parse(localStorage.getItem("bringam_orders") || "[]");
-        existingOrders.unshift({
-          ...orderData,
-          placedAt: new Date().toISOString(),
-          items: cart.stores.flatMap(s =>
-            s.items
-              .filter(item => selectedCartItemIds.length === 0 || selectedCartItemIds.includes(item.id))
-              .map(item => ({
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                storeName: s.storeName,
-              }))
-          ),
-          customerInfo: {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: formData.phone,
-            address: formData.address,
-            city: formData.city,
-            state: formData.state,
-          },
-        });
-        localStorage.setItem("bringam_orders", JSON.stringify(existingOrders.slice(0, 50)));
-      } catch {
-        // localStorage may be full or unavailable; order is still placed
+      // Save a newly created order once. Payment retries reuse the same order.
+      if (createdOrder) {
+        try {
+          const existingOrders = JSON.parse(localStorage.getItem("bringam_orders") || "[]");
+          existingOrders.unshift({
+            ...orderData,
+            placedAt: new Date().toISOString(),
+            items: checkoutItems,
+            customerInfo: {
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              email: formData.email,
+              phone: formData.phone,
+              address: formData.address,
+              city: formData.city,
+              state: formData.state,
+            },
+          });
+          localStorage.setItem("bringam_orders", JSON.stringify(existingOrders.slice(0, 50)));
+        } catch {
+          // localStorage may be full or unavailable; order is still placed
+        }
       }
 
       // Small delay so the user sees the loading state, then redirect.
@@ -1483,6 +1518,15 @@ const CheckoutPage = () => {
             </div>
             );
           })}
+          {cart.stores.length === 0 && pendingCheckoutItems.map((item, index) => (
+            <div
+              key={`${item.storeName}-${item.name}-${index}`}
+              className="flex justify-between text-sm text-gray-600"
+            >
+              <span>{item.name} × {item.quantity}</span>
+              <span>{formatPrice(item.price * item.quantity)}</span>
+            </div>
+          ))}
         </div>
 
         <div className="border-t border-gray-200 pt-4 space-y-2">
@@ -1575,7 +1619,11 @@ const CheckoutPage = () => {
     );
   }
 
-  if (cart.stores.length === 0) {
+  const hasPendingOrder = Boolean(
+    checkoutResult?.uuid && orderResult?.paymentReference
+  );
+
+  if (cart.stores.length === 0 && !hasPendingOrder) {
     return (
       <Wrapper>
         <motion.div
