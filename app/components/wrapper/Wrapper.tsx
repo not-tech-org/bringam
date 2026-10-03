@@ -18,9 +18,9 @@ const Wrapper: React.FC<WrapperProps> = ({ children, title }) => {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <div className="flex-1 ml-[280px]">
+      <div className="min-w-0 flex-1 lg:ml-[280px]">
         <VendorHeader title={title} />
-        <main className="pt-28 px-16">{children}</main>
+        <main className="px-4 pt-24 sm:px-8 lg:px-16 lg:pt-28">{children}</main>
       </div>
     </div>
   );

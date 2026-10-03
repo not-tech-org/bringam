@@ -1,364 +1,217 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { FaArrowRight, FaBox, FaReceipt, FaRedo } from "react-icons/fa";
 import Wrapper from "../components/wrapper/Wrapper";
 import Button from "../components/common/Button";
-import { FaArrowLeft, FaBox, FaReceipt, FaCopy, FaChevronDown, FaChevronUp, FaSearch, FaTimes, FaCheckCircle, FaSpinner } from "react-icons/fa";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton } from "../components/common/Skeleton";
+import OrderStatusBadge from "../components/orders/OrderStatusBadge";
+import { getCustomerOrders } from "../services/CustomerService";
+import { getServerMessage } from "../lib/apiFeedback";
+import {
+  formatOrderCurrency,
+  formatOrderDate,
+  shortOrderId,
+} from "../lib/orderUi";
+import type { CustomerOrderSummary, OrderPage } from "../types/order";
 
-interface OrderItem {
-  name: string;
-  quantity: number;
-  price: number;
-  storeName: string;
-}
+const PAGE_SIZE = 10;
 
-interface SavedOrder {
-  orderUuid?: string;
-  paymentReference?: string;
-  amount?: number;
-  message?: string;
-  placedAt: string;
-  items: OrderItem[];
-  customerInfo?: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    address: string;
-    city: string;
-    state: string;
-  };
-}
-
-const pageVariants = {
-  initial: { opacity: 0, y: 20 },
-  animate: {
-    opacity: 1,
-    y: 0,
-    transition: { staggerChildren: 0.08 },
-  },
-};
-
-const itemVariants = {
-  initial: { opacity: 0, y: 15 },
-  animate: { opacity: 1, y: 0 },
-};
+const OrdersLoadingState = () => (
+  <div className="space-y-4" aria-label="Loading orders" aria-busy="true">
+    {Array.from({ length: 4 }).map((_, index) => (
+      <div key={index} className="rounded-2xl border border-gray-200 bg-white p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <Skeleton width={120} height={20} />
+            <Skeleton width={180} height={14} />
+          </div>
+          <Skeleton width={96} height={28} rounded="full" />
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 md:grid-cols-3">
+          <Skeleton height={36} />
+          <Skeleton height={36} />
+          <Skeleton height={36} className="col-span-2 md:col-span-1" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 const MyOrdersPage = () => {
-  const router = useRouter();
-  const [orders, setOrders] = useState<SavedOrder[]>([]);
-  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(0);
+  const [ordersPage, setOrdersPage] = useState<OrderPage<CustomerOrderSummary> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isUnauthorized, setIsUnauthorized] = useState(false);
+
+  const loadOrders = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+    setIsUnauthorized(false);
+
+    try {
+      const response = await getCustomerOrders({
+        pageNo: page,
+        pageSize: PAGE_SIZE,
+        sortBy: "id",
+        sortDir: "desc",
+      });
+
+      if (!response.data) {
+        throw new Error(response.message || "Orders could not be loaded.");
+      }
+
+      setOrdersPage(response.data);
+    } catch (requestError) {
+      const status = (requestError as { response?: { status?: number } })?.response?.status;
+      setIsUnauthorized(status === 401 || status === 403);
+      setError(getServerMessage(requestError, "Orders could not be loaded. Please try again."));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page]);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("bringam_orders");
-      if (saved) {
-        setOrders(JSON.parse(saved));
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+    loadOrders();
+  }, [loadOrders]);
 
-  const formatPrice = (price: number) => `N${price.toLocaleString()}`;
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
-  };
-
-  const filteredOrders = searchTerm.trim()
-    ? orders.filter(
-        (o) =>
-          o.orderUuid?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          o.paymentReference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          o.items?.some((i) => i.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    : orders;
-
-  const totalSpent = orders.reduce((sum, o) => sum + (o.amount || 0), 0);
+  const orders = ordersPage?.content ?? [];
+  const totalPages = ordersPage?.totalPages ?? 0;
 
   return (
-    <Wrapper>
-      <motion.div
-        className="bg-white min-h-screen"
-        variants={pageVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <div className="px-4">
-          <motion.div variants={itemVariants}>
-            <Button
-              type="button"
-              style="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4"
-              onClick={() => router.push("/all")}
-            >
-              <FaArrowLeft className="h-4 w-4" />
-              Back to Stores
-            </Button>
-          </motion.div>
-
-          <motion.div variants={itemVariants} className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">My Orders</h1>
-            <p className="text-gray-600 text-sm">
-              Track and manage all your orders in one place.
+    <Wrapper title="My orders">
+      <div className="min-h-screen bg-white px-1 pb-16 sm:px-4">
+        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.16em] text-[#617371]">
+              Customer account
             </p>
-          </motion.div>
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">My orders</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+              View every order, check its current status, and open the full order details.
+            </p>
+          </div>
 
-          {/* Stats cards */}
-          <motion.div
-            variants={itemVariants}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
-          >
-            <div className="bg-[#f8fbfa] border border-[#3c4948]/20 rounded-xl p-4">
-              <p className="text-sm text-gray-600 mb-1">Total Orders</p>
-              <p className="text-2xl font-bold text-[#3c4948]">{orders.length}</p>
-            </div>
-            <div className="bg-[#f8fbfa] border border-[#3c4948]/20 rounded-xl p-4">
-              <p className="text-sm text-gray-600 mb-1">Total Spent</p>
-              <p className="text-2xl font-bold text-[#3c4948]">
-                {formatPrice(totalSpent)}
-              </p>
-            </div>
-            <div className="bg-[#f8fbfa] border border-[#3c4948]/20 rounded-xl p-4 col-span-2">
-              <p className="text-sm text-gray-600 mb-1">Items Ordered</p>
-              <p className="text-2xl font-bold text-[#3c4948]">
-                {orders.reduce((sum, o) => sum + (o.items?.length || 0), 0)}
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Search */}
-          <motion.div variants={itemVariants} className="relative mb-6">
-            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search orders by ID, reference, or item name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3c4948]/20 focus:border-[#3c4948] transition-all"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <FaTimes className="h-4 w-4" />
-              </button>
-            )}
-          </motion.div>
-
-          {/* Orders list */}
-          {filteredOrders.length === 0 ? (
-            <motion.div
-              variants={itemVariants}
-              className="text-center py-16"
-            >
-              <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <FaBox className="h-10 w-10 text-gray-400" />
+          {!isLoading && !error && ordersPage && (
+            <div className="inline-flex w-fit items-center gap-3 rounded-xl border border-[#3c4948]/15 bg-[#f6f8f8] px-4 py-3">
+              <FaReceipt className="text-[#3c4948]" aria-hidden="true" />
+              <div>
+                <p className="text-xs text-gray-500">Total orders</p>
+                <p className="font-semibold text-gray-900">{ordersPage.totalElements}</p>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {searchTerm ? "No orders match your search" : "No orders yet"}
-              </h3>
-              <p className="text-gray-600 mb-6 max-w-sm mx-auto">
-                {searchTerm
-                  ? "Try a different search term."
-                  : "When you place an order, it will appear here for easy tracking."}
-              </p>
-              {!searchTerm && (
-                <Link href="/all">
-                  <Button type="button" style="flex items-center gap-2" primary>
-                    Start Shopping
-                  </Button>
-                </Link>
-              )}
-            </motion.div>
-          ) : (
-            <div className="space-y-4">
-              {filteredOrders.map((order, index) => {
-                const orderKey = order.orderUuid || `order-${index}`;
-                const isExpanded = expandedOrder === orderKey;
-                const status = order.orderUuid ? "completed" : "pending";
-
-                return (
-                  <motion.div
-                    key={orderKey}
-                    variants={itemVariants}
-                    layout
-                    className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow"
-                  >
-                    {/* Order header */}
-                    <button
-                      onClick={() =>
-                        setExpandedOrder(isExpanded ? null : orderKey)
-                      }
-                      className="w-full text-left p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            status === "completed"
-                              ? "bg-green-100 text-green-600"
-                              : "bg-yellow-100 text-yellow-600"
-                          }`}
-                        >
-                          {status === "completed" ? (
-                            <FaCheckCircle className="text-lg" />
-                          ) : (
-                            <FaSpinner className="text-lg" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {order.orderUuid
-                              ? `#${order.orderUuid.slice(0, 8).toUpperCase()}`
-                              : `Order ${index + 1}`}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {formatDate(order.placedAt)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {order.amount !== undefined && (
-                          <span className="font-semibold text-gray-900">
-                            {formatPrice(order.amount)}
-                          </span>
-                        )}
-                        {isExpanded ? (
-                          <FaChevronUp className="text-gray-400" />
-                        ) : (
-                          <FaChevronDown className="text-gray-400" />
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Expanded content */}
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-4">
-                            {/* Order IDs */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {order.orderUuid && (
-                                <div className="bg-gray-50 rounded-lg p-3">
-                                  <p className="text-xs text-gray-500 mb-1">
-                                    Order ID
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <code className="text-sm font-mono text-gray-900 truncate">
-                                      {order.orderUuid}
-                                    </code>
-                                    <button
-                                      onClick={() =>
-                                        copyToClipboard(order.orderUuid!)
-                                      }
-                                      className="text-gray-400 hover:text-[#3c4948] flex-shrink-0"
-                                      title="Copy"
-                                    >
-                                      <FaCopy className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                              {order.paymentReference && (
-                                <div className="bg-gray-50 rounded-lg p-3">
-                                  <p className="text-xs text-gray-500 mb-1">
-                                    Payment Reference
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <code className="text-sm font-mono text-gray-900 truncate">
-                                      {order.paymentReference}
-                                    </code>
-                                    <button
-                                      onClick={() =>
-                                        copyToClipboard(
-                                          order.paymentReference!
-                                        )
-                                      }
-                                      className="text-gray-400 hover:text-[#3c4948] flex-shrink-0"
-                                      title="Copy"
-                                    >
-                                      <FaCopy className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Items */}
-                            {order.items && order.items.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
-                                  <FaBox className="text-[#3c4948]" />
-                                  Items ({order.items.length})
-                                </h4>
-                                <div className="space-y-2">
-                                  {order.items.map((item, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="flex items-center justify-between bg-white border border-gray-100 rounded-lg p-3"
-                                    >
-                                      <div>
-                                        <p className="text-sm font-medium text-gray-900">
-                                          {item.name}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                          {item.storeName} &middot; Qty:{" "}
-                                          {item.quantity}
-                                        </p>
-                                      </div>
-                                      <span className="text-sm font-medium text-gray-900">
-                                        {formatPrice(item.price * item.quantity)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Amount */}
-                            {order.amount !== undefined && (
-                              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                                <span className="font-medium text-gray-900">
-                                  Total
-                                </span>
-                                <span className="font-bold text-lg text-[#3c4948]">
-                                  {formatPrice(order.amount)}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                );
-              })}
             </div>
           )}
-        </div>
-      </motion.div>
+        </header>
+
+        {isLoading ? (
+          <OrdersLoadingState />
+        ) : error ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-10 text-center" role="alert">
+            <h2 className="text-lg font-semibold text-gray-900">We couldn&apos;t load your orders</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-600">{error}</p>
+            {isUnauthorized ? (
+              <Link href="/auth" className="mt-5 inline-flex">
+                <Button type="button" primary>Sign in</Button>
+              </Link>
+            ) : (
+              <Button
+                type="button"
+                primary
+                onClick={loadOrders}
+                style="mx-auto mt-5 flex items-center gap-2"
+              >
+                <FaRedo aria-hidden="true" />
+                Try again
+              </Button>
+            )}
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 px-6 py-16 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f1f5f4]">
+              <FaBox className="h-7 w-7 text-[#3c4948]" aria-hidden="true" />
+            </div>
+            <h2 className="mt-5 text-xl font-semibold text-gray-900">No orders yet</h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-gray-600">
+              Your completed checkouts will appear here when you place an order.
+            </p>
+            <Link href="/all" className="mt-6 inline-flex">
+              <Button type="button" primary>Start shopping</Button>
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-4">
+              {orders.map((order) => (
+                <article
+                  key={order.uuid || order.paymentReferenceUuid}
+                  className="rounded-2xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md sm:p-6"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h2 className="text-lg font-semibold text-gray-900">
+                          Order {shortOrderId(order.uuid)}
+                        </h2>
+                        <OrderStatusBadge status={order.status} />
+                      </div>
+                      <p className="mt-2 text-sm text-gray-500">Placed {formatOrderDate(order.orderDate)}</p>
+                    </div>
+                    <p className="text-xl font-bold text-[#3c4948]">
+                      {formatOrderCurrency(order.amount)}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-500">Items</p>
+                      <p className="mt-1 font-medium text-gray-900">{order.noOfItems ?? 0}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs uppercase tracking-wide text-gray-500">Payment reference</p>
+                      <p className="mt-1 truncate font-mono text-sm text-gray-800">
+                        {order.paymentReferenceUuid || "Not available"}
+                      </p>
+                    </div>
+                    {order.uuid && (
+                      <Link
+                        href={`/my-orders/${order.uuid}`}
+                        className="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#3c4948] px-4 py-2 text-sm font-semibold text-[#3c4948] transition-colors hover:bg-[#3c4948] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#3c4948]/30 md:col-span-1"
+                      >
+                        View details
+                        <FaArrowRight aria-hidden="true" />
+                      </Link>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <nav className="mt-8 flex items-center justify-between gap-4" aria-label="Order pages">
+                <Button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                  disabled={ordersPage?.first}
+                >
+                  Previous
+                </Button>
+                <p className="text-sm text-gray-600">
+                  Page <span className="font-semibold text-gray-900">{page + 1}</span> of {totalPages}
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
+                  disabled={ordersPage?.last}
+                >
+                  Next
+                </Button>
+              </nav>
+            )}
+          </>
+        )}
+      </div>
     </Wrapper>
   );
 };

@@ -122,7 +122,7 @@ const Sidebar = () => {
         onClose={closeProfileModal}
       />
 
-      <div className="w-[280px] h-screen bg-bgArmy px-8 py-4 fixed top-0 left-0 z-20 select-none">
+      <div className="hidden lg:block w-[280px] h-screen bg-bgArmy px-8 py-4 fixed top-0 left-0 z-20 select-none">
         {/* Header */}
         <div className="flex items-center gap-2 h-20 flex-shrink-0">
           <Image
