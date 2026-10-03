@@ -1,6 +1,13 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 import { rejectUnsuccessfulApiResponse } from "../lib/apiFeedback";
+import type {
+  CustomerOrderDetails,
+  CustomerOrderSummary,
+  GetCustomerOrdersParams,
+  OrderApiResponse,
+  OrderPage,
+} from "../types/order";
 
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
@@ -84,4 +91,31 @@ export const getAllStores = async (params?: {
   const url = `/stores${queryString ? `?${queryString}` : ""}`;
   const response = await customerApi.get(url);
   return response;
+};
+
+export const getCustomerOrders = async (
+  params: GetCustomerOrdersParams = {}
+): Promise<OrderApiResponse<OrderPage<CustomerOrderSummary>>> => {
+  const response = await customerApi.get<
+    OrderApiResponse<OrderPage<CustomerOrderSummary>>
+  >("/customer-orders", {
+    params: {
+      "page-no": params.pageNo ?? 0,
+      "page-size": params.pageSize ?? 10,
+      "sort-by": params.sortBy ?? "id",
+      "sort-dir": params.sortDir ?? "desc",
+    },
+  });
+
+  return response.data;
+};
+
+export const getCustomerOrderDetails = async (
+  orderUuid: string
+): Promise<OrderApiResponse<CustomerOrderDetails>> => {
+  const response = await customerApi.get<OrderApiResponse<CustomerOrderDetails>>(
+    `/customer-orders/${encodeURIComponent(orderUuid)}`
+  );
+
+  return response.data;
 };

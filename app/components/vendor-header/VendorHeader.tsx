@@ -28,9 +28,9 @@ export default function VendorHeader({ title }: VendorHeaderProps) {
   const displayTitle = title || formattedRoute;
 
   return (
-    <div className="flex items-center justify-between py-6 px-8 pl-16 border-b bg-white fixed top-0 left-[280px] right-0 z-50">
-      <h1 className="text-2xl font-medium">{displayTitle}</h1>
-      <div className="flex items-center gap-8">
+    <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between border-b bg-white px-4 py-5 sm:px-8 lg:left-[280px] lg:py-6 lg:pl-16">
+      <h1 className="truncate text-xl font-medium sm:text-2xl">{displayTitle}</h1>
+      <div className="flex items-center gap-3 sm:gap-8">
         {/* Cart Icon - Only show in customer view */}
         {!isVendorView && (
           <Link href="/cart" className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors">
@@ -47,7 +47,7 @@ export default function VendorHeader({ title }: VendorHeaderProps) {
                 </span>
               )}
             </div>
-            <span className="text-sm font-medium">Cart</span>
+            <span className="hidden text-sm font-medium sm:inline">Cart</span>
           </Link>
         )}
 
@@ -57,7 +57,9 @@ export default function VendorHeader({ title }: VendorHeaderProps) {
             className="flex items-center justify-between bg-black text-white gap-3 p-2 px-4 rounded-lg hover:bg-gray-800 transition-colors"
           >
             <RxExit />
-            <p>{isVendorView ? "Switch to Customer" : "Switch to Vendor"}</p>
+            <p className="hidden sm:block">
+              {isVendorView ? "Switch to Customer" : "Switch to Vendor"}
+            </p>
           </button>
         )}
         <button className="relative">
