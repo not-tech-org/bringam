@@ -8,7 +8,7 @@ import { OnboardingContext } from "@/app/contexts/OnboardingContext";
 import { signinApi, getUserProfile } from "@/app/services/AuthService";
 import { useRouter } from "next/navigation";
 import { validateEmail, showToast } from "../utils/helperFunctions";
-import { safeLocalStorage, getUserTypeInfo } from "@/app/lib/utils";
+import { safeLocalStorage } from "@/app/lib/utils";
 import { motion } from "framer-motion";
 
 // Animation variants for subtle form interactions
@@ -28,21 +28,6 @@ const itemVariants = {
   animate: {
     opacity: 1,
     y: 0
-  }
-};
-
-const buttonVariants = {
-  hover: {
-    scale: 1.02,
-    transition: {
-      duration: 0.2
-    }
-  },
-  tap: {
-    scale: 0.98,
-    transition: {
-      duration: 0.1
-    }
   }
 };
 
@@ -94,7 +79,7 @@ const Signin = () => {
     }
 
     setErrors(newErrors);
-    return isValid;
+    return { isValid, errors: newErrors };
   };
 
   // Fetch user profile and save customer data to localStorage
@@ -144,12 +129,13 @@ const Signin = () => {
     e.preventDefault();
 
     // Validate form
-    if (!validateForm()) {
+    const validation = validateForm();
+
+    if (!validation.isValid) {
       // Show only one error message to avoid overwhelming the user
-      if (errors.email) {
-        showToast(errors.email, "error");
-      } else if (errors.password) {
-        showToast(errors.password, "error");
+      const errorKey = Object.keys(validation.errors)[0] as keyof typeof validation.errors;
+      if (errorKey && validation.errors[errorKey]) {
+        showToast(validation.errors[errorKey]!, "error");
       }
       return;
     }
@@ -193,15 +179,10 @@ const Signin = () => {
     } catch (err: any) {
       // Handle different types of errors
       if (err.response) {
-        // Server responded with an error status
-        const errorMessage =
-          err.response.data.message || "Authentication failed";
-        showToast(errorMessage, "error");
-
-        if (err.response.status === 401) {
-          // Handle invalid credentials specifically
-          showToast("Invalid email or password", "error");
-        }
+        showToast(
+          err.response.data.message || "Unable to sign in. Please try again.",
+          "error"
+        );
       } else if (err.request) {
         // Request was made but no response received
         showToast("Network error. Please check your connection.", "warning");
@@ -215,26 +196,29 @@ const Signin = () => {
   };
 
   return (
-    <motion.div 
-      className="rounded-3xl border-2 border-[#EDEDED] p-8 md:p-14 bg-[#FCFCFC] w-[90%] max-w-[604px]"
+    <motion.div
+      className="w-full max-w-[620px]"
       variants={containerVariants}
       initial="initial"
       animate="animate"
       transition={{ type: "spring", duration: 0.5 }}
     >
-      <motion.div 
-        className="text-center"
-        variants={itemVariants}
-      >
-        <p className="font-bold text-xl md:text-2xl">Sign in</p>
-        <p className="font-semibold text-[#979797] text-xs md:text-sm mt-1">
-          Sign in to your account
+      <motion.div variants={itemVariants}>
+        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#586a65]">
+          Customer account
+        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+          Welcome back
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-gray-600 sm:text-base">
+          Sign in to continue shopping and manage your orders.
         </p>
       </motion.div>
-      <motion.form 
-        className="w-full mt-4 md:mt-6" 
+      <motion.form
+        className="mt-8 w-full"
         onSubmit={onSignIn}
         variants={itemVariants}
+        noValidate
       >
         <motion.div variants={itemVariants}>
           <Input
@@ -248,9 +232,11 @@ const Signin = () => {
               // Clear error when user types
               if (errors.email) setErrors({ ...errors, email: undefined });
             }}
-            placeholder="abc@gmail.com"
-            className="border-gray-300 rounded w-100 mb-3"
+            placeholder="you@example.com"
+            className="mb-5 w-full rounded-lg border border-gray-300 bg-white transition-colors focus:border-gray-700 focus:ring-2 focus:ring-gray-200"
             error={errors.email}
+            required
+            autoComplete="email"
           />
         </motion.div>
         <motion.div variants={itemVariants}>
@@ -266,45 +252,50 @@ const Signin = () => {
               if (errors.password) setErrors({ ...errors, password: undefined });
             }}
             placeholder="**************"
-            className="border-gray-300 rounded w-100 mb-3"
+            className="mb-5 w-full rounded-lg border border-gray-300 bg-white transition-colors focus:border-gray-700 focus:ring-2 focus:ring-gray-200"
             error={errors.password}
+            required
+            autoComplete="current-password"
           />
         </motion.div>
 
-        <motion.div 
+        <motion.div
           variants={itemVariants}
-          whileHover="hover"
-          whileTap="tap"
         >
-          <Button type="submit" primary className="w-full" isLoading={isLoading}>
+          <Button
+            type="submit"
+            primary
+            className="!my-2 min-h-12 w-full rounded-lg text-base font-semibold focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            isLoading={isLoading}
+            disabled={isLoading}
+          >
             Sign in
           </Button>
         </motion.div>
 
-        <motion.div 
-          className="text-center mt-4"
-          variants={itemVariants}
-        >
-          <p className="text-textGray2">
+        <motion.div className="mt-5 text-center" variants={itemVariants}>
+          <p className="text-sm text-gray-600">
             {"Don't"} have an account?{" "}
-            <motion.span
-              className="text-bgArmy cursor-pointer font-medium"
+            <motion.button
+              type="button"
+              className="font-semibold text-bgArmy hover:underline focus:outline-none focus:ring-2 focus:ring-bgArmy focus:ring-offset-2"
               onClick={() => onRouteChange("signup")}
               variants={linkVariants}
               whileHover="hover"
             >
               Sign up
-            </motion.span>
+            </motion.button>
           </p>
-          <div className="mt-2">
-            <motion.p
-              className="cursor-pointer text-textGray2 hover:text-bgArmy transition-colors"
+          <div className="mt-3">
+            <motion.button
+              type="button"
+              className="text-sm font-medium text-gray-600 transition-colors hover:text-bgArmy hover:underline focus:outline-none focus:ring-2 focus:ring-bgArmy focus:ring-offset-2"
               onClick={() => onRouteChange("forgotPassword")}
               variants={linkVariants}
               whileHover="hover"
             >
               Forgot password?
-            </motion.p>
+            </motion.button>
           </div>
         </motion.div>
       </motion.form>

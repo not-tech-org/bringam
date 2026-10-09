@@ -47,21 +47,6 @@ const itemVariants = {
   }
 };
 
-const buttonVariants = {
-  hover: {
-    scale: 1.02,
-    transition: {
-      duration: 0.2
-    }
-  },
-  tap: {
-    scale: 0.98,
-    transition: {
-      duration: 0.1
-    }
-  }
-};
-
 const linkVariants = {
   hover: {
     scale: 1.05,
@@ -215,30 +200,33 @@ const Signup = () => {
   };
 
   return (
-    <motion.div 
-      className="rounded-3xl border-2 border-[#EDEDED] p-6 md:p-8 lg:p-10 bg-[#FCFCFC] w-[95%] max-w-[650px] max-h-[90vh] overflow-y-auto"
+    <motion.div
+      className="w-full max-w-[650px]"
       variants={containerVariants}
       initial="initial"
       animate="animate"
       transition={{ type: "spring", duration: 0.5 }}
     >
-      <motion.div 
-        className="text-center mb-4"
-        variants={itemVariants}
-      >
-        <p className="font-bold text-xl md:text-2xl">Create account</p>
-        <p className="font-semibold text-[#979797] text-xs md:text-sm mt-1">
-          Get started by creating an account
+      <motion.div variants={itemVariants}>
+        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#586a65]">
+          Customer account
+        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+          Create your account
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-gray-600 sm:text-base">
+          Join Bringam to discover local stores and manage your orders.
         </p>
       </motion.div>
-      <motion.form 
-        onSubmit={onSignUp} 
-        className="w-full space-y-4"
+      <motion.form
+        onSubmit={onSignUp}
+        className="mt-8 w-full space-y-5"
         variants={itemVariants}
+        noValidate
       >
         {/* Name fields in a row on larger screens */}
         <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          className="grid grid-cols-1 gap-5 sm:grid-cols-2"
           variants={itemVariants}
         >
           <Input
@@ -249,8 +237,10 @@ const Signup = () => {
             value={firstName}
             onChange={handleInputChange}
             placeholder="Enter first name"
-            className="border-gray-300 rounded w-100"
+            className="w-full rounded-lg border border-gray-300 bg-white transition-colors focus:border-gray-700 focus:ring-2 focus:ring-gray-200"
             error={errors.firstName}
+            required
+            autoComplete="given-name"
           />
           <Input
             label="Last Name"
@@ -260,8 +250,10 @@ const Signup = () => {
             value={lastName}
             onChange={handleInputChange}
             placeholder="Enter last name"
-            className="border-gray-300 rounded w-100"
+            className="w-full rounded-lg border border-gray-300 bg-white transition-colors focus:border-gray-700 focus:ring-2 focus:ring-gray-200"
             error={errors.lastName}
+            required
+            autoComplete="family-name"
           />
         </motion.div>
 
@@ -273,9 +265,11 @@ const Signup = () => {
             id="email"
             value={email}
             onChange={handleInputChange}
-            placeholder="abc@gmail.com"
-            className="border-gray-300 rounded w-100"
+            placeholder="you@example.com"
+            className="w-full rounded-lg border border-gray-300 bg-white transition-colors focus:border-gray-700 focus:ring-2 focus:ring-gray-200"
             error={errors.email}
+            required
+            autoComplete="email"
           />
         </motion.div>
 
@@ -288,9 +282,11 @@ const Signup = () => {
             value={password}
             onChange={handleInputChange}
             placeholder="**************"
-            className="border-gray-300 rounded w-100"
+            className="w-full rounded-lg border border-gray-300 bg-white transition-colors focus:border-gray-700 focus:ring-2 focus:ring-gray-200"
             error={errors.password}
             helperText="8+ chars with uppercase, lowercase & numbers"
+            required
+            autoComplete="new-password"
           />
         </motion.div>
 
@@ -303,35 +299,37 @@ const Signup = () => {
             value={confirmPassword}
             onChange={handleInputChange}
             placeholder="**************"
-            className="border-gray-300 rounded w-100"
+            className="w-full rounded-lg border border-gray-300 bg-white transition-colors focus:border-gray-700 focus:ring-2 focus:ring-gray-200"
             error={errors.confirmPassword}
+            required
+            autoComplete="new-password"
           />
         </motion.div>
 
-        <motion.div 
-          variants={itemVariants}
-          whileHover="hover"
-          whileTap="tap"
-        >
-          <Button type="submit" primary className="w-full" isLoading={isLoading}>
+        <motion.div variants={itemVariants}>
+          <Button
+            type="submit"
+            primary
+            className="!my-2 min-h-12 w-full rounded-lg text-base font-semibold focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            isLoading={isLoading}
+            disabled={isLoading}
+          >
             Create account
           </Button>
         </motion.div>
 
-        <motion.div 
-          className="text-center mt-4"
-          variants={itemVariants}
-        >
-          <p className="text-textGray2">
+        <motion.div className="mt-5 text-center" variants={itemVariants}>
+          <p className="text-sm text-gray-600">
             Already have an account?{" "}
-            <motion.span
-              className="text-bgArmy cursor-pointer font-medium"
+            <motion.button
+              type="button"
+              className="font-semibold text-bgArmy hover:underline focus:outline-none focus:ring-2 focus:ring-bgArmy focus:ring-offset-2"
               onClick={() => onRouteChange("signin")}
               variants={linkVariants}
               whileHover="hover"
             >
               Sign in
-            </motion.span>
+            </motion.button>
           </p>
         </motion.div>
       </motion.form>

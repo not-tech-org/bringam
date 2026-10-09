@@ -1,91 +1,84 @@
 "use client";
 
-import Image from "next/image";
 import Signup from "../components/auth/Signup";
 import Signin from "../components/auth/Signin";
 import ForgotPassword from "../components/auth/ForgotPassword";
 import SignupOTP from "../components/auth/SignupOTP";
-import { useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 import {
   OnboardingContext,
   OnboardingProvider,
 } from "../contexts/OnboardingContext";
 import ForgotPasswordOTP from "../components/auth/ForgotPasswordOTP";
 import ResetPassword from "../components/auth/ResetPassword";
+import AuthBrand from "../components/auth/AuthBrand";
+import AuthVisualPanel from "../components/auth/AuthVisualPanel";
 
-const authSteps = [
-  {
-    asset: "/icons/account.svg",
+const authSteps: Record<string, AuthStepType> = {
+  signup: {
+    image: "/images/customer-signup.png",
+    imageAlt: "A customer discovering products from local stores",
+    eyebrow: "Shop with Bringam",
     title: "Create an account",
     description:
-      "Find vendors near you and get access to a wide range of products with ease. Sign up now to discover local businesses, compare prices, and shop confidently—all in one place.",
+      "Discover nearby stores, compare products, and keep every order in one convenient place.",
   },
-  {
-    asset: "/icons/welcomeBack.svg",
+  SignupOTP: {
+    image: "/images/customer-signup.png",
+    imageAlt: "A customer discovering products from local stores",
+    eyebrow: "Almost there",
+    title: "Verify your account",
+    description:
+      "Confirm your email to finish setting up your Bringam account securely.",
+  },
+  signin: {
+    image: "/images/customer-signin.png",
+    imageAlt: "A customer checking her order after arriving home",
+    eyebrow: "Welcome to Bringam",
     title: "Welcome back",
     description:
-      "Signin to your account to continue shopping. Locate vendors and find the best deals around you",
+      "Sign in to continue shopping, manage your cart, and keep track of your orders.",
   },
-  {
-    asset: "/icons/padlock.svg",
+  forgotPassword: {
+    image: "/images/customer-signin.png",
+    imageAlt: "A customer checking her order after arriving home",
+    eyebrow: "Account recovery",
     title: "Forgot password?",
     description:
-      "Easy! Just enter your Email address and get the password reset code sent to you in seconds!",
+      "Enter your email address and we will send you a secure password reset code.",
   },
-  {
-    asset: "/icons/padlock.svg",
-    title: "Reset password?",
+  forgotPasswordOTP: {
+    image: "/images/customer-signin.png",
+    imageAlt: "A customer checking her order after arriving home",
+    eyebrow: "Account recovery",
+    title: "Check your email",
     description:
-      "Good, now enter the password reset code that was sent to your Email address.",
+      "Enter the reset code sent to your email address to continue.",
   },
-  {
-    asset: "/icons/padlock.svg",
-    title: "New password?",
+  resetPassword: {
+    image: "/images/customer-signin.png",
+    imageAlt: "A customer checking her order after arriving home",
+    eyebrow: "Account recovery",
+    title: "Create a new password",
     description:
-      "You're almost there! Now input the new password you'd like to use and that's it!",
+      "Choose a strong new password to regain access to your Bringam account.",
   },
-];
+};
 
 interface AuthStepType {
-  asset: string;
+  image: string;
+  imageAlt: string;
+  eyebrow: string;
   title: string;
   description: string;
 }
 
 function Onboarding() {
   const context = useContext(OnboardingContext);
-  const [currentStep, setCurrentStep] = useState<AuthStepType | null>(null);
 
   const { state } = context || { state: { route: "signin" } };
   const { route } = state;
-
-  // Update the current step whenever the route changes
-  useEffect(() => {
-    let stepIndex = 0;
-
-    switch (route) {
-      case "signin":
-        stepIndex = 1;
-        break;
-      case "signup":
-      case "SignupOTP":
-        stepIndex = 0;
-        break;
-      case "forgotPassword":
-        stepIndex = 2;
-        break;
-      case "forgotPasswordOTP":
-        stepIndex = 3;
-        break;
-      case "resetPassword":
-        stepIndex = 4;
-        break;
-      default:
-        stepIndex = 1; // default to signin
-    }
-
-    setCurrentStep(authSteps[stepIndex]);
-  }, [route]);
+  const currentStep = authSteps[route] || authSteps.signin;
 
   if (!context) {
     return <div>Error: OnboardingContext not found</div>;
@@ -112,28 +105,28 @@ function Onboarding() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row items-center h-screen w-full">
-      {/* Left side - hidden on mobile */}
-      <div className="hidden md:flex bg-bgArmy w-full h-full p-8 md:p-20 pb-32 flex-col justify-end text-white">
-        <div className="animate-fadeIn transition-all duration-300">
-          <Image
-            src={currentStep?.asset || "/icons/welcomeBack.svg"}
-            alt="Icon vector"
-            width={99}
-            height={99}
-          />
-          <p className="font-bold my-4 text-2xl">{currentStep?.title}</p>
-          <p className="font-medium">{currentStep?.description}</p>
-        </div>
-      </div>
+    <main className="h-[100vh] min-h-[100vh] max-h-[100vh] w-[100vw] min-w-[100vw] max-w-[100vw] overflow-hidden bg-white text-black lg:grid lg:grid-cols-[2fr_3fr]">
+      <AuthVisualPanel
+        imageSrc={currentStep.image}
+        imageAlt={currentStep.imageAlt}
+        eyebrow={currentStep.eyebrow}
+        title={currentStep.title}
+        description={currentStep.description}
+      />
 
-      {/* Right side - full width on mobile */}
-      <div className="bg-white text-black w-full h-full min-h-screen py-8 mx-auto flex justify-center items-center overflow-y-auto">
-        <div className="animate-fadeIn transition-all duration-300 w-full flex justify-center">
-          {renderPages()}
+      <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
+        <header className="shrink-0 border-b border-gray-100 px-5 py-5 sm:px-8 lg:border-b-0 lg:px-12 lg:py-7">
+          <AuthBrand />
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center px-5 py-8 sm:px-8 lg:px-12">
+            <div className="flex w-full justify-center transition-all duration-300">
+              {renderPages()}
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
 
