@@ -13,7 +13,7 @@ import { motion } from "framer-motion";
 // Animation variants for sidebar menu items
 const menuItemVariants = {
   initial: { x: 0 },
-  hover: { x: 4 }
+  hover: { x: 3 },
 };
 
 const Sidebar = () => {
@@ -79,15 +79,23 @@ const Sidebar = () => {
     icon: string;
   }) => {
     // Special case: store pages should highlight "All" menu item
-    const isStorePage = pathname.startsWith('/store/');
-    const isActive = (isStorePage && item.path === '/all') || 
-                     (pathname.startsWith(item.path) && item.path !== "/");
-    
+    const isStorePage = pathname.startsWith("/store/");
+    const isActive =
+      (isStorePage && item.path === "/all") ||
+      (pathname.startsWith(item.path) && item.path !== "/");
+
     return (
-      <Link href={item.path} key={item.path}>
+      <Link
+        href={item.path}
+        key={item.path}
+        aria-current={isActive ? "page" : undefined}
+        className="block rounded-lg focus:outline-none focus:ring-2 focus:ring-white/60 focus:ring-offset-2 focus:ring-offset-bgArmy"
+      >
         <motion.div
-          className={`flex items-center gap-2 my-6 group cursor-pointer transition-colors duration-200 ${
-            isActive ? "text-white" : "text-lighterArmy hover:text-white"
+          className={`group mb-1 flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-200 ${
+            isActive
+              ? "bg-white/10 text-white"
+              : "text-lighterArmy hover:bg-white/5 hover:text-white"
           }`}
           variants={menuItemVariants}
           initial="initial"
@@ -96,24 +104,26 @@ const Sidebar = () => {
         >
           <Image
             src={item.icon}
-            alt={`${item.label} Icon`}
+            alt=""
             width={16}
             height={16}
             className={`transition-opacity duration-200 ${
               isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100"
             }`}
           />
-          <p
-            className={`font-medium transition-all duration-200 ${
-              isActive ? "font-bold" : ""
-            }`}
-          >
+          <span className={`font-medium ${isActive ? "font-bold" : ""}`}>
             {item.label}
-          </p>
+          </span>
         </motion.div>
       </Link>
     );
   };
+
+  const primaryItems = isVendorView ? vendorMenuItems : customerMenuItems;
+  const personalItems = isVendorView
+    ? vendorPersonalItems
+    : customerPersonalItems;
+  const primaryLabel = isVendorView ? "General" : "Categories";
 
   return (
     <>
@@ -122,139 +132,81 @@ const Sidebar = () => {
         onClose={closeProfileModal}
       />
 
-      <div className="hidden lg:block w-[280px] h-screen bg-bgArmy px-8 py-4 fixed top-0 left-0 z-20 select-none">
-        {/* Header */}
-        <div className="flex items-center gap-2 h-20 flex-shrink-0">
+      <aside className="fixed left-0 top-0 z-20 hidden h-screen max-h-screen w-[280px] select-none flex-col overflow-hidden bg-bgArmy px-6 py-4 lg:flex">
+        <div className="flex h-16 shrink-0 items-center gap-2">
           <Image
             src="/icons/brand-logo.svg"
-            alt="Brand Logo"
+            alt=""
             width={30}
             height={30}
-            className="flex-shrink-0"
+            className="shrink-0"
           />
-          <p className="text-lg text-white font-bold">BringAm</p>
+          <p className="text-lg font-bold text-white">BringAm</p>
         </div>
 
-        {/* Scrollable Content */}
-        {!isVendorView ? (
-          <div className="custom-scrollbar h-[calc(100vh-5rem)] flex flex-col">
-            <div className="mt-8 flex-shrink-0">
-              <p className="text-sm text-lightArmy font-medium mb-6">
-                Categories
-              </p>
-              <div className="pl-4 text-sm">
-                {customerMenuItems.map(renderMenuItem)}
-              </div>
-            </div>
+        <nav
+          aria-label={isVendorView ? "Vendor navigation" : "Customer navigation"}
+          className="custom-scrollbar min-h-0 flex-1 overscroll-contain pr-1"
+        >
+          <div className="pt-4">
+            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-lightArmy">
+              {primaryLabel}
+            </p>
+            <div className="text-sm">{primaryItems.map(renderMenuItem)}</div>
+          </div>
 
-            <div className="mt-12 flex-shrink-0">
-              <p className="text-sm text-lightArmy font-medium mb-6">
+          <div className="mt-6">
+            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-lightArmy">
                 Personal
-              </p>
-              <div className="pl-4 text-sm">
-                {customerPersonalItems.map(renderMenuItem)}
-              </div>
+            </p>
+            <div className="text-sm">{personalItems.map(renderMenuItem)}</div>
+            <div className="px-3">
               <SignoutButton />
-            </div>
-
-            {/* Spacer to push bottom content down */}
-            <div className="flex-grow"></div>
-
-            {/* Bottom content - User info and Become Vendor */}
-            <div className="flex-shrink-0 pb-12">
-              {/* User info section for customers */}
-              <div className="mb-4">
-                <motion.div
-                  onClick={openProfileModal}
-                  className="p-4 px-6 border rounded-lg flex items-center gap-3 bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69]"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Image
-                    src="/icons/Status.png"
-                    width={35}
-                    height={35}
-                    alt="profile"
-                    className="flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white font-bold truncate">
-                      {userName}
-                    </p>
-                    <p className="text-xs" style={{ fontSize: 10 }}>
-                      Customer Account
-                    </p>
-                  </div>
-                </motion.div>
-              </div>
-
-              {!isVendorCapable && (
-                <div>
-                  <Link href="/vendor-signup">
-                    <motion.div 
-                      className="p-4 px-8 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69]"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <p className="text-sm">Become a Vendor</p>
-                      <MdArrowOutward className="flex-shrink-0" />
-                    </motion.div>
-                  </Link>
-                </div>
-              )}
             </div>
           </div>
-        ) : (
-          <div className="custom-scrollbar h-[calc(100vh-5rem)] flex flex-col">
-            <div className="mt-8 flex-shrink-0">
-              <p className="text-sm text-lightArmy font-medium mb-6">General</p>
-              <div className="pl-4 text-sm">
-                {vendorMenuItems.map(renderMenuItem)}
-              </div>
-            </div>
+        </nav>
 
-            <div className="mt-12 flex-shrink-0">
-              <p className="text-sm text-lightArmy font-medium mb-6">
-                Personal
+        <div className="shrink-0 border-t border-white/10 bg-bgArmy pt-4">
+          <motion.button
+            type="button"
+            onClick={openProfileModal}
+            className="flex w-full items-center gap-3 rounded-lg border border-white/10 bg-[#456563] p-3 text-left text-[#CBD9D8] transition-colors duration-200 hover:bg-[#4a6b69] focus:outline-none focus:ring-2 focus:ring-white/60"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <Image
+              src="/icons/Status.png"
+              width={35}
+              height={35}
+              alt=""
+              className="shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-white">{userName}</p>
+              <p className="text-[10px]">
+                {isVendorView ? "Account settings" : "Customer account"}
               </p>
-              <div className="pl-4 text-sm">
-                {vendorPersonalItems.map(renderMenuItem)}
-              </div>
-              <SignoutButton />
             </div>
+            {isVendorView && <MdArrowOutward className="shrink-0" />}
+          </motion.button>
 
-            {/* Spacer to push bottom content down */}
-            <div className="flex-grow"></div>
-
-            {/* Bottom content - Vendor account settings */}
-            <div className="flex-shrink-0 pb-12">
+          {!isVendorView && !isVendorCapable && (
+            <Link
+              href="/vendor-signup"
+              className="mt-3 block rounded-lg focus:outline-none focus:ring-2 focus:ring-white/60"
+            >
               <motion.div
-                onClick={openProfileModal}
-                className="p-4 px-6 border rounded-lg flex items-center justify-between bg-[#456563] text-[#CBD9D8] cursor-pointer transition-all duration-200 hover:bg-[#4a6b69]"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                className="flex min-h-11 items-center justify-between rounded-lg border border-white/10 bg-[#456563] px-4 py-3 text-[#CBD9D8] transition-colors duration-200 hover:bg-[#4a6b69]"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
               >
-                <Image
-                  src="/icons/Status.png"
-                  width={35}
-                  height={35}
-                  alt="icon"
-                  className="flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0 mx-3">
-                  <p className="text-xs text-white font-bold truncate">
-                    {userName}
-                  </p>
-                  <p className="text-xs" style={{ fontSize: 10 }}>
-                    Account settings
-                  </p>
-                </div>
-                <MdArrowOutward className="flex-shrink-0" />
+                <p className="text-sm">Become a vendor</p>
+                <MdArrowOutward className="shrink-0" />
               </motion.div>
-            </div>
-          </div>
-        )}
-      </div>
+            </Link>
+          )}
+        </div>
+      </aside>
     </>
   );
 };
