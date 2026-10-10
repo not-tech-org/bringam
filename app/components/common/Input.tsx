@@ -101,10 +101,11 @@ const Input: React.FC<InputProps> = ({
         )}
         <input
           className={cn(
-            "w-full rounded-md border border-transparent p-2 outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20",
-            error && "border-red-500 focus:border-red-500 focus:ring-red-500/20",
-            disabled && "cursor-not-allowed opacity-50",
-            className
+            className,
+            "w-full rounded-md border border-transparent p-2 outline-none transition-colors focus:border-[#8A9997] focus:ring-1 focus:ring-[#8A9997]",
+            error &&
+              "border-red-500 focus:border-red-500 focus:ring-red-500",
+            disabled && "cursor-not-allowed opacity-50"
           )}
           name={name}
           value={value}
