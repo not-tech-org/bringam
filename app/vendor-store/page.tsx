@@ -536,6 +536,10 @@ const VendorStore = () => {
   useEffect(() => {
     fetchUserProfile();
     fetchCountries();
+
+    if (new URLSearchParams(window.location.search).get("create") === "true") {
+      setIsOpen(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -692,17 +696,22 @@ const VendorStore = () => {
                 </div>
               ))
             ) : hasFetched ? (
-              <div className="col-span-full flex flex-col justify-center items-center py-12">
+              <div className="col-span-full flex flex-col justify-center items-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12">
                 <Image
                   src="/icons/store.svg"
-                  alt="No stores"
+                  alt=""
                   width={48}
                   height={48}
                   className="opacity-50 mb-4"
                 />
-                <p className="text-[#666668] text-center">
-                  No stores found. Create your first store to get started!
+                <p className="font-semibold text-gray-900">Create your first store</p>
+                <p className="mt-1 max-w-md text-center text-sm leading-6 text-[#666668]">
+                  Your store holds the contact, location, and catalogue details customers need before they can buy from you.
                 </p>
+                <Button type="button" primary style="w-fit !my-5" onClick={openModal}>
+                  Create Store
+                  <FaPlus className="ml-2" />
+                </Button>
               </div>
             ) : null}
           </div>
