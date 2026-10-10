@@ -4,6 +4,7 @@ import React, {
   useState,
 } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { cn } from "@/app/lib/utils";
 
 type InputProps = {
   label?: string;
@@ -99,9 +100,12 @@ const Input: React.FC<InputProps> = ({
           </span>
         )}
         <input
-          className={`${className} rounded-md p-2 outline-none w-full ${
-            error ? "border-red-500 border" : ""
-          } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={cn(
+            "w-full rounded-md border border-transparent p-2 outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20",
+            error && "border-red-500 focus:border-red-500 focus:ring-red-500/20",
+            disabled && "cursor-not-allowed opacity-50",
+            className
+          )}
           name={name}
           value={value}
           type={type === "password" && showPassword ? "text" : type}
@@ -148,7 +152,7 @@ const Input: React.FC<InputProps> = ({
         )}
       </div>
       {error && (
-        <p id={`${id || name}-error`} className="text-sm text-red-500">
+        <p id={`${id || name}-error`} className="mt-1 text-sm text-red-500">
           {error}
         </p>
       )}

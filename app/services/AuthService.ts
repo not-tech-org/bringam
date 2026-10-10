@@ -7,6 +7,7 @@ import type {
   StoreProductResponse,
 } from "../types/storeProduct";
 import type { CreateProductPayload } from "../types/product";
+import type { ApiResponse, VendorDashboardData } from "../types";
 
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
@@ -173,6 +174,14 @@ export const getCitiesByStateId = async (stateId: string | number) => {
 
 export const getAllProducts = async () => {
   const response = await vendorApi.get("/products");
+  return response;
+};
+
+/** Vendor GET /vendor-dashboard — summary data for the authenticated vendor. */
+export const getVendorDashboard = async () => {
+  const response = await vendorApi.get<ApiResponse<VendorDashboardData>>(
+    "/vendor-dashboard"
+  );
   return response;
 };
 

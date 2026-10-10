@@ -47,7 +47,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       panelClassName="max-w-xl"
       contentClassName="p-0"
     >
-      <div className="max-h-[calc(100vh-2rem)] overflow-y-auto text-black">
+      <div className="text-black">
         <header className="border-b border-gray-100 px-5 py-6 pr-16 sm:px-7 sm:py-7 sm:pr-20">
           <div className="flex items-center gap-4">
             <div

@@ -8,15 +8,30 @@ import {
   MdErrorOutline,
   MdInventory2,
   MdOutlineStorefront,
+  MdPeople,
+  MdPayments,
+  MdReceiptLong,
   MdRefresh,
-  MdShoppingBag,
+  MdVisibility,
 } from "react-icons/md";
 import Wrapper from "../components/wrapper/Wrapper";
 import { SkeletonOverviewCard } from "../components/common/Skeleton";
 import { useUser } from "../contexts/UserContext";
 import { getServerMessage } from "../lib/apiFeedback";
-import { getAllProducts, getAllStores, getUserProfile } from "../services/AuthService";
-import type { StoreData } from "../types";
+import {
+  getAllProducts,
+  getAllStores,
+  getUserProfile,
+  getVendorDashboard,
+} from "../services/AuthService";
+import {
+  formatOrderCurrency,
+  formatOrderDate,
+  formatOrderStatus,
+  getOrderStatusClasses,
+  shortOrderId,
+} from "../lib/orderUi";
+import type { StoreData, VendorDashboardData } from "../types";
 
 interface ProductSummary {
   activeProducts?: number;
@@ -32,59 +47,74 @@ const DashboardPage = () => {
   const { userName } = useUser();
   const [stores, setStores] = useState<StoreData[]>([]);
   const [products, setProducts] = useState<ProductSummary | null>(null);
+  const [dashboard, setDashboard] = useState<VendorDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
   const [storeError, setStoreError] = useState("");
   const [productError, setProductError] = useState("");
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
+    setDashboardError("");
     setStoreError("");
     setProductError("");
 
-    try {
-      const profileResponse = await getUserProfile();
-      const vendorUuid = profileResponse.data?.data?.vendorResp?.uuid;
-
-      if (!vendorUuid) {
-        setStoreError("We could not find a vendor profile for this account.");
-        setProducts(null);
-        return;
-      }
-
-      const [storesResult, productsResult] = await Promise.allSettled([
-        getAllStores(vendorUuid),
+    const [profileResult, dashboardResult, productsResult] =
+      await Promise.allSettled([
+        getUserProfile(),
+        getVendorDashboard(),
         getAllProducts(),
       ]);
 
-      if (storesResult.status === "fulfilled") {
-        setStores(storesResult.value.data?.data || []);
+    if (dashboardResult.status === "fulfilled") {
+      setDashboard(dashboardResult.value.data?.data || null);
+    } else {
+      setDashboard(null);
+      setDashboardError(
+        getServerMessage(
+          dashboardResult.reason,
+          "Could not load your dashboard summary."
+        )
+      );
+    }
+
+    if (productsResult.status === "fulfilled") {
+      setProducts(productsResult.value.data?.data || null);
+    } else {
+      setProducts(null);
+      setProductError(
+        getServerMessage(
+          productsResult.reason,
+          "Could not load your product summary."
+        )
+      );
+    }
+
+    if (profileResult.status === "fulfilled") {
+      const vendorUuid = profileResult.value.data?.data?.vendorResp?.uuid;
+
+      if (vendorUuid) {
+        try {
+          const storesResponse = await getAllStores(vendorUuid);
+          setStores(storesResponse.data?.data || []);
+        } catch (error) {
+          setStores([]);
+          setStoreError(
+            getServerMessage(error, "Could not load your stores.")
+          );
+        }
       } else {
         setStores([]);
-        setStoreError(
-          getServerMessage(storesResult.reason, "Could not load your stores.")
-        );
+        setStoreError("We could not find a vendor profile for this account.");
       }
-
-      if (productsResult.status === "fulfilled") {
-        setProducts(productsResult.value.data?.data || null);
-      } else {
-        setProducts(null);
-        setProductError(
-          getServerMessage(
-            productsResult.reason,
-            "Could not load your product summary."
-          )
-        );
-      }
-    } catch (error) {
+    } else {
       setStores([]);
-      setProducts(null);
       setStoreError(
-        getServerMessage(error, "Could not load your vendor dashboard.")
+        getServerMessage(profileResult.reason, "Could not load your vendor profile.")
       );
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -100,27 +130,29 @@ const DashboardPage = () => {
   const metrics = useMemo(
     () => [
       {
-        label: "Stores",
-        value: storeError ? "—" : stores.length,
-        icon: MdOutlineStorefront,
+        label: "Average revenue",
+        value: dashboardError
+          ? "—"
+          : formatOrderCurrency(dashboard?.averageRevenue),
+        icon: MdPayments,
       },
       {
-        label: "Total products",
-        value: productError ? "—" : totalProducts,
-        icon: MdInventory2,
+        label: "Orders",
+        value: dashboardError ? "—" : dashboard?.orders ?? 0,
+        icon: MdReceiptLong,
       },
       {
-        label: "Active products",
-        value: productError ? "—" : products?.activeProducts ?? 0,
-        icon: MdShoppingBag,
+        label: "Store visits",
+        value: dashboardError ? "—" : dashboard?.storeVisits ?? 0,
+        icon: MdPeople,
       },
       {
-        label: "Products in stock",
-        value: productError ? "—" : products?.productsInStock ?? 0,
-        icon: MdCheck,
+        label: "Product views",
+        value: dashboardError ? "—" : dashboard?.productViews ?? 0,
+        icon: MdVisibility,
       },
     ],
-    [productError, products, storeError, stores.length, totalProducts]
+    [dashboard, dashboardError]
   );
 
   return (
@@ -131,7 +163,7 @@ const DashboardPage = () => {
             <div className="max-w-2xl">
               <p className="text-sm font-medium text-white/70">Vendor dashboard</p>
               <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
-                Welcome back, {userName}
+                Welcome back, {dashboard?.name || userName}
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-white/75">
                 {hasStore
@@ -149,7 +181,7 @@ const DashboardPage = () => {
           </div>
         </section>
 
-        {(storeError || productError) && !loading && (
+        {(dashboardError || storeError || productError) && !loading && (
           <section
             role="alert"
             className="flex flex-col gap-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800 sm:flex-row sm:items-center sm:justify-between"
@@ -158,7 +190,9 @@ const DashboardPage = () => {
               <MdErrorOutline aria-hidden="true" className="mt-0.5 shrink-0 text-xl" />
               <div>
                 <p className="font-semibold">Some dashboard data is unavailable</p>
-                <p className="mt-1 text-sm">{storeError || productError}</p>
+                <p className="mt-1 text-sm">
+                  {dashboardError || storeError || productError}
+                </p>
               </div>
             </div>
             <button
@@ -178,7 +212,7 @@ const DashboardPage = () => {
                 Business overview
               </h2>
               <p className="mt-1 text-sm text-gray-500">
-                A quick summary of your current catalogue.
+                Live performance data from your vendor account.
               </p>
             </div>
           </div>
@@ -199,7 +233,9 @@ const DashboardPage = () => {
                       <Icon aria-hidden="true" className="text-xl" />
                     </span>
                   </div>
-                  <p className="mt-5 text-3xl font-bold text-gray-950">{value}</p>
+                  <p className="mt-5 break-words text-2xl font-bold text-gray-950 sm:text-3xl">
+                    {value}
+                  </p>
                 </article>
               ))}
             </div>
@@ -293,6 +329,162 @@ const DashboardPage = () => {
                 >
                   Create store
                 </Link>
+              </div>
+            )}
+          </section>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <section
+            className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6"
+            aria-labelledby="best-products-heading"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="best-products-heading"
+                  className="text-lg font-semibold text-gray-950"
+                >
+                  Best-performing products
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Products with the strongest sales performance.
+                </p>
+              </div>
+              {!dashboardError && (
+                <span className="shrink-0 rounded-full bg-[#EEF3F2] px-3 py-1 text-xs font-semibold text-primary">
+                  {dashboard?.activeCustomers ?? 0} active customers
+                </span>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="mt-6 space-y-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-14 animate-pulse rounded-lg bg-gray-100"
+                  />
+                ))}
+              </div>
+            ) : dashboard?.bestPerformingProducts?.length ? (
+              <div className="mt-5 overflow-x-auto">
+                <table className="w-full min-w-[420px] text-left text-sm">
+                  <thead className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="pb-3 font-semibold">Product</th>
+                      <th className="pb-3 text-right font-semibold">Units sold</th>
+                      <th className="pb-3 text-right font-semibold">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {dashboard.bestPerformingProducts.map((product, index) => (
+                      <tr key={`${product.productName || "product"}-${index}`}>
+                        <td className="py-4 pr-4 font-medium text-gray-900">
+                          {product.productName || "Unnamed product"}
+                        </td>
+                        <td className="py-4 text-right text-gray-600">
+                          {product.unitsSold ?? 0}
+                        </td>
+                        <td className="py-4 text-right font-medium text-gray-900">
+                          {formatOrderCurrency(product.price)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center">
+                <MdInventory2
+                  aria-hidden="true"
+                  className="mx-auto text-3xl text-gray-400"
+                />
+                <p className="mt-3 font-semibold text-gray-900">
+                  No product performance yet
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Sales data will appear here after customers place orders.
+                </p>
+              </div>
+            )}
+          </section>
+
+          <section
+            className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6"
+            aria-labelledby="recent-orders-heading"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="recent-orders-heading"
+                  className="text-lg font-semibold text-gray-950"
+                >
+                  Recent orders
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  The latest orders returned by your dashboard.
+                </p>
+              </div>
+              {!dashboardError && (
+                <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                  {dashboard?.customers ?? 0} customers
+                </span>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="mt-6 space-y-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-14 animate-pulse rounded-lg bg-gray-100"
+                  />
+                ))}
+              </div>
+            ) : dashboard?.recentOrders?.length ? (
+              <div className="mt-5 space-y-3">
+                {dashboard.recentOrders.map((order) => (
+                  <article
+                    key={order.uuid || order.id}
+                    className="flex flex-col gap-3 rounded-lg border border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-gray-900">
+                          {shortOrderId(order.uuid)}
+                        </p>
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${getOrderStatusClasses(
+                            order.status
+                          )}`}
+                        >
+                          {formatOrderStatus(order.status)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {formatOrderDate(order.createdAt)} · {order.noOfItems ?? 0}{" "}
+                        item{order.noOfItems === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <p className="shrink-0 font-semibold text-gray-950">
+                      {formatOrderCurrency(order.amount)}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center">
+                <MdReceiptLong
+                  aria-hidden="true"
+                  className="mx-auto text-3xl text-gray-400"
+                />
+                <p className="mt-3 font-semibold text-gray-900">
+                  No recent orders
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  New customer orders will appear here.
+                </p>
               </div>
             )}
           </section>

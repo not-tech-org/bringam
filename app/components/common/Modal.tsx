@@ -24,6 +24,11 @@ const Modal: React.FC<ModalProps> = ({
   contentClassName,
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -38,7 +43,7 @@ const Modal: React.FC<ModalProps> = ({
       );
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
 
       if (event.key === "Tab") {
         const focusableElements = getFocusableElements();
@@ -71,7 +76,7 @@ const Modal: React.FC<ModalProps> = ({
       document.removeEventListener("keydown", handleKeyDown);
       previouslyFocused?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -108,7 +113,14 @@ const Modal: React.FC<ModalProps> = ({
             <RxCross2 className="text-lg" />
           </motion.button>
         )}
-        <div className={cn("p-5", contentClassName)}>{children}</div>
+        <div
+          className={cn(
+            "max-h-[calc(100vh-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain p-5",
+            contentClassName
+          )}
+        >
+          {children}
+        </div>
       </motion.div>
     </div>,
     document.body
