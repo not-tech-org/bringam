@@ -6,12 +6,14 @@ import {
   safeLocalStorage,
   updateUserData,
   getUserTypeInfo,
+  getInitials,
 } from "@/app/lib/utils";
 
 interface UserContextType {
   isVendorView: boolean;
   isVendorCapable: boolean;
   userName: string;
+  userInitials: string;
   switchToCustomer: () => void;
   switchToVendor: () => void;
   getDefaultRoute: () => string;
@@ -26,6 +28,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isVendorView, setIsVendorView] = useState(false);
   const [isVendorCapable, setIsVendorCapable] = useState(false);
   const [userName, setUserName] = useState("User");
+  const [userInitials, setUserInitials] = useState("U");
   const router = useRouter();
 
   // Initialize and update user state
@@ -52,6 +55,16 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       displayName = profileData.vendorResp.businessName;
     }
     setUserName(displayName);
+
+    const ownerName = [
+      profileData?.customerResp?.firstName,
+      profileData?.customerResp?.lastName,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    setUserInitials(
+      getInitials(ownerName || profileData?.vendorResp?.businessName)
+    );
   };
 
   // Get the appropriate default route based on user type
@@ -120,6 +133,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         isVendorView,
         isVendorCapable,
         userName,
+        userInitials,
         switchToCustomer,
         switchToVendor,
         getDefaultRoute,

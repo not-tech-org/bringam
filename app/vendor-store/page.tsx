@@ -2,14 +2,11 @@
 
 import React, { ChangeEvent, useEffect, useState } from "react";
 import Wrapper from "../components/wrapper/Wrapper";
-import Button from "../components/common/Button";
 import { FaPlus } from "react-icons/fa";
 import Modal from "../components/common/Modal";
-import CreateStore from "../components/store/forms/CreateStore";
 import EditStore from "../components/store/forms/EditStore";
 import ConfirmationModal from "../components/common/ConfirmationModal";
 import {
-  createVendorStore,
   getUserProfile,
   getAllStores,
   getStoreById,
@@ -26,7 +23,6 @@ import { StoreFormData, StoreData, Country, State, City } from "../types";
 import { SkeletonCard } from "../components/common/Skeleton";
 
 const VendorStore = () => {
-  const [isOpen, setIsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
   const [editingStoreId, setEditingStoreId] = useState<string>("");
@@ -41,11 +37,8 @@ const VendorStore = () => {
   const [loading, setLoading] = useState(true);
   const [hasFetched, setHasFetched] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
-  const [createLoading, setCreateLoading] = useState(false);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
 
-  const openModal = () => setIsOpen(true);
-  const closeModal = () => setIsOpen(false);
   const openEditModal = () => setIsEditOpen(true);
   const closeEditModal = () => {
     setIsEditOpen(false);
@@ -87,34 +80,6 @@ const VendorStore = () => {
     setDeactivatingStoreName("");
   };
 
-  const [state, setState] = useState<StoreFormData>({
-    name: "",
-    description: "",
-    phoneNumber: "",
-    email: "",
-    website: "",
-    category: "",
-    country: "",
-    street: "",
-    city: "",
-    lga: "",
-    state: "",
-    landmark: "",
-    address: {
-      city: 0,
-      country: 0,
-      landmark: "",
-      lga: "",
-      state: 0,
-      street: "",
-      longitude: 0,
-      latitude: 0,
-    },
-    profilePhotoUrl: "",
-    coverPhotoUrl: "",
-    active: true,
-  });
-
   const [editState, setEditState] = useState<StoreFormData>({
     name: "",
     description: "",
@@ -143,13 +108,6 @@ const VendorStore = () => {
     active: true,
   });
 
-  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setState((prevState) => ({
-      ...prevState,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
   const onEditChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -157,77 +115,6 @@ const VendorStore = () => {
       ...prevState,
       [e.target.name]: e.target.value,
     }));
-  };
-
-  const {
-    name,
-    description,
-    phoneNumber,
-    email,
-    website,
-    country,
-    street,
-    city,
-    lga,
-    state: stateValue,
-    landmark,
-  } = state;
-
-  const onCreateVendorStore = async () => {
-    setCreateLoading(true);
-    const reqBody = {
-      vendorUuid: vendorUuid,
-      name,
-      description,
-      phoneNumber,
-      email,
-      website,
-      address: {
-        city: parseInt(city) || Math.floor(Math.random() * 1000) + 1, // Use selected city ID
-        country: parseInt(country) || Math.floor(Math.random() * 100) + 1, // Use selected country ID
-        landmark,
-        lga,
-        state: parseInt(stateValue) || Math.floor(Math.random() * 100) + 1, // Use selected state ID
-        street,
-        longitude: 0, // Default to 0, can be updated later
-        latitude: 0, // Default to 0, can be updated later
-      },
-      profilePhotoUrl: "",
-      coverPhotoUrl: "",
-      active: true,
-    };
-
-    try {
-      const response = await createVendorStore(reqBody);
-
-      // Reset form
-      setState((prevState) => ({
-        ...prevState,
-        name: "",
-        description: "",
-        phoneNumber: "",
-        email: "",
-        website: "",
-        country: "",
-        street: "",
-        lga: "",
-        city: "",
-        state: "",
-        landmark: "",
-      }));
-
-      // Refresh stores list after creating a new store
-      if (vendorUuid) {
-        await fetchVendorStores(vendorUuid);
-      }
-
-      // Don't close modal here - let the success step handle it
-    } catch (error) {
-      console.error("Error creating vendor store:", error);
-      throw error; // Re-throw to let the component handle the error
-    } finally {
-      setCreateLoading(false);
-    }
   };
 
   const onUpdateVendorStore = async () => {
@@ -455,27 +342,6 @@ const VendorStore = () => {
     }
   };
 
-  const handleCountryChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const countryId = e.target.value;
-    setState((prevState) => ({
-      ...prevState,
-      country: countryId,
-      state: "", // Reset state when country changes
-      city: "", // Reset city when country changes
-    }));
-
-    // Fetch states for the selected country
-    if (countryId) {
-      fetchStates(countryId);
-    } else {
-      setStates([]);
-    }
-    // Clear cities when country changes
-    setCities([]);
-  };
-
   const handleEditCountryChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -495,24 +361,6 @@ const VendorStore = () => {
     }
     // Clear cities when country changes
     setCities([]);
-  };
-
-  const handleStateChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const stateId = e.target.value;
-    setState((prevState) => ({
-      ...prevState,
-      state: stateId,
-      city: "", // Reset city when state changes
-    }));
-
-    // Fetch cities for the selected state
-    if (stateId) {
-      fetchCities(stateId);
-    } else {
-      setCities([]);
-    }
   };
 
   const handleEditStateChange = (
@@ -541,23 +389,6 @@ const VendorStore = () => {
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={closeModal}>
-        <div className="text-black">
-          <CreateStore
-            handleSubmit={onCreateVendorStore}
-            state={state}
-            onChange={onChange}
-            onClose={closeModal}
-            loading={createLoading}
-            countries={countries}
-            states={states}
-            cities={cities}
-            onCountryChange={handleCountryChange}
-            onStateChange={handleStateChange}
-          />
-        </div>
-      </Modal>
-
       <Modal isOpen={isEditOpen} onClose={closeEditModal}>
         <div className="text-black">
           <EditStore
@@ -592,10 +423,13 @@ const VendorStore = () => {
           <div className="flex items-center justify-between mb-6">
             <p className="font-semibold text-lg">My stores</p>
             <div>
-              <Button type="button" primary style="w-fit" onClick={openModal}>
+              <Link
+                href="/vendor-store/create"
+                className="btn-primary my-8 inline-flex w-fit items-center justify-center gap-2 px-[1.3em] py-[.9em] text-sm"
+              >
                 Create Store
                 <FaPlus className="ml-2" />
-              </Button>
+              </Link>
             </div>
           </div>
 
@@ -692,17 +526,25 @@ const VendorStore = () => {
                 </div>
               ))
             ) : hasFetched ? (
-              <div className="col-span-full flex flex-col justify-center items-center py-12">
+              <div className="col-span-full flex flex-col justify-center items-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12">
                 <Image
                   src="/icons/store.svg"
-                  alt="No stores"
+                  alt=""
                   width={48}
                   height={48}
                   className="opacity-50 mb-4"
                 />
-                <p className="text-[#666668] text-center">
-                  No stores found. Create your first store to get started!
+                <p className="font-semibold text-gray-900">Create your first store</p>
+                <p className="mt-1 max-w-md text-center text-sm leading-6 text-[#666668]">
+                  Your store holds the contact, location, and catalogue details customers need before they can buy from you.
                 </p>
+                <Link
+                  href="/vendor-store/create"
+                  className="btn-primary mt-5 inline-flex w-fit items-center justify-center gap-2 px-[1.3em] py-[.9em] text-sm"
+                >
+                  Create Store
+                  <FaPlus className="ml-2" />
+                </Link>
               </div>
             ) : null}
           </div>

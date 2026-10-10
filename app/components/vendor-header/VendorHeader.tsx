@@ -18,8 +18,13 @@ export default function VendorHeader({ title }: VendorHeaderProps) {
   const route = pathname.split("/").join("")?.split("-").pop() || "";
   const formattedRoute = route.charAt(0).toUpperCase() + route.slice(1);
 
-  const { isVendorView, isVendorCapable, switchToCustomer, switchToVendor } =
-    useUser();
+  const {
+    isVendorView,
+    isVendorCapable,
+    userInitials,
+    switchToCustomer,
+    switchToVendor,
+  } = useUser();
 
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
@@ -67,13 +72,12 @@ export default function VendorHeader({ title }: VendorHeaderProps) {
           <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></span>
         </button>
         <div className="relative">
-          <Image
-            src="/images/avatar1.svg"
-            alt="User avatar"
-            width={32}
-            height={32}
-            className="rounded-full"
-          />
+          <span
+            aria-label={`Account: ${userInitials}`}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFD700] text-xs font-bold tracking-wide text-primary ring-2 ring-gray-100"
+          >
+            {userInitials}
+          </span>
           <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></span>
         </div>
       </div>

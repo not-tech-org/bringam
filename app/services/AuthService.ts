@@ -7,6 +7,7 @@ import type {
   StoreProductResponse,
 } from "../types/storeProduct";
 import type { CreateProductPayload } from "../types/product";
+import type { ApiResponse, StoreData, VendorDashboardData } from "../types";
 
 const baseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL;
@@ -100,7 +101,10 @@ export const resetPasswordApi = async (data: {
 };
 
 export const createVendorStore = async (reqBody: object) => {
-  const response = await vendorApi.post("/stores", reqBody);
+  const response = await vendorApi.post<ApiResponse<StoreData>>(
+    "/stores",
+    reqBody
+  );
   return response;
 };
 
@@ -131,7 +135,9 @@ export const getUserProfile = async () => {
 
 /** Vendor GET /stores — requires vendorUuid (lists that vendor’s stores only). */
 export const getAllStores = async (vendorUuid: string) => {
-  const response = await vendorApi.get(`/stores?vendorUuid=${vendorUuid}`);
+  const response = await vendorApi.get<ApiResponse<StoreData[]>>("/stores", {
+    params: { vendorUuid },
+  });
   return response;
 };
 
@@ -173,6 +179,14 @@ export const getCitiesByStateId = async (stateId: string | number) => {
 
 export const getAllProducts = async () => {
   const response = await vendorApi.get("/products");
+  return response;
+};
+
+/** Vendor GET /vendor-dashboard — summary data for the authenticated vendor. */
+export const getVendorDashboard = async () => {
+  const response = await vendorApi.get<ApiResponse<VendorDashboardData>>(
+    "/vendor-dashboard"
+  );
   return response;
 };
 

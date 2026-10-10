@@ -1,10 +1,9 @@
 "use client";
 
-import React, { ChangeEvent, useState } from "react";
+import React, { useState } from "react";
 import { RxExit } from "react-icons/rx";
 import Input from "../components/common/Input";
 import Button from "../components/common/Button";
-import Image from "next/image";
 import { becomeVendorApi } from "../services/AuthService";
 import { businessCategoryDropdownData } from "../components/common/BringAmData";
 import MultiSelectDropdown from "../components/common/MultiSelectDropdown";
@@ -14,6 +13,8 @@ import { TiTimes } from "react-icons/ti";
 import { useRouter } from "next/navigation";
 import Toastify from "toastify-js";
 import { safeLocalStorage, updateUserData } from "@/app/lib/utils";
+import AuthBrand from "../components/auth/AuthBrand";
+import AuthVisualPanel from "../components/auth/AuthVisualPanel";
 
 interface StateType {
   businessName: string;
@@ -193,17 +194,19 @@ const VendorAuth = () => {
     }
 
     setErrors(newErrors);
-    return isValid;
+    return { isValid, newErrors };
   };
 
   const onBecomeAVendor = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    const { isValid, newErrors } = validateForm();
+
+    if (!isValid) {
       // Show only one error message to avoid overwhelming the user
-      const errorKey = Object.keys(errors)[0] as keyof typeof errors;
-      if (errorKey && errors[errorKey]) {
-        showToast(errors[errorKey]!, "error");
+      const errorKey = Object.keys(newErrors)[0] as keyof typeof newErrors;
+      if (errorKey && newErrors[errorKey]) {
+        showToast(newErrors[errorKey]!, "error");
       }
       return;
     }
@@ -269,30 +272,46 @@ const VendorAuth = () => {
   };
 
   return (
-    <div className="flex h-screen w-full text-black">
-      {/* Left side - Form section */}
-      <div className="w-1/2 bg-white flex flex-col overflow-y-auto">
-        <div className="flex justify-between p-6">
-          <p className="font-bold text-2xl">Bringam</p>
-          <button
-            onClick={handleSwitchToCustomer}
-            className="flex items-center justify-between bg-black text-white gap-3 p-2 px-4 rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            <RxExit />
-            <p>Switch to customer</p>
-          </button>
-        </div>
+    <main className="h-[100vh] min-h-[100vh] max-h-[100vh] w-[100vw] min-w-[100vw] max-w-[100vw] overflow-hidden bg-white text-black lg:grid lg:grid-cols-[2fr_3fr]">
+      <AuthVisualPanel
+        imageSrc="/images/vendor-signup.png"
+        imageAlt="A vendor preparing a customer order in her store"
+        eyebrow="Sell with Bringam"
+        title="Turn your products into a growing online business."
+        description="Set up your profile, list your products, and manage customer orders from one place."
+      />
 
-        <div className="flex-grow flex items-center justify-center">
-          <div className="w-[90%] max-w-[604px] p-4">
-            <div className="mb-6">
-              <h2 className="font-bold text-xl md:text-2xl">Become a vendor</h2>
-              <p className="text-gray-500 text-xs md:text-sm mt-1">
-                Basic vendor data is required to create a new vendor profile.
+      <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-100 px-5 py-5 sm:px-8 lg:border-b-0 lg:px-12 lg:py-7">
+          <AuthBrand />
+          <button
+            type="button"
+            onClick={handleSwitchToCustomer}
+            className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 sm:px-4"
+          >
+            <RxExit aria-hidden="true" />
+            <span className="hidden sm:inline">Switch to customer</span>
+            <span className="sm:hidden">Customer view</span>
+          </button>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center px-5 py-10 sm:px-8 lg:px-12 lg:py-8">
+            <div className="w-full max-w-[620px]">
+            <div className="mb-8">
+              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#586a65]">
+                Vendor onboarding
+              </p>
+              <h1 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+                Create your vendor profile
+              </h1>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-gray-600 sm:text-base">
+                Tell us about your business so you can start listing products
+                and managing orders on Bringam.
               </p>
             </div>
 
-            <form onSubmit={onBecomeAVendor}>
+            <form onSubmit={onBecomeAVendor} noValidate>
               <Input
                 label="Business name"
                 type="text"
@@ -301,19 +320,27 @@ const VendorAuth = () => {
                 value={businessName}
                 onChange={handleInputChange}
                 placeholder="Enter business name"
-                className="border-gray-300 rounded w-full mb-5"
+                className="mb-6 w-full rounded-lg border border-gray-300 bg-white transition-colors focus:border-gray-700 focus:ring-2 focus:ring-gray-200"
                 error={errors.businessName}
+                required
+                autoComplete="organization"
               />
 
-              <div className="mb-5">
-                <h5 className="text-black3 text-sm md:text-base font-semibold mb-2">
-                  Category
-                </h5>
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-semibold text-gray-900 sm:text-base">
+                  Business categories
+                </label>
                 <MultiSelectDropdown
                   options={businessCategoryDropdownData}
                   onSelect={handleSelect}
-                  className="!w-full bg-white !rounded-lg border border-gray-300"
-                  placeholder="Select a category"
+                  className="!h-16 !w-full !rounded-lg border border-gray-300 bg-white !px-6 transition-colors hover:border-gray-500"
+                  placeholder={
+                    categories.length > 0
+                      ? `${categories.length} categor${
+                          categories.length === 1 ? "y" : "ies"
+                        } selected`
+                      : "Select business categories"
+                  }
                   existingSeleted={categories}
                 />
                 {errors.categories && (
@@ -324,14 +351,14 @@ const VendorAuth = () => {
               </div>
 
               {categories.length > 0 && (
-                <div className="flex items-center justify-start flex-wrap w-full gap-2 mb-5">
+                <div className="mb-6 flex w-full flex-wrap items-center justify-start gap-2">
                   {businessCategoryDropdownData
                     .filter((item: any) =>
                       categories.some((dept) => dept.value === item.value)
                     )
                     .map((item) => (
                       <div
-                        className="flex items-center justify-between gap-x-2 rounded-full py-[8px] px-[8px] bg-grayscalBg border border-gray-200 w-fit"
+                        className="flex w-fit items-center justify-between gap-x-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2"
                         key={item.value}
                       >
                         <h4 className="text-sm text-primary font-medium leading-[16px]">
@@ -342,21 +369,35 @@ const VendorAuth = () => {
                 </div>
               )}
 
-              <div className="mb-5">
-                <label className="text-black3 text-sm md:text-base font-semibold mb-2 block">
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-semibold text-gray-900 sm:text-base">
                   Business document
                 </label>
-                <div className="relative flex items-center justify-center text-sm border-dashed border-2 border-gray-400 rounded-lg w-full h-[121px]">
+                <div
+                  className={`relative flex min-h-[132px] w-full items-center justify-center rounded-xl border-2 border-dashed text-sm transition-colors ${
+                    errors.imageFile
+                      ? "border-red-400 bg-red-50/40"
+                      : "border-gray-300 bg-gray-50/70 hover:border-gray-500 hover:bg-gray-50"
+                  }`}
+                >
                   {fileName ? (
                     <>
-                      <div className="absolute top-2 right-2 cursor-pointer">
+                      <button
+                        type="button"
+                        aria-label="Remove uploaded business document"
+                        onClick={handleRemoveFile}
+                        className="absolute right-3 top-3 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                      >
                         <TiTimes
-                          className="text-[20px] text-white bg-red-500 rounded-full p-1"
-                          onClick={handleRemoveFile}
+                          aria-hidden="true"
+                          className="rounded-full bg-red-500 p-1 text-[24px] text-white"
                         />
-                      </div>
+                      </button>
 
-                      <div className="text-center">
+                      <div className="px-12 text-center">
+                        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+                          Document attached
+                        </p>
                         <div>
                           <TruncatedText
                             text={fileName}
@@ -371,10 +412,18 @@ const VendorAuth = () => {
                     <div className="rounded-md">
                       <label
                         htmlFor="file-input"
-                        className="text-center font-normal text-base flex items-center justify-center flex-col py-[1rem] text-gray-700 px-2 gap-[.5rem] cursor-pointer"
+                        className="flex cursor-pointer flex-col items-center justify-center gap-2 px-4 py-4 text-center text-base font-semibold text-gray-800 focus-within:outline-none"
                       >
-                        <PiUploadSimpleBold className="text-[24px]" />
-                        Click to attach
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-gray-200">
+                          <PiUploadSimpleBold
+                            aria-hidden="true"
+                            className="text-[22px]"
+                          />
+                        </span>
+                        Upload business document
+                        <span className="text-xs font-normal text-gray-500">
+                          JPG, JPEG, PNG or PDF, up to 3MB
+                        </span>
                       </label>
                     </div>
                   )}
@@ -392,35 +441,23 @@ const VendorAuth = () => {
                     {errors.imageFile}
                   </p>
                 )}
-                <p className="text-gray-500 text-xs mt-1">
-                  Allowed file types: JPG, JPEG, PNG, PDF (max 3MB)
-                </p>
               </div>
 
               <Button
                 type="submit"
                 primary
-                className="w-full mt-6"
+                className="!my-0 min-h-12 w-full rounded-lg text-base font-semibold focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                 isLoading={isLoading}
+                disabled={isLoading}
               >
-                Create account
+                Create vendor account
               </Button>
             </form>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Right side - Image section with dark background */}
-      <div className="w-1/2 bg-[#3A4744] text-white flex flex-col justify-center items-center">
-        <Image
-          src="/images/vendor.png"
-          width={550}
-          height={680}
-          alt="Vendor"
-          className="object-contain"
-        />
-      </div>
-    </div>
+      </section>
+    </main>
   );
 };
 

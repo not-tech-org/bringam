@@ -177,10 +177,8 @@ const EditStore: React.FC<EditStoreProps> = ({
                 placeholder="Enter your store's email"
                 className="border-gray-300 rounded w-100 mb-3"
                 required
+                error={emailError}
               />
-              {emailError && (
-                <p className="text-red-500 text-xs mt-1">{emailError}</p>
-              )}
               <Input
                 label="Website (Optional)"
                 type="url"

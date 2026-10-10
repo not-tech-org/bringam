@@ -1,10 +1,10 @@
 import React, {
   ChangeEvent,
-  ChangeEventHandler,
   KeyboardEventHandler,
   useState,
 } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { cn } from "@/app/lib/utils";
 
 type InputProps = {
   label?: string;
@@ -26,6 +26,7 @@ type InputProps = {
   min?: string | number;
   max?: string | number;
   step?: string | number;
+  autoComplete?: string;
 };
 
 const Input: React.FC<InputProps> = ({
@@ -48,6 +49,7 @@ const Input: React.FC<InputProps> = ({
   min,
   max,
   step,
+  autoComplete,
 }) => {
   // Add state for password visibility
   const [showPassword, setShowPassword] = useState(false);
@@ -83,7 +85,14 @@ const Input: React.FC<InputProps> = ({
           {label}
         </label>
       )}
-      {helperText && <p className="text-xs text-gray-500 mb-2">{helperText}</p>}
+      {helperText && (
+        <p
+          id={`${id || name}-helper`}
+          className="mb-2 text-xs text-gray-500"
+        >
+          {helperText}
+        </p>
+      )}
       <div className="relative w-full">
         {prefix && (
           <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">
@@ -91,9 +100,13 @@ const Input: React.FC<InputProps> = ({
           </span>
         )}
         <input
-          className={`${className} rounded-md p-2 outline-none w-full ${
-            error ? "border-red-500 border" : ""
-          } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={cn(
+            className,
+            "w-full rounded-md border border-transparent p-2 outline-none transition-colors focus:border-[#8A9997] focus:ring-1 focus:ring-[#8A9997]",
+            error &&
+              "border-red-500 focus:border-red-500 focus:ring-red-500",
+            disabled && "cursor-not-allowed opacity-50"
+          )}
           name={name}
           value={value}
           type={type === "password" && showPassword ? "text" : type}
@@ -107,6 +120,15 @@ const Input: React.FC<InputProps> = ({
           min={min}
           max={max}
           step={step}
+          autoComplete={autoComplete}
+          aria-invalid={Boolean(error)}
+          aria-describedby={
+            error
+              ? `${id || name}-error`
+              : helperText
+              ? `${id || name}-helper`
+              : undefined
+          }
           style={{
             backgroundColor: disabled ? "#E5E5E5" : "#F7F7F7",
             height: 64,
@@ -123,13 +145,18 @@ const Input: React.FC<InputProps> = ({
           <button
             type="button"
             onClick={togglePasswordVisibility}
+            aria-label={showPassword ? "Hide password" : "Show password"}
             className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
           >
             {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
           </button>
         )}
       </div>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {error && (
+        <p id={`${id || name}-error`} className="mt-1 text-sm text-red-500">
+          {error}
+        </p>
+      )}
     </div>
   );
 };
