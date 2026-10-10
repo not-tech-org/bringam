@@ -25,6 +25,24 @@ import StoreCardMenu from "../components/common/StoreCardMenu";
 import { StoreFormData, StoreData, Country, State, City } from "../types";
 import { SkeletonCard } from "../components/common/Skeleton";
 
+const getStoreKey = (store: StoreData) => store.uuid || store.id;
+
+const reconcileStores = (
+  serverStores: StoreData[],
+  recentlyCreatedStore?: StoreData
+) => {
+  if (!recentlyCreatedStore) return serverStores;
+
+  const recentStoreKey = getStoreKey(recentlyCreatedStore);
+  const isAlreadyIncluded = recentStoreKey
+    ? serverStores.some((store) => getStoreKey(store) === recentStoreKey)
+    : false;
+
+  return isAlreadyIncluded
+    ? serverStores
+    : [recentlyCreatedStore, ...serverStores];
+};
+
 const VendorStore = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -183,14 +201,14 @@ const VendorStore = () => {
       email,
       website,
       address: {
-        city: parseInt(city) || Math.floor(Math.random() * 1000) + 1, // Use selected city ID
-        country: parseInt(country) || Math.floor(Math.random() * 100) + 1, // Use selected country ID
+        city: Number(city),
+        country: Number(country),
         landmark,
         lga,
-        state: parseInt(stateValue) || Math.floor(Math.random() * 100) + 1, // Use selected state ID
+        state: Number(stateValue),
         street,
-        longitude: 0, // Default to 0, can be updated later
-        latitude: 0, // Default to 0, can be updated later
+        longitude: 0,
+        latitude: 0,
       },
       profilePhotoUrl: "",
       coverPhotoUrl: "",
@@ -199,6 +217,13 @@ const VendorStore = () => {
 
     try {
       const response = await createVendorStore(reqBody);
+      const createdStore = response.data.data;
+
+      if (createdStore) {
+        setStores((currentStores) =>
+          reconcileStores(currentStores, createdStore)
+        );
+      }
 
       // Reset form
       setState((prevState) => ({
@@ -218,7 +243,7 @@ const VendorStore = () => {
 
       // Refresh stores list after creating a new store
       if (vendorUuid) {
-        await fetchVendorStores(vendorUuid);
+        await fetchVendorStores(vendorUuid, createdStore);
       }
 
       // Don't close modal here - let the success step handle it
@@ -411,14 +436,25 @@ const VendorStore = () => {
     }
   };
 
-  const fetchVendorStores = async (uuid: string) => {
+  const fetchVendorStores = async (
+    uuid: string,
+    recentlyCreatedStore?: StoreData
+  ) => {
     try {
       setLoading(true);
       const response = await getAllStores(uuid);
-      setStores(response.data.data || []);
+      setStores(
+        reconcileStores(response.data.data || [], recentlyCreatedStore)
+      );
     } catch (error) {
       console.error("Error fetching vendor stores:", error);
-      setStores([]);
+      if (recentlyCreatedStore) {
+        setStores((currentStores) =>
+          reconcileStores(currentStores, recentlyCreatedStore)
+        );
+      } else {
+        setStores([]);
+      }
     } finally {
       setLoading(false);
       setHasFetched(true);

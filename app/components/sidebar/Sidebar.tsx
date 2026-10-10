@@ -57,10 +57,14 @@ const Sidebar = () => {
 
   const vendorMenuItems = [
     { path: "/dashboard", label: "Dashboard", icon: "/icons/all.svg" },
-    { path: "/products", label: "Products", icon: "/icons/headset.svg" },
-    { path: "/transactions", label: "Transactions", icon: "/icons/heart.svg" },
-    { path: "/orders", label: "Orders", icon: "/icons/electronics.svg" },
-    { path: "/vendor-store", label: "Stores", icon: "/icons/phone.svg" },
+    { path: "/vendor-store", label: "Stores", icon: "/icons/store.svg" },
+    { path: "/products", label: "Products", icon: "/icons/box.svg" },
+    { path: "/orders", label: "Orders", icon: "/icons/order.svg" },
+    {
+      path: "/transactions",
+      label: "Transactions",
+      icon: "/icons/cartIcon.svg",
+    },
   ];
 
   const vendorPersonalItems = [
@@ -107,8 +111,8 @@ const Sidebar = () => {
             alt=""
             width={16}
             height={16}
-            className={`transition-opacity duration-200 ${
-              isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100"
+            className={`brightness-0 invert transition-opacity duration-200 ${
+              isActive ? "opacity-100" : "opacity-70 group-hover:opacity-100"
             }`}
           />
           <span className={`font-medium ${isActive ? "font-bold" : ""}`}>
@@ -157,7 +161,7 @@ const Sidebar = () => {
 
           <div className="mt-6">
             <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-lightArmy">
-                Personal
+              Personal
             </p>
             <div className="text-sm">{personalItems.map(renderMenuItem)}</div>
             <div className="px-3">

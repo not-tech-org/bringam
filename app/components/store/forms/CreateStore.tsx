@@ -80,6 +80,8 @@ const CreateStore: React.FC<CreateStoreProps> = ({
     );
   };
 
+  const canReviewStore = () => Boolean(country && stateValue && city && street);
+
   const handleCreateStore = async () => {
     setIsSubmitting(true);
     try {
@@ -105,7 +107,7 @@ const CreateStore: React.FC<CreateStoreProps> = ({
 
   return (
     <>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={(event) => event.preventDefault()}>
         {step === 0 ? (
           <div>
             <div className="h-32 rounded-lg bg-[#F6F6F6] flex items-center justify-center bg-[url('/icons/storeIcon.svg')] bg-cover bg-center">
@@ -401,7 +403,12 @@ const CreateStore: React.FC<CreateStoreProps> = ({
                 >
                   Back
                 </Button>
-                <Button type="button" primary onClick={() => setStep(2)}>
+                <Button
+                  type="button"
+                  primary
+                  onClick={() => setStep(2)}
+                  disabled={!canReviewStore()}
+                >
                   Review & Submit
                 </Button>
               </div>
