@@ -1,8 +1,7 @@
 import React from "react";
-import Image from "next/image";
 import { MdBusiness, MdPerson } from "react-icons/md";
 import { useUser } from "@/app/contexts/UserContext";
-import { getUserTypeInfo } from "@/app/lib/utils";
+import { getInitials, getUserTypeInfo } from "@/app/lib/utils";
 import Modal from "./Modal";
 import Button from "./Button";
 
@@ -26,6 +25,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const profileName = isVendorView
     ? vendorData?.businessName || fullName || "Vendor account"
     : fullName || vendorData?.businessName || "Customer account";
+  const profileInitials = getInitials(fullName || vendorData?.businessName);
   const hasProfileDetails = Boolean(customerData || vendorData);
 
   const detailRow = (label: string, value?: string) =>
@@ -50,14 +50,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       <div className="max-h-[calc(100vh-2rem)] overflow-y-auto text-black">
         <header className="border-b border-gray-100 px-5 py-6 pr-16 sm:px-7 sm:py-7 sm:pr-20">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#F3F6F5] ring-1 ring-gray-200">
-              <Image
-                src="/icons/Status.png"
-                width={44}
-                height={44}
-                alt="Profile"
-                className="rounded-full"
-              />
+            <div
+              aria-hidden="true"
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#FFD700] text-lg font-bold tracking-wide text-primary ring-4 ring-[#F3F6F5]"
+            >
+              {profileInitials}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#586a65]">

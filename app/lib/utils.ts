@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const getInitials = (value?: string, fallback = "U") => {
+  const nameParts = value?.trim().split(/\s+/).filter(Boolean) || [];
+
+  if (nameParts.length === 0) return fallback.toUpperCase();
+  if (nameParts.length === 1) return nameParts[0].slice(0, 2).toUpperCase();
+
+  return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
+};
+
 // Safe localStorage handling for Next.js
 export const safeLocalStorage = {
   getItem: (key: string, defaultValue?: string) => {

@@ -18,7 +18,7 @@ const menuItemVariants = {
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const { isVendorView, isVendorCapable, userName } = useUser();
+  const { isVendorView, isVendorCapable, userName, userInitials } = useUser();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const openProfileModal = () => setIsProfileModalOpen(true);
@@ -174,13 +174,12 @@ const Sidebar = () => {
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
           >
-            <Image
-              src="/icons/Status.png"
-              width={35}
-              height={35}
-              alt=""
-              className="shrink-0"
-            />
+            <span
+              aria-hidden="true"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD700] text-xs font-bold tracking-wide text-primary ring-2 ring-white/10"
+            >
+              {userInitials}
+            </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-white">{userName}</p>
               <p className="text-[10px]">
