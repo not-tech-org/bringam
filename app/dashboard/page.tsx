@@ -172,7 +172,7 @@ const DashboardPage = () => {
               </p>
             </div>
             <Link
-              href={hasStore ? "/products/add-product" : "/vendor-store?create=true"}
+              href={hasStore ? "/products/add-product" : "/vendor-store/create"}
               className="inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-lg bg-[#FFD700] px-5 py-3 text-sm font-semibold text-primary transition-colors hover:bg-[#f2cd00] focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary"
             >
               {hasStore ? "Add a product" : "Create your first store"}
@@ -263,8 +263,8 @@ const DashboardPage = () => {
                 complete={hasStore}
                 number={1}
                 title="Create your store"
-                description="Add your store name, contact details, category, and location."
-                href="/vendor-store?create=true"
+                description="Add your store name, contact details, and location."
+                href="/vendor-store/create"
                 action={hasStore ? "Manage stores" : "Create store"}
               />
               <SetupStep
@@ -272,7 +272,7 @@ const DashboardPage = () => {
                 number={2}
                 title="Add your first product"
                 description="Create a product, then add it to the right store with its price and stock."
-                href={hasStore ? "/products/add-product" : "/vendor-store?create=true"}
+                href={hasStore ? "/products/add-product" : "/vendor-store/create"}
                 action={hasStore ? (hasProduct ? "Manage products" : "Add product") : "Create store first"}
               />
             </ol>
@@ -324,7 +324,7 @@ const DashboardPage = () => {
                   Create a store before adding products for customers to buy.
                 </p>
                 <Link
-                  href="/vendor-store?create=true"
+                  href="/vendor-store/create"
                   className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-[#2a3a39] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                 >
                   Create store
